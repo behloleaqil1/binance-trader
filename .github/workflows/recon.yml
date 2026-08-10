@@ -1,0 +1,52 @@
+name: server-recon
+
+# READ-ONLY reconnaissance + IOC sweep of the target VPS.
+# Runs ONLY on manual dispatch. Every command is non-mutating (inspect/list/
+# grep). It touches no purocoach files, services, ports, or containers.
+on:
+  workflow_dispatch:
+
+jobs:
+  recon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add SSH key + known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Inspect server (read-only)
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          ssh -o ConnectTimeout=15 "$H" 'bash -s' <<'EOF'
+          echo "===== HOST ====="; hostname; uname -a; uptime; echo
+          echo "===== DISK ====="; df -h / /var 2>/dev/null; echo
+          echo "===== LISTENING PORTS ====="; ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null; echo
+          echo "===== DOCKER ====="; which docker && docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null; echo
+          echo "===== COMPOSE PROJECTS ====="; docker compose ls 2>/dev/null; echo
+          echo "===== RUNNING SERVICES (top 40) ====="; systemctl list-units --type=service --state=running --no-pager 2>/dev/null | head -40; echo
+          echo "===== REVERSE PROXY ====="
+          which nginx && echo "-- nginx sites --" && ls -1 /etc/nginx/sites-enabled/ 2>/dev/null && ls -1 /etc/nginx/conf.d/ 2>/dev/null
+          which caddy && echo "-- caddy present --"
+          [ -f /etc/caddy/Caddyfile ] && echo "-- Caddyfile exists --"
+          docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null | grep -iE 'nginx|caddy|traefik' || true
+          echo
+          echo "===== PUROCOACH FOOTPRINT (locate, do not touch) ====="
+          ls -la /root /home /var/www /opt /srv 2>/dev/null | grep -iE 'puro|coach' || echo "(no obvious purocoach dir in common roots)"
+          docker ps -a --format '{{.Names}}' 2>/dev/null | grep -iE 'puro|coach' || true
+          echo
+          echo "===== IOC SWEEP (aug-06 npm incident) ====="
+          echo "-- C2 address in active connections (166.88.134.62): --"
+          ss -tnp 2>/dev/null | grep '166.88.134.62' || echo "CLEAN: no live C2 connection"
+          echo "-- C2 in any nginx/host config or hosts: --"
+          grep -rIn '166.88.134.62' /etc 2>/dev/null | head || echo "CLEAN: not in /etc"
+          echo "-- suspicious loader signatures (Sec-V header / known XOR key): --"
+          grep -rIn 'q4FZkxX{!h,Sr3=@' / 2>/dev/null | head -5 || true
+          echo "-- root crontab + cron dirs: --"
+          crontab -l 2>/dev/null; ls -la /etc/cron.d/ /etc/cron.daily/ 2>/dev/null
+          echo "-- orphan node -e / suspicious node processes: --"
+          ps aux 2>/dev/null | grep -iE 'node -e|node --eval' | grep -v grep || echo "CLEAN: no inline-node processes"
+          echo "===== END ====="
+          EOF
