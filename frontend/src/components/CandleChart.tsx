@@ -5,7 +5,16 @@ import {
 } from "lightweight-charts";
 import { api } from "../api/client";
 import { useStore } from "../store/useStore";
-import type { Position } from "../api/types";
+import type { Position, Trade } from "../api/types";
+
+/* DB datetimes are naive UTC; append Z if no tz so they align with candle
+   times (which are unix-UTC seconds). */
+const toSec = (s: string | null): UTCTimestamp | null => {
+  if (!s) return null;
+  const iso = /(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : s + "Z";
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : (Math.floor(ms / 1000) as UTCTimestamp);
+};
 
 interface Kline { open_time: number; open: number; high: number; low: number; close: number; volume: number; }
 
@@ -155,6 +164,46 @@ export function CandleChart({ symbol, tf, positions }: {
   /* SL/TP price lines for open positions on this symbol */
   const symPositions = useMemo(
     () => (positions ?? []).filter((p) => p.symbol === symbol), [positions, symbol]);
+
+  /* closed trades on this symbol → entry/exit markers */
+  const [trades, setTrades] = useState<Trade[]>([]);
+  useEffect(() => {
+    let dead = false;
+    api<{ items: Trade[] } | Trade[]>("/trades?limit=200")
+      .then((r) => {
+        if (dead) return;
+        const items = Array.isArray(r) ? r : (r.items ?? []);
+        setTrades(items.filter((t) => t.symbol === symbol));
+      })
+      .catch(() => { /* markers are non-essential; ignore fetch errors */ });
+    return () => { dead = true; };
+    // refetch when a position closes (positions array changes)
+  }, [symbol, positions]);
+
+  /* entry (▲) and exit (▼) markers for trades + open positions */
+  useEffect(() => {
+    const series = candlesRef.current;
+    if (!series) return;
+    type Marker = { time: UTCTimestamp; position: "aboveBar" | "belowBar";
+                    color: string; shape: "arrowUp" | "arrowDown"; text: string };
+    const markers: Marker[] = [];
+    for (const t of trades) {
+      const et = toSec(t.opened_at), xt = toSec(t.closed_at);
+      if (et) markers.push({ time: et, position: "belowBar", color: "#3987e5",
+                             shape: "arrowUp", text: "buy" });
+      if (xt) markers.push({ time: xt, position: "aboveBar",
+                             color: t.pnl >= 0 ? "#0ca30c" : "#d03b3b",
+                             shape: "arrowDown",
+                             text: `${t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}` });
+    }
+    for (const p of symPositions) {
+      const et = toSec(p.opened_at);
+      if (et) markers.push({ time: et, position: "belowBar", color: "#fab219",
+                             shape: "arrowUp", text: "open" });
+    }
+    markers.sort((a, b) => (a.time as number) - (b.time as number));
+    series.setMarkers(markers);
+  }, [trades, symPositions]);
   useEffect(() => {
     const series = candlesRef.current;
     if (!series) return;
@@ -190,6 +239,12 @@ export function CandleChart({ symbol, tf, positions }: {
             <span><span className="key" style={{ background: "#d95926" }} />EMA 50</span>
           </span>
         )}
+        <span className="legend" style={{ margin: 0, marginLeft: "auto" }}>
+          <span>▲ buy</span>
+          <span style={{ color: "var(--good)" }}>▼ exit +</span>
+          <span style={{ color: "var(--crit)" }}>▼ exit −</span>
+          <span style={{ color: "var(--warn)" }}>▲ open</span>
+        </span>
       </div>
       {error && <div className="banner banner-info">chart data unavailable: {error}</div>}
       <div ref={boxRef} className="chart-box" style={{ height: 340 }} />
