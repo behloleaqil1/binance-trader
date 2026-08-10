@@ -14,6 +14,8 @@ _LEVERAGED_SUFFIXES = ("UP", "DOWN", "BULL", "BEAR")
 _EXCLUDED_BASES = {
     "USDC", "TUSD", "FDUSD", "DAI", "USDP", "AEUR", "EUR", "EURI", "GBP", "TRY",
     "BRL", "ARS", "UST", "BUSD", "PAX", "USDS", "XUSD", "USD1",
+    # newer USD-pegged stablecoins — no volatility to trade, unprotectable OCOs
+    "RLUSD", "PYUSD", "USDD", "USDE", "FRAX", "GUSD", "USDG", "USD0", "USDX",
 }
 
 
