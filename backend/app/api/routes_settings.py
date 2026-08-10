@@ -28,6 +28,7 @@ class SettingsUpdate(BaseModel):
     meta_wa_token: str | None = None
     meta_wa_phone_id: str | None = None
     meta_wa_template: str | None = None
+    ntfy_topic: str | None = None
     auto_start: bool | None = None
     cancel_orphan_orders: bool | None = None
     quote_asset: str | None = Field(None, min_length=3, max_length=10)
@@ -50,6 +51,7 @@ async def get_settings_view(settings: Settings = Depends(get_settings)):
         "whatsapp_phone": settings.whatsapp_phone,
         "meta_wa_phone_id": settings.meta_wa_phone_id,
         "meta_wa_template": settings.meta_wa_template,
+        "ntfy_topic": settings.ntfy_topic,
         # secrets: presence + fingerprint only, never the value
         "api_key_fingerprint": settings.masked_key(),
         "api_secret_set": bool(settings.binance_api_secret),

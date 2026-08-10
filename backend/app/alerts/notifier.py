@@ -41,6 +41,8 @@ class Notifier:
             out.append("whatsapp")
         if self.s.whatsapp_phone and self.s.meta_wa_token and self.s.meta_wa_phone_id:
             out.append("meta-whatsapp")
+        if self.s.ntfy_topic:
+            out.append("ntfy")
         return out
 
     @property
@@ -62,10 +64,33 @@ class Notifier:
         await asyncio.gather(self._send_telegram(text),
                              self._send_whatsapp(text),
                              self._send_meta_whatsapp(text),
+                             self._send_ntfy(kind, f"[{env}] {title}", body),
                              self._send_webhook({"env": env, "kind": kind,
                                                  "title": title, "body": body,
                                                  "ts": event.get("ts")}),
                              return_exceptions=True)
+
+    async def _send_ntfy(self, kind: str, title: str, body: str) -> None:
+        """Push to the ntfy.sh app. Free, no account; the user subscribes to
+        the topic on their phone."""
+        if not self.s.ntfy_topic:
+            return
+        # kill/risk alerts ring through even on silent; fills stay default.
+        priority = "urgent" if kind == "kill" else ("high" if kind in _IMPORTANT
+                                                     else "default")
+        tags = {"kill": "rotating_light", "risk": "warning",
+                "stop_loss": "chart_with_downwards_trend",
+                "fill": "moneybag"}.get(kind, "robot")
+        url = f"{self.s.ntfy_server.rstrip('/')}/{self.s.ntfy_topic}"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(url, content=(body or title)[:1500].encode(),
+                                      headers={"Title": title[:200],
+                                               "Priority": priority, "Tags": tags})
+                if r.status_code >= 300:
+                    log.warning("ntfy alert failed: %s %s", r.status_code, r.text[:200])
+        except httpx.HTTPError as e:
+            log.warning("ntfy alert error: %s", e)
 
     async def _send_telegram(self, text: str) -> None:
         if not (self.s.telegram_bot_token and self.s.telegram_chat_id):

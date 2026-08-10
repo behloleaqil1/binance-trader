@@ -16,8 +16,8 @@ from app.db import repo
 OVERRIDABLE = ("binance_api_key", "binance_api_secret", "telegram_bot_token",
                "telegram_chat_id", "alert_webhook_url", "whatsapp_phone",
                "whatsapp_apikey", "meta_wa_token", "meta_wa_phone_id",
-               "meta_wa_template", "auto_start", "cancel_orphan_orders",
-               "quote_asset")
+               "meta_wa_template", "ntfy_topic", "auto_start",
+               "cancel_orphan_orders", "quote_asset")
 SECRET_FIELDS = {"binance_api_key", "binance_api_secret", "telegram_bot_token",
                  "whatsapp_apikey", "meta_wa_token"}
 # Changing these while the engine trades would desync it — require STOPPED.

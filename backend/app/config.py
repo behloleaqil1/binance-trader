@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     # Comma-separated extra CORS origins for a hosted dashboard on another host.
     cors_origins: str = ""
+    # ntfy.sh push notifications: install the ntfy app, subscribe to this topic.
+    # Anyone who knows the topic can send you messages, so keep it unguessable.
+    ntfy_topic: str = ""
+    ntfy_server: str = "https://ntfy.sh"
 
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
