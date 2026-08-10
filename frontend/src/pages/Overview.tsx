@@ -37,7 +37,7 @@ export function Overview() {
   }, [status, openSyms]);
 
   const [symbol, setSymbol] = useState(symbols[0]);
-  const [tf, setTf] = useState("1h");
+  const [tf, setTf] = useState("15m");
   const userPicked = useRef(false);
   // auto-follow: jump the chart to an open position's symbol (until the user
   // manually picks one), so an open trade is always visible with its markers.
