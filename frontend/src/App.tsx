@@ -110,7 +110,7 @@ export default function App() {
           {status && <EnvBadge testnet={status.testnet} />}
           <StatusPill status={st} reason={status?.status_reason ?? ""} />
           {status && status.equity > 0 && (
-            <span className="muted num">equity {fmtMoney(status.equity)} USDT</span>
+            <span className="muted num equity-inline">equity {fmtMoney(status.equity)} USDT</span>
           )}
           <span className="spacer" />
           {!status?.has_keys && (

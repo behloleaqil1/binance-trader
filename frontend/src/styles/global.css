@@ -198,3 +198,35 @@ details.data-table summary { color: var(--ink-3); font-size: 12px; cursor: point
 .empty { color: var(--ink-3); text-align: center; padding: 26px 0; font-size: 13px; }
 h2.page { margin: 2px 0 14px; font-size: 18px; }
 .disclaimer { color: var(--ink-3); font-size: 11px; margin-top: 8px; }
+
+/* ── Mobile: sidebar becomes a horizontal top nav; tighter spacing ── */
+@media (max-width: 760px) {
+  .shell { flex-direction: column; height: 100%; }
+  .sidebar {
+    width: 100%; flex-direction: row; align-items: center; gap: 4px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-right: 0; border-bottom: 1px solid var(--border);
+    padding: 6px 8px; position: sticky; top: 0; z-index: 20;
+  }
+  .sidebar .brand { display: none; }
+  .nav-item { width: auto; white-space: nowrap; padding: 8px 12px; flex: none; }
+  /* keep Sign out reachable at the end; drop the stream-status + disclaimer text */
+  .sidebar .foot { margin: 0 0 0 auto; padding: 0; display: flex; align-items: center; }
+  .sidebar .foot > div { display: none; }
+  .sidebar .foot button { margin: 0 !important; width: auto !important; }
+
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .content { padding: 12px; }
+  .grid { gap: 12px; }
+  h2.page { font-size: 16px; }
+  .tile .value { font-size: 20px; }
+  /* controls sit comfortably; equity text can hide on the narrowest screens */
+  .topbar .num.equity-inline { display: none; }
+  .toasts { left: 12px; right: 12px; max-width: none; }
+  .modal { width: min(440px, 94vw); }
+}
+
+@media (max-width: 400px) {
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .btn-sm { padding: 4px 8px; }
+}
