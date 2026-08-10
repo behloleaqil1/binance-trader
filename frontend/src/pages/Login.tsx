@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { setToken } from "../api/client";
+import { API_BASE, setToken } from "../api/client";
 
 export function Login() {
   const [username, setUsername] = useState("");
@@ -12,7 +12,7 @@ export function Login() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
