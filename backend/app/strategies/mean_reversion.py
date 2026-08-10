@@ -7,7 +7,7 @@ import pandas as pd
 
 from app.core.types import PositionView, Signal, SignalAction
 from app.strategies.base import TIMEFRAMES, ParamSpec, Strategy
-from app.strategies.indicators import bollinger, rsi
+from app.strategies.indicators import bollinger, ema, rsi
 
 
 class MeanReversionStrategy(Strategy):
@@ -29,10 +29,14 @@ class MeanReversionStrategy(Strategy):
             ParamSpec("rsi_overbought", "RSI overbought", "float", 70, min=50, max=99),
             ParamSpec("exit_at", "Exit target", "select", "middle", choices=["middle", "upper"],
                       help="Sell when price reverts to the middle band or stretches to the upper"),
+            ParamSpec("trend_ema", "Trend filter EMA", "int", 0, min=0, max=400,
+                      help="0 = off. If set, only buy dips when price is ABOVE this EMA "
+                           "(skip falling-knife dips in downtrends)."),
         ]
 
     def required_history(self) -> int:
-        return max(self.params["bb_period"], self.params["rsi_period"]) + 10
+        return max(self.params["bb_period"], self.params["rsi_period"],
+                   self.params.get("trend_ema", 0)) + 10
 
     def compute_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         p = self.params
@@ -40,6 +44,8 @@ class MeanReversionStrategy(Strategy):
         out["bb_mid"], out["bb_upper"], out["bb_lower"] = bollinger(
             df["close"], p["bb_period"], p["bb_std"])
         out["rsi"] = rsi(df["close"], p["rsi_period"])
+        if p.get("trend_ema", 0):
+            out["trend_ema"] = ema(df["close"], p["trend_ema"])
         return out
 
     def decide(self, symbol: str, df: pd.DataFrame, i: int,
@@ -56,6 +62,14 @@ class MeanReversionStrategy(Strategy):
 
         if position is None:
             if close < lower and r < p["rsi_oversold"]:
+                # Trend filter: skip dips while price is below the trend EMA — those
+                # are downtrends where "oversold" keeps getting more oversold.
+                if p.get("trend_ema", 0):
+                    tema = float(row["trend_ema"]) if "trend_ema" in row else float("nan")
+                    if math.isnan(tema) or close < tema:
+                        return self.hold(symbol, f"oversold dip skipped — price {close:.6g} "
+                                         f"below trend EMA {tema:.6g} (downtrend). {state}",
+                                         price=close)
                 return Signal(SignalAction.BUY, symbol, self.id,
                               f"close below lower band with RSI {r:.1f} < "
                               f"{p['rsi_oversold']} — oversold reversion entry. {state}",
