@@ -1,0 +1,25 @@
+# One-command run:  docker compose up --build
+# Dashboard: http://localhost:8080 · API: http://localhost:8000/docs
+#
+# ⚠ On THIS machine: do not build until the host is rebuilt — the frontend
+#   image build runs npm install (see frontend/Dockerfile and README § Security).
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      - API_HOST=0.0.0.0
+      - DB_PATH=data/bot.db
+    volumes:
+      - ./backend/data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped

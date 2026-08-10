@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Binance Trader — Complete User Guide</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font: 10.5pt/1.55 "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 4pt; }
+  h2 { font-size: 15pt; margin: 22pt 0 8pt; border-bottom: 2pt solid #1a1a1a; padding-bottom: 3pt; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 14pt 0 5pt; page-break-after: avoid; }
+  p { margin: 5pt 0; }
+  section { page-break-inside: auto; }
+  .cover { text-align: center; padding-top: 60mm; page-break-after: always; }
+  .cover .sub { color: #555; font-size: 12pt; margin-top: 6pt; }
+  .cover .meta { margin-top: 30mm; color: #777; font-size: 9.5pt; }
+  .warn { border: 1.5pt solid #b30000; background: #fff4f4; padding: 8pt 10pt; margin: 10pt 0; border-radius: 4pt; page-break-inside: avoid; }
+  .warn b:first-child { color: #b30000; }
+  .note { border-left: 3pt solid #888; background: #f5f5f3; padding: 6pt 10pt; margin: 8pt 0; page-break-inside: avoid; }
+  .example { border: 1pt solid #ccc; background: #fafaf8; padding: 8pt 10pt; margin: 8pt 0; border-radius: 4pt; page-break-inside: avoid; }
+  .example .t { font-weight: bold; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5pt; color: #666; margin-bottom: 4pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 9.5pt; page-break-inside: avoid; }
+  th { background: #eeede9; text-align: left; }
+  th, td { border: 0.75pt solid #bbb; padding: 4pt 6pt; vertical-align: top; }
+  code { font-family: Menlo, monospace; font-size: 9pt; background: #f0efec; padding: 0.5pt 3pt; border-radius: 2pt; }
+  .pipeline { counter-reset: step; margin: 10pt 0; }
+  .step { display: flex; gap: 8pt; margin: 6pt 0; page-break-inside: avoid; }
+  .step::before { counter-increment: step; content: counter(step); flex: none; width: 18pt; height: 18pt; border-radius: 50%; background: #1a1a1a; color: #fff; text-align: center; line-height: 18pt; font-weight: bold; font-size: 10pt; }
+  .step div { flex: 1; }
+  ul, ol { margin: 5pt 0 5pt 18pt; padding: 0; }
+  li { margin: 3pt 0; }
+  .toc li { margin: 2pt 0; }
+  dt { font-weight: bold; margin-top: 6pt; }
+  dd { margin: 1pt 0 4pt 14pt; }
+  .small { font-size: 9pt; color: #555; }
+  .footer-note { margin-top: 26pt; padding-top: 8pt; border-top: 0.75pt solid #ccc; font-size: 8.5pt; color: #777; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Binance Algorithmic Trading Bot</h1>
+  <div class="sub">Complete User Guide — strategies, decisions, risk, and going live</div>
+  <div class="warn" style="text-align:left; margin-top:26mm;">
+    <b>Read this first.</b> Trading cryptocurrency involves substantial risk of loss. This bot can
+    lose money on its own, quickly, and without asking again. Every performance figure it shows you
+    is either historical or simulated and <b>does not predict future results</b>. Nothing in this
+    guide is financial advice. The system starts on the testnet (fake money) on purpose — stay
+    there until you have read the "Going live" chapter and completed its checklist.
+  </div>
+  <div class="meta">Generated 9 August 2026 · System version 1.0 · Environment at time of writing: TESTNET</div>
+</div>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li>Ten terms you need before anything else</li>
+  <li>What the system is made of</li>
+  <li>How a buy or sell decision is actually made — the full pipeline</li>
+  <li>The four strategies, one by one</li>
+  <li>The momentum scanner</li>
+  <li>What happens when you enable ALL strategies at once</li>
+  <li>The risk engine — every limit explained</li>
+  <li>The adaptive layer — how the bot reacts to wins and losses</li>
+  <li>Backtesting — how to read the numbers</li>
+  <li>Going live with your real Binance account</li>
+  <li>Dashboard reference &amp; "why isn't it trading?"</li>
+  <li>What is stored where (privacy &amp; security model)</li>
+  <li>Full glossary of every abbreviation</li>
+</ol>
+
+<h2>1 · Ten terms you need before anything else</h2>
+<table>
+  <tr><th style="width:22%">Term</th><th>Plain-language meaning</th></tr>
+  <tr><td><b>Candle</b> (kline)</td><td>A summary of price over one time slot (e.g. 15 minutes): where it opened, the highest and lowest it reached, and where it closed. Strategies make decisions when a candle <i>closes</i>.</td></tr>
+  <tr><td><b>Pair / symbol</b></td><td>What is traded against what. In <code>BTCUSDT</code>, BTC is the <i>base</i> asset you buy or sell; USDT is the <i>quote</i> asset you pay with. This bot always quotes in USDT.</td></tr>
+  <tr><td><b>Position</b></td><td>Coins the bot bought and still holds, with the price it paid ("entry"). Closing a position = selling those coins.</td></tr>
+  <tr><td><b>PnL</b></td><td>Profit and Loss. <i>Unrealized</i> PnL is the paper gain/loss on open positions; <i>realized</i> PnL is locked in when a position closes. Always shown net of fees.</td></tr>
+  <tr><td><b>SL — stop-loss</b></td><td>A pre-placed order that sells automatically if price falls to a set level, capping the loss on that position.</td></tr>
+  <tr><td><b>TP — take-profit</b></td><td>The opposite: sells automatically when price rises to a target, locking in gains.</td></tr>
+  <tr><td><b>OCO</b></td><td>"One-Cancels-the-Other": the SL and TP placed together on Binance as a pair — whichever triggers first cancels its twin. Because the OCO lives <i>on the exchange</i>, your position stays protected even if the bot or your computer dies.</td></tr>
+  <tr><td><b>Equity</b></td><td>Total account value in USDT: your USDT balance plus the current value of every coin the bot holds. All risk limits are percentages of equity.</td></tr>
+  <tr><td><b>Notional</b></td><td>The USDT value of an order (quantity × price). "2% position size" means each new position's notional is 2% of equity.</td></tr>
+  <tr><td><b>Testnet</b></td><td>Binance's practice environment with fake balances at <code>testnet.binance.vision</code>. Same API, zero real money. The bot's default and where all of this should be proven first.</td></tr>
+</table>
+
+<h2>2 · What the system is made of</h2>
+<p>Three pieces run on your machine and talk only to each other and Binance:</p>
+<table>
+  <tr><th style="width:20%">Piece</th><th>What it does</th><th style="width:23%">Where</th></tr>
+  <tr><td><b>Trading engine</b> (Python)</td><td>Connects to Binance (REST + live WebSocket streams), runs strategies on each closed candle, enforces every risk limit, places and tracks orders, records everything.</td><td><code>http://127.0.0.1:8000</code></td></tr>
+  <tr><td><b>Dashboard</b> (web app)</td><td>Your window and remote control: charts, positions, trade history, strategy/risk/settings editors, emergency stop. Login-protected (single username/password).</td><td><code>http://localhost:5173</code></td></tr>
+  <tr><td><b>Database</b> (SQLite)</td><td>One local file holding orders, trades, positions, equity history, signal log, configuration, login sessions. Survives restarts; the bot reconciles it with Binance on every start.</td><td><code>backend/data/bot.db</code></td></tr>
+</table>
+<p>Design rules that everything else in this guide builds on:</p>
+<ul>
+  <li><b>Strategies suggest, the risk engine decides.</b> No strategy can place an order directly; every entry passes the full battery of limit checks first (chapter 7).</li>
+  <li><b>Protection lives on Binance, not in the bot.</b> Entries get an exchange-side OCO immediately, so a crash, reboot or network cut never leaves a position unguarded. If OCO placement fails, the engine watches the position itself and keeps retrying (marked "⚠ engine" in the dashboard).</li>
+  <li><b>Everything is explained.</b> Every decision — including "do nothing" — carries a written reason you can read on the Strategies page ("Show recent evaluations") and Trades page.</li>
+  <li><b>Testnet is the default</b>, and switching to real money deliberately cannot be done from the dashboard (chapter 10).</li>
+</ul>
+
+<h2>3 · How a buy or sell decision is actually made</h2>
+<div class="pipeline">
+  <div class="step"><div><b>A candle closes.</b> Binance streams live candles for every pair the strategies watch. When one closes (say the 15-minute BTCUSDT candle), evaluation begins for every enabled strategy that uses that pair and timeframe.</div></div>
+  <div class="step"><div><b>The strategy computes its indicators</b> over recent history (moving averages, RSI, Bollinger Bands… — chapter 4 and the glossary) and applies its fixed rules to emit exactly one of: <b>BUY</b>, <b>SELL</b>, or <b>HOLD</b> — always with a written rationale, e.g. <i>"close below lower band with RSI 27 &lt; 30 — oversold reversion entry"</i>.</div></div>
+  <div class="step"><div><b>HOLD ends here</b> (logged, visible in evaluations). <b>SELL</b> with an open position closes it at market and records the trade. <b>BUY</b> continues down the pipeline.</div></div>
+  <div class="step"><div><b>The adaptive layer weighs recent results</b> (chapter 8): a strategy on a losing streak gets its size cut in half or quarters; a strategy on probation is blocked entirely, with the reason logged.</div></div>
+  <div class="step"><div><b>The risk engine runs every check</b> (chapter 7): bot actually RUNNING · daily-loss and drawdown breakers clear · position count below cap · per-asset and total exposure caps respected · size computed (% of equity × adaptive multiplier) · rounded DOWN to Binance's lot rules · above the ~$5 exchange minimum. Any failure = rejection, with the reason stored.</div></div>
+  <div class="step"><div><b>The order is placed</b> with a bot-tagged ID and recorded <i>before</i> it is sent (so a crash can never lose track of it). Market entries fill immediately; grid entries rest as limit orders.</div></div>
+  <div class="step"><div><b>Protection goes up.</b> The OCO (TP above, SL below) is placed on Binance within the same second. If the trailing stop is enabled, the SL ratchets upward as price makes new highs — never downward.</div></div>
+  <div class="step"><div><b>The position exits</b> by whichever comes first: TP hit · SL hit · the strategy's own SELL signal · a range/kill/emergency event. The completed round-trip is written to the Trades page with entry reason, exit reason, fees and net PnL — and its PnL feeds back into step 4 for the next decision.</div></div>
+</div>
+<div class="example"><div class="t">Worked example, with your current testnet numbers</div>
+Equity 10,600 USDT, position size 2%, SL 2%, TP 4%. Mean Reversion signals BUY on BTCUSDT at
+64,000. Size: 2% × 10,600 = 212 USDT → 0.00331 BTC (rounded down to Binance's step). Orders placed:
+market buy, then an OCO of TP&nbsp;=&nbsp;66,560 (+4%) and SL&nbsp;=&nbsp;62,720 (−2%). Best case ≈ +8.30 USDT,
+worst case ≈ −4.35 USDT (both before ~0.42 USDT round-trip fees). Risking ~0.04% of the account per
+trade is why single trades feel small — safety compounds, and so do mistakes at bigger sizes.</div>
+
+<h2>4 · The four strategies, one by one</h2>
+
+<h3>4.1 Trend / Momentum — "ride moves that have started"</h3>
+<p><b>Belief:</b> once a real trend starts, it tends to continue for a while. <b>Timeframe:</b> 1-hour candles by default.</p>
+<ul>
+  <li><b>Buys when</b> the fast EMA (20-candle average) crosses <i>above</i> the slow EMA (50) — the classic sign a trend flipped upward — AND RSI is between 50 and 70 (momentum present but not already overheated) AND the MACD histogram is positive (a second opinion confirming the turn).</li>
+  <li><b>Sells when</b> the fast EMA crosses back below the slow (trend over), or RSI ≥ 78 (blow-off top), or MACD rolls negative with the fast EMA below the slow — whichever happens first. The OCO's SL/TP guard it the whole time regardless.</li>
+  <li><b>Wins in</b> long directional markets. <b>Loses by</b> whipsaws in sideways chop: cross up, small loss, cross down, repeat — this is where the adaptive layer steps its size down.</li>
+</ul>
+
+<h3>4.2 Mean Reversion — "stretched prices snap back"</h3>
+<p><b>Belief:</b> when price stretches unusually far below its recent average, it usually returns. <b>Timeframe:</b> 15-minute candles.</p>
+<ul>
+  <li><b>Buys when</b> a candle closes below the lower Bollinger Band (2 standard deviations under the 20-candle average — a statistically unusual dip) AND RSI &lt; 30 (oversold).</li>
+  <li><b>Sells when</b> price reverts to the middle band (the average — its profit thesis fulfilled) or RSI &gt; 70.</li>
+  <li>When the market is <i>overbought</i> with no position, it logs the observation but does nothing — spot accounts cannot short (bet on falling prices).</li>
+  <li><b>Wins in</b> ranging, mean-reverting markets. <b>Loses by</b> "catching a falling knife": in a crash, "oversold" keeps getting more oversold; the 2% SL is what caps each such mistake.</li>
+</ul>
+
+<h3>4.3 Grid — "harvest oscillation inside a range"</h3>
+<p><b>Belief:</b> price will wobble inside a band for a while; each wobble can be harvested. No indicators at all.</p>
+<ul>
+  <li>Draws a ladder of price levels across a range (yours right now: 8 levels between 61,691 and 68,185 on BTCUSDT, auto-set at ±5% of the price when enabled). Places a limit <b>buy at every level below</b> the current price (~15 USDT each).</li>
+  <li>When a buy fills, immediately offers that lot for sale <b>one level up</b>. Buy at 62,619, sell at 63,547 → ~1.5% gross per completed pair. When the sell fills, the buy is re-armed. Repeat indefinitely.</li>
+  <li><b>If price leaves the range</b>, the grid pauses itself, cancels its orders, alerts you, and optionally sells its inventory ("flatten on stop"). It stays paused until you re-save the strategy — re-saving rebuilds the ladder around the new price.</li>
+  <li><b>Wins in</b> sideways churn — the strategy most at home on a boring chart. <b>Loses by</b> a strong one-way drop: it accumulates lots on the way down that can't sell a level up. The range stop and per-asset exposure cap bound that damage.</li>
+</ul>
+
+<h3>4.4 DCA — "accumulate on a schedule, a bit more on dips"</h3>
+<p><b>Belief:</b> for an asset you want to hold long-term, buying a fixed amount on a schedule beats guessing the moment. Not really "trading" — accumulation.</p>
+<ul>
+  <li>Buys a fixed amount (15 USDT default) hourly, daily (08:00 UTC default) or weekly. If the pair is down more than 5% over 24h, the buy is multiplied ×1.5 ("buy the dip").</li>
+  <li><b>Note:</b> when you first enable DCA (or the bot starts after downtime), any schedule slot already passed today triggers immediately — that is why you saw instant BTC/BNB/SOL buys the moment you enabled it.</li>
+  <li><b>By default DCA positions carry no stop-loss</b> — a stop would sell the dips you are deliberately buying. This is an explicit, visible exemption on the Risk page; DCA inventory still counts fully toward exposure caps, daily-loss and the kill switch. It has no exit signal either: you sell manually (or via emergency flatten) when you choose.</li>
+</ul>
+
+<h2>5 · The momentum scanner</h2>
+<p>Not a strategy — a <b>pair picker</b>. Every 15 minutes it ranks all USDT pairs by 24-hour price
+change, drops leveraged tokens (UP/DOWN/BULL/BEAR) and stablecoins, applies a liquidity floor
+(10M USDT daily volume by default), and keeps the top 5. Strategies with "Also trade
+momentum-scanner picks" enabled add those pairs to their own list automatically.</p>
+<div class="warn"><b>Honest framing.</b> The scanner finds <i>movement</i>, not profit. Yesterday's
+top gainer is exactly as capable of dumping as pumping — high movers are high-volatility in both
+directions. Every scanner trade passes the identical risk gate. Also: on the <b>testnet</b> the
+volume numbers are simulated, so scanner picks there (you currently have TUT, BMT, COOKIE,
+MUBARAK, IOTX) are useful for testing the plumbing, not as real opportunities.</div>
+
+<h2>6 · What happens when you enable ALL strategies at once</h2>
+<p>They run <b>concurrently and independently</b> — there is no committee. Each (strategy, pair)
+combination holds its own position with its own entry, protection and exit. What ties them together
+is the <b>shared risk budget</b>:</p>
+<ul>
+  <li><b>Max open positions</b> (default 4) counts distinct strategy+pair combinations, all strategies together. A grid ladder counts once per pair no matter how many lots it holds. With all four strategies on, this cap binds <i>fast</i>: your DCA alone opened BTC+BNB+SOL = 3 slots within a minute of enabling. Later signals then get rejected with "max open positions reached" — that is the design working, not a bug. <b>If you intend to run everything at once, raise it to ~8 on the Risk page.</b></li>
+  <li><b>Per-asset cap</b> (default 25% of equity): trend, grid and DCA can all hold BTC simultaneously — their combined BTC value plus any resting BTC buy orders must stay under the cap. First come, first served; latecomers are rejected with the exact headroom in the reason.</li>
+  <li><b>Total exposure cap</b> (default 80%) keeps some equity always in USDT.</li>
+  <li><b>The circuit breakers are global.</b> Daily loss and drawdown are measured on the whole account — if grid losses trip the daily halt, trend's entries stop too. One shared account, one shared safety net.</li>
+</ul>
+<div class="note"><b>Should you enable everything?</b> More strategies = more simultaneous risk-taking,
+not more profit. There is one real benefit: the strategies thrive in different regimes (trend in
+directional markets, grid/mean-reversion in sideways ones), so together they smooth the equity
+curve somewhat. But BTC, ETH, SOL and BNB move largely together — four "diversified" crypto
+positions still behave like one big one in a crash, which is precisely what the drawdown kill
+switch is for. On testnet: enable everything, watch, learn. Live: start with ONE strategy on ONE
+pair, then add pieces one at a time (chapter 10).</div>
+
+<h2>7 · The risk engine — every limit explained</h2>
+<p>All numbers below are the defaults; every one is editable on the Risk page and applies from the next decision onward. Examples assume 10,000 USDT equity.</p>
+<table>
+  <tr><th style="width:24%">Limit</th><th>What it does</th><th style="width:30%">Example / when it fires</th></tr>
+  <tr><td>Position size — 2%</td><td>Each new position's notional = 2% of current equity (× the adaptive multiplier).</td><td>200 USDT per entry; shrinks automatically as equity falls.</td></tr>
+  <tr><td>Stop-loss — 2% · Take-profit — 4%</td><td>Placed on Binance as an OCO the moment an entry fills. 2:1 reward:risk by default.</td><td>Entry 100 → SL 98, TP 104, live on the exchange.</td></tr>
+  <tr><td>Trailing stop (off by default)</td><td>Once profit exceeds the activation %, the SL follows the highest price at a fixed distance — up only, never down.</td><td>1.5% trail: price runs 100→110, SL rides up to 108.35.</td></tr>
+  <tr><td>Max daily loss — 3%</td><td>If equity drops 3% below its value at UTC midnight, status becomes <b>DAILY_HALT</b>: no new entries until the next UTC day. Exits and protections stay active.</td><td>Day started at 10,000; equity touches 9,700 → halted, auto-resumes at midnight UTC.</td></tr>
+  <tr><td>Drawdown kill switch — 10%</td><td>If equity falls 10% below its all-time peak, status becomes <b>KILLED</b>: entry orders canceled, optional flatten, and the bot refuses to trade — surviving restarts — until you manually reset it on the Risk page (which re-anchors the peak).</td><td>Peak 11,000; equity hits 9,900 → killed. The point: force a human review before more money is at risk.</td></tr>
+  <tr><td>Max open positions — 4</td><td>Distinct strategy+pair combinations, globally.</td><td>See chapter 6.</td></tr>
+  <tr><td>Per-asset — 25% · Total — 80%</td><td>Caps on how much equity can sit in one coin / in all positions combined. Resting buy orders count too.</td><td>2,400 USDT already in BTC + a 200 order → rejected at the 2,500 cap.</td></tr>
+  <tr><td>Exchange minimums</td><td>Quantities are rounded DOWN to Binance's lot rules; orders under the ~5 USDT minimum are rejected with a clear reason rather than resized up.</td><td>Tiny equity × small % → "below exchange minimums — increase position size % or equity".</td></tr>
+  <tr><td>Emergency stop</td><td>The red button: cancels <b>every open order immediately</b> (including protective OCOs), optionally market-closes all positions ("flatten"). Works in any state; in LIVE mode requires typing <code>STOP</code>.</td><td>Without flatten, positions stay open <i>unprotected</i> until you restart the bot — the confirm dialog warns you.</td></tr>
+</table>
+<p><b>Status meanings:</b> <code>RUNNING</code> trading normally · <code>PAUSED</code> exits managed, no new entries (your button) · <code>DAILY_HALT</code> same, auto-clears next UTC day · <code>STOPPED</code> engine idle, exchange-side OCOs still guard positions · <code>KILLED</code> drawdown breaker, manual reset required.</p>
+
+<h2>8 · The adaptive layer — reacting to wins and losses</h2>
+<p>Added at your request: the bot adjusts each strategy using that strategy's own last 20 closed
+trades. It is deliberately <b>anti-martingale</b> — losing streaks make it trade <i>smaller</i>,
+never bigger. ("Doubling down to win it back" is how accounts die; this system does the opposite.)</p>
+<table>
+  <tr><th style="width:28%">Rule (defaults)</th><th>Behavior</th></tr>
+  <tr><td>Every 3 consecutive losses</td><td>That strategy's position size is halved: ×0.5 after 3, ×0.25 after 6 (the floor). One win resets it to full size.</td></tr>
+  <tr><td>6 consecutive losses, or profit factor &lt; 0.6 across the full 20-trade window</td><td><b>Probation:</b> the strategy stops opening new positions entirely. Exits and protections continue. The card shows a red "probation" badge and the reason; you clear it by re-saving the strategy — a deliberate human acknowledgment.</td></tr>
+  <tr><td>4 consecutive wins (only if you enable the win boost)</td><td>Size ×1.25, capped at 1.5. Off by default because upsizing adds risk.</td></tr>
+  <tr><td>Scope</td><td>Applies to signal strategies (trend, mean-reversion). Grid ladders and DCA schedules are exempt — shrinking a grid breaks its economics, and DCA is meant to buy through losses. Backtests apply the identical rules, so simulated and live behavior match.</td></tr>
+</table>
+<div class="example"><div class="t">Example sequence (trend strategy)</div>
+Trades: −4, −5, −4 → next entry at half size (100 USDT instead of 200). Two more losses at half
+size (−2, −2) → still ×0.5 (streak 5). A sixth loss → <b>probation</b>, entries blocked, alert
+sent. Total damage of the streak: ≈ −17 USDT instead of ≈ −26 unadapted, and a forced pause before
+an unhealthy strategy keeps bleeding. What this layer does is protect capital and force reviews —
+it cannot turn a strategy without edge into a profitable one. Only better entry/exit rules
+(validated by backtests) can do that.</div>
+
+<h2>9 · Backtesting — how to read the numbers</h2>
+<p>The Backtesting page replays a strategy over real historical market data (downloaded from
+Binance's public archive — always production data, even in testnet mode), with fees and slippage
+modeled, decisions executing on the <i>next</i> candle (no hindsight), and stops checked
+pessimistically (if both SL and TP could hit inside one candle, the loss is assumed). The same code
+runs live — so a backtest is a fair rehearsal, with caveats below.</p>
+<table>
+  <tr><th style="width:22%">Metric</th><th>Meaning</th><th style="width:30%">Rules of thumb</th></tr>
+  <tr><td>Total return %</td><td>Equity change over the period, net of fees.</td><td>Meaningless alone — always compare with the next row.</td></tr>
+  <tr><td>Buy &amp; hold %</td><td>What doing nothing (buy at start, hold) returned.</td><td>A strategy that underperforms holding while adding effort and risk is not earning its keep. (Beating it in a falling market by losing less is a real win.)</td></tr>
+  <tr><td>Max drawdown %</td><td>Worst peak-to-trough equity dip — the pain you'd have had to sit through.</td><td>Would you honestly keep the bot on after that dip? If not, the config is too aggressive for you.</td></tr>
+  <tr><td>Win rate %</td><td>Share of trades that made money.</td><td>Misleading alone: 40% win rate is fine when winners are 2× losers (our default SL/TP shape).</td></tr>
+  <tr><td>Profit factor</td><td>Gross wins ÷ gross losses.</td><td>&lt;1 loses money · 1.0–1.3 fragile · &gt;1.5 decent · &gt;2.5 suspicious (probably overfitted).</td></tr>
+  <tr><td>Sharpe ratio</td><td>Return per unit of volatility, annualized.</td><td>&lt;0 bad · ~1 respectable · &gt;2 rare/suspicious for a simple bot.</td></tr>
+  <tr><td>Trades / Fees paid</td><td>Sample size and cost drag.</td><td>&lt;30 trades proves nothing. If fees rival net profit, the strategy trades too often for its edge.</td></tr>
+</table>
+<div class="warn"><b>The overfitting trap.</b> If you tweak parameters until history looks great,
+you have memorized the past, not predicted the future. Honest workflow: tune on one period (say
+2024), then validate untouched on another (2025) — only settings that hold up out-of-sample deserve
+real money. And run 22+ trades minimum before trusting any statistic.</div>
+
+<h2>10 · Going live with your real Binance account</h2>
+<p><b>What changes:</b> real money; real order books (your fills affect price slightly; slippage is
+real); real fees (0.1% per side — see below); real symbol availability (everything trades, unlike
+testnet); withdrawals, deposits and taxes become real-world concerns.
+<b>What does not change:</b> the code path — same strategies, same risk engine, same protections.
+Testnet is a full dress rehearsal of the machinery.</p>
+<h3>Fees change the math — read this twice</h3>
+<p>Binance spot charges ~0.1% per side (less with BNB fee discount enabled). A round trip costs
+~0.2%, plus ~0.05–0.1% slippage on market orders. Consequences: a 0.5% take-profit target loses
+nearly half its edge to costs; strategies that trade very frequently need proportionally bigger
+edges; and the backtester's fee/slippage fields (10 bps / 5 bps) exist precisely so you can check a
+strategy survives its own costs before it runs live.</p>
+<h3>The switch itself</h3>
+<ol>
+  <li>Create live API keys — <b>from a clean, trusted device</b> — at Binance → API Management: <b>Enable Reading + Spot Trading; leave Withdrawals OFF</b> (the bot never needs them; a leaked key then cannot drain funds out); <b>restrict to your bot machine's IP</b>.</li>
+  <li>Edit <code>.env</code> on the bot machine: set <code>TESTNET=false</code> and the live keys; restart. This is deliberately impossible from the dashboard — a stolen dashboard password must never be able to switch the bot onto real funds.</li>
+  <li>The dashboard now shows a permanent red <b>LIVE TRADING</b> banner, and the emergency stop requires typing <code>STOP</code>.</li>
+</ol>
+<div class="warn"><b>This specific computer.</b> Per the 2026-08-06 security incident on this Mac
+(npm supply-chain wiper; attacker code ran under your user account), <b>do not create or store
+live API keys on it until it has been wiped and reinstalled</b>. Testnet keys are throwaway;
+live keys are money. If any real-account key has already touched this machine, revoke it in
+Binance's API Management now.</div>
+<h3>Go-live checklist (in order, no skipping)</h3>
+<ol>
+  <li>Weeks on testnet with the strategies you intend to run; you have personally seen: a TP exit, an SL exit, a daily halt, the kill switch tripping (force it once with a tight limit) and staying tripped through a restart, an emergency stop, and a network drop with clean recovery.</li>
+  <li>Backtests over multiple market regimes beat or justify themselves against buy-and-hold, <i>after fees</i>, out-of-sample.</li>
+  <li>Alerting (Telegram) configured and tested — stop-losses and kill switches must reach your pocket.</li>
+  <li>Clean machine · restricted keys · IP whitelist (steps above).</li>
+  <li>Risk limits set to what you can genuinely tolerate losing; kill switch ON.</li>
+  <li>Fund with a small amount you can afford to lose entirely (e.g. $100–200). ONE strategy, ONE pair, one week minimum.</li>
+  <li>Review the Trades page and risk events; scale one variable at a time: capital → pairs → strategies.</li>
+  <li>Trading profits/losses may be taxable in your jurisdiction — keep the CSV exports.</li>
+</ol>
+
+<h2>11 · Dashboard reference &amp; "why isn't it trading?"</h2>
+<table>
+  <tr><th style="width:18%">Page</th><th>What you do there</th></tr>
+  <tr><td>Overview</td><td>Equity &amp; PnL tiles, live equity curve, candlestick chart with EMA/Bollinger overlays and your positions' SL/TP lines, open positions, live activity feed.</td></tr>
+  <tr><td>Trades</td><td>Every completed round-trip with entry/exit prices, fees, net PnL and both written rationales. Filter, paginate, export CSV.</td></tr>
+  <tr><td>Strategies</td><td>Enable/disable (the checkbox by the title!), edit parameters and pairs, scanner opt-in, adaptive stats line, probation badge, recent evaluations (the "why am I holding" log).</td></tr>
+  <tr><td>Backtesting</td><td>Run simulations, compare up to three equity curves, inspect per-trade reasons.</td></tr>
+  <tr><td>Risk</td><td>Every limit and switch, live proximity meters, risk event log, kill-switch reset, emergency stop.</td></tr>
+  <tr><td>Settings</td><td>API keys (write-only), Telegram/webhook alerts, engine flags, dashboard username/password. Environment badge is read-only here by design.</td></tr>
+</table>
+<h3>"Why isn't it trading?" — the usual answers, in order</h3>
+<ol>
+  <li>No strategy is enabled (the #1 answer — the Enabled checkbox sits next to the strategy's name, separate from Save).</li>
+  <li>The bot isn't RUNNING (topbar pill: stopped/paused/halted/killed — each says why).</li>
+  <li>It IS working, and correctly holding: open the strategy's evaluations — you'll see HOLDs with reasons like "no crossover" or "inside bands, no setup". Good strategies are mostly flat; forcing constant action is how fees eat accounts.</li>
+  <li>The risk engine is rejecting entries — Overview feed / signal log shows exactly which limit (position cap and per-asset cap are the usual suspects with many strategies on; raise them deliberately if that's your intent).</li>
+  <li>A strategy is on adaptive probation (red badge) — re-save it after reviewing its trades.</li>
+  <li>Grid paused out-of-range (yellow note on the card) — re-save to rebuild the ladder around the current price.</li>
+</ol>
+
+<h2>12 · What is stored where (privacy &amp; security model)</h2>
+<ul>
+  <li>Everything lives locally: SQLite file + log files under <code>backend/data/</code>. No cloud, no telemetry.</li>
+  <li>Outbound connections: Binance API/streams only — plus Telegram/webhook if you configure alerts.</li>
+  <li>API keys: entered write-only (never displayed again, never logged — a fingerprint like <code>Ab3d…9xYz</code> at most); stored in the local DB/.env. The dashboard password is stored only as a salted PBKDF2 hash; sessions are bearer tokens (browser holds them; server stores only their SHA-256).</li>
+  <li>The dashboard binds to localhost by default. If you ever expose it on a network, everything sits behind the login — but prefer a VPN/SSH tunnel over opening ports.</li>
+</ul>
+
+<h2>13 · Full glossary of every abbreviation</h2>
+<dl>
+  <dt>API / API key</dt><dd>Application Programming Interface — the doorway programs use to talk to Binance. The <i>key</i> (public ID) + <i>secret</i> (password) pair signs every request. Anyone with both can trade as you: guard the secret, disable withdrawals, whitelist your IP.</dd>
+  <dt>Base / Quote asset</dt><dd>In BTCUSDT: BTC = base (what you buy/sell), USDT = quote (what you pay with).</dd>
+  <dt>BB — Bollinger Bands</dt><dd>A 20-candle moving average (middle band) with an envelope ±2 standard deviations around it. Price near/below the lower band = unusually cheap vs recent history; the width shows volatility.</dd>
+  <dt>bps — basis points</dt><dd>Hundredths of a percent. 10 bps = 0.10%. Used for fees and slippage.</dd>
+  <dt>DCA — Dollar-Cost Averaging</dt><dd>Buying a fixed money amount on a schedule regardless of price, averaging in over time.</dd>
+  <dt>DD / Max DD — (Maximum) Drawdown</dt><dd>How far equity has fallen from its highest point, in %. Max DD = the worst such fall in a period. The kill switch is a drawdown limit.</dd>
+  <dt>EMA / SMA — Exponential / Simple Moving Average</dt><dd>The average closing price of the last N candles; the EMA weights recent candles more so it reacts faster. "EMA 20 crossing above EMA 50" = short-term average overtaking long-term = trend turning up.</dd>
+  <dt>GTC — Good-Til-Canceled</dt><dd>A limit order that rests on the book until it fills or you cancel it (grid orders, OCO legs).</dd>
+  <dt>HMAC-SHA256</dt><dd>The cryptographic signature scheme Binance keys use — how Binance verifies a request really came from your secret without the secret ever traveling.</dd>
+  <dt>Kline / candle · OHLCV</dt><dd>One time-slot of price data: Open, High, Low, Close, Volume.</dd>
+  <dt>Limit / Market order</dt><dd>Limit: "buy/sell only at this price or better" — rests on the book, no slippage, may never fill. Market: "fill me now at the best available" — instant, pays the spread/slippage.</dd>
+  <dt>LOT_SIZE / step / tick / min notional</dt><dd>Binance's per-pair rounding rules: quantity must be a multiple of the step, price a multiple of the tick, and the order worth at least ~5 USDT. The bot rounds quantities DOWN and rejects sub-minimum orders.</dd>
+  <dt>MACD</dt><dd>Moving Average Convergence/Divergence: EMA12 − EMA26, plus a 9-period signal line. The <i>histogram</i> (their gap) above zero = upward momentum building; below = fading. Used as confirmation in the trend strategy.</dd>
+  <dt>Maker / Taker</dt><dd>Maker = your resting limit order adds liquidity (cheaper fee). Taker = your market order consumes it (0.1% standard).</dd>
+  <dt>Notional</dt><dd>Order value in quote currency: quantity × price.</dd>
+  <dt>OCO — One-Cancels-the-Other</dt><dd>TP limit + SL stop placed as a pair; one filling cancels the other. This bot's standard exchange-side protection.</dd>
+  <dt>PF — Profit Factor</dt><dd>Gross profits ÷ gross losses across trades. Above 1 = net profitable.</dd>
+  <dt>PnL / uPnL / rPnL</dt><dd>Profit and Loss / unrealized (open positions, on paper) / realized (closed, locked in). Shown net of fees.</dd>
+  <dt>Probation</dt><dd>This bot's adaptive pause: a strategy blocked from new entries after sustained losing, until you re-save it.</dd>
+  <dt>RSI — Relative Strength Index</dt><dd>0–100 momentum gauge of recent gains vs losses. Convention: &lt;30 oversold (stretched down), &gt;70 overbought. 14-candle period standard (Wilder's method).</dd>
+  <dt>Sharpe ratio</dt><dd>Average return divided by its volatility (annualized) — reward per unit of bumpiness. Higher = smoother earning.</dd>
+  <dt>SL / TP — Stop-Loss / Take-Profit</dt><dd>Automatic exit orders below/above entry. See chapter 1.</dd>
+  <dt>Slippage</dt><dd>The gap between the price you expected and the price a market order actually filled at.</dd>
+  <dt>Spot</dt><dd>Trading actual coins with money you have — no borrowing, no leverage, no shorting. What this bot does, exclusively.</dd>
+  <dt>Testnet</dt><dd>Binance's fake-money practice environment. Separate keys, simulated balances, occasional resets.</dd>
+  <dt>TF — Timeframe</dt><dd>Candle duration a strategy works on: 1m, 5m, 15m, 1h, 4h, 1d.</dd>
+  <dt>USDT</dt><dd>Tether — a "stablecoin" pegged ≈ 1 US dollar; this bot's cash currency.</dd>
+  <dt>UTC</dt><dd>Coordinated Universal Time — the bot's clock for "daily" everything (loss limits reset at 00:00 UTC).</dd>
+  <dt>Watermark (high-water mark)</dt><dd>The highest price seen since entering a position — what the trailing stop trails behind.</dd>
+  <dt>WS — WebSocket</dt><dd>A persistent live connection. The bot keeps two to Binance (prices in, fill reports in) and one to your browser (the live dashboard).</dd>
+</dl>
+
+<div class="footer-note">
+Binance Trader v1.0 · Guide generated 9 August 2026 · This software and guide are provided as-is,
+without warranty. Historical and simulated performance do not indicate future results. Trading
+involves substantial risk of loss — never trade money you cannot afford to lose.
+</div>
+
+</body>
+</html>

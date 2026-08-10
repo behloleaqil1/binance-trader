@@ -1,0 +1,21 @@
+# Secrets — never commit real keys
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Runtime data (SQLite DB, logs)
+backend/data/*.db
+backend/data/*.db-*
+backend/data/*.log
+backend/data/*.jsonl
+
+# Node
+node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
