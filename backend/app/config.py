@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     db_path: str = "data/bot.db"
     log_level: str = "INFO"
+    # Comma-separated extra CORS origins for a hosted dashboard on another host.
+    cors_origins: str = ""
 
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

@@ -1,0 +1,43 @@
+name: deploy-backend
+
+# Deploys the bot backend to the VPS, fully isolated from purocoach.
+# Additive only. Manual dispatch — never auto-runs on push.
+on:
+  workflow_dispatch:
+    inputs:
+      run_certbot:
+        description: "Obtain HTTPS cert for api.bot (needs DNS live first)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Sync code (exclude secrets & local state)
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          ssh "$H" 'mkdir -p /opt/binance-trader/app'
+          rsync -az --delete \
+            --exclude ".git" --exclude ".venv" --exclude "node_modules" \
+            --exclude "frontend/dist" --exclude "backend/data" --exclude ".env" \
+            -e ssh ./ "$H:/opt/binance-trader/app/"
+
+      - name: Provision + start (idempotent, isolated)
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          CB=${{ inputs.run_certbot }}
+          ssh "$H" "bash /opt/binance-trader/app/deploy/remote_setup.sh $CB"

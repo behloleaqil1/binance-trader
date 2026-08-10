@@ -62,10 +62,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Binance Algorithmic Trading Bot", version="1.0.0",
               lifespan=lifespan)
 
+_default_origins = ["http://localhost:5173", "http://127.0.0.1:5173",
+                    "http://localhost:8080", "http://127.0.0.1:8080"]
+# Extra origins for a hosted dashboard (e.g. https://bot.example.com), comma-
+# separated in CORS_ORIGINS. Bearer-token auth (localStorage), so no cookies.
+_extra = [o.strip() for o in (get_settings().cors_origins or "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173",
-                   "http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=_default_origins + _extra,
     allow_methods=["*"], allow_headers=["*"])
 
 app.include_router(auth.router, prefix="/api")  # /login is open; rest self-guarded
