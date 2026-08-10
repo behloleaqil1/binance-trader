@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deltaClass, fmtMoney, fmtPct, fmtSigned, useApi } from "../api/client";
 import type { Account, Position } from "../api/types";
 import { CandleChart } from "../components/CandleChart";
@@ -28,9 +28,23 @@ export function Overview() {
   const { data: positions } = useApi<Position[]>("/positions", versions.positions);
   const { data: history } = useApi<{ ts: string; equity: number }[]>("/equity-history?hours=168", tick);
 
-  const symbols = status?.active_symbols?.length ? status.active_symbols : DEFAULT_SYMBOLS;
+  // symbols holding an open position — surfaced first and flagged in the picker
+  const openSyms = useMemo(
+    () => Array.from(new Set((positions ?? []).map((p) => p.symbol))), [positions]);
+  const symbols = useMemo(() => {
+    const base = status?.active_symbols?.length ? status.active_symbols : DEFAULT_SYMBOLS;
+    return Array.from(new Set([...openSyms, ...base]));
+  }, [status, openSyms]);
+
   const [symbol, setSymbol] = useState(symbols[0]);
   const [tf, setTf] = useState("1h");
+  const userPicked = useRef(false);
+  // auto-follow: jump the chart to an open position's symbol (until the user
+  // manually picks one), so an open trade is always visible with its markers.
+  useEffect(() => {
+    if (userPicked.current || !openSyms.length) return;
+    if (openSyms[0] !== symbol) setSymbol(openSyms[0]);
+  }, [openSyms, symbol]);
   useEffect(() => {
     if (!symbols.includes(symbol)) setSymbol(symbols[0]);
   }, [symbols, symbol]);
@@ -77,14 +91,22 @@ export function Overview() {
       </div>
 
       <div className="card">
-        <h3>Market</h3>
+        <h3>Market{openSyms.includes(symbol) ? " — ● open position" : ""}</h3>
         <div className="chart-controls">
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            {symbols.map((s) => <option key={s}>{s}</option>)}
+          <select value={symbol}
+                  onChange={(e) => { userPicked.current = true; setSymbol(e.target.value); }}>
+            {symbols.map((s) => (
+              <option key={s} value={s}>{openSyms.includes(s) ? `● ${s} — open` : s}</option>
+            ))}
           </select>
           <select value={tf} onChange={(e) => setTf(e.target.value)}>
             {TIMEFRAMES.map((t) => <option key={t}>{t}</option>)}
           </select>
+          {openSyms.length > 0 && !openSyms.includes(symbol) && (
+            <button className="btn btn-sm" onClick={() => { userPicked.current = false; setSymbol(openSyms[0]); }}>
+              ● Jump to open position
+            </button>
+          )}
         </div>
         <CandleChart symbol={symbol} tf={tf} positions={positions ?? []} />
       </div>
