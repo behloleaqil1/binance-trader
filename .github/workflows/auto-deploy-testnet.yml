@@ -1,0 +1,55 @@
+name: auto-deploy-testnet
+
+# Auto-deploys every push to main onto the VPS bot — but ONLY when the server
+# is in TESTNET (fake-money) mode. If the server is in live mode it ABORTS,
+# so real-money deploys are never automatic (they stay a deliberate human act).
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: auto-deploy-testnet
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: SAFETY LOCK — refuse to deploy unless server is TESTNET
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          MODE=$(ssh "$H" 'grep -E "^TESTNET=" /opt/binance-trader/app/.env | head -1 | cut -d= -f2' | tr -d "[:space:]")
+          echo "server TESTNET flag = '$MODE'"
+          if [ "$MODE" != "true" ]; then
+            echo "::error::REFUSING to auto-deploy — server is NOT in testnet mode (TESTNET='$MODE'). Auto-deploy is testnet-only; real-money deploys must be done by a human."
+            exit 1
+          fi
+          echo "server is in testnet mode — safe to auto-deploy fake-money bot"
+
+      - name: Sync code (never .env / data / secrets)
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          rsync -az --delete \
+            --exclude ".git" --exclude ".venv" --exclude "node_modules" \
+            --exclude "frontend/dist" --exclude "backend/data" --exclude ".env" \
+            -e ssh ./ "$H:/opt/binance-trader/app/"
+
+      - name: Install deps + restart testnet bot, verify healthy
+        run: |
+          H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          ssh "$H" 'set -e
+            sudo -u botrunner /opt/binance-trader/venv/bin/pip install -q -r /opt/binance-trader/app/backend/requirements.txt
+            systemctl restart binance-trader
+            sleep 5
+            systemctl is-active binance-trader >/dev/null && curl -sf http://127.0.0.1:8100/api/health >/dev/null \
+              && echo "testnet bot redeployed and healthy" \
+              || { echo "health check FAILED after deploy"; journalctl -u binance-trader -n 20 --no-pager; exit 1; }'
