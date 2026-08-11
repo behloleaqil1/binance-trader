@@ -81,3 +81,17 @@ the `grid` strategy (untested so far), on a different train/test anchor
 if enough time has passed.
 
 _No CANDIDATE FOUND this run — proving nothing works is a valid result._
+
+---
+
+## 2026-08-10 — Prior session findings (human-seeded, for the agent's memory)
+
+Configs already tested in the founding live+backtest session — **do not re-test these**:
+- **1m any strategy**: catastrophic (−34% to −42%, PF 0.01–0.09) — fee drag from over-trading. Avoid 1m entirely.
+- **Timeframe sweep** (mean_reversion/trend_momentum): 1m −34%/−42%, 15m −8%/−22%, 1h −5.8%/−3.6%, 4h −3.9%/−5.4%. Higher TF cuts fee drag hugely but none reach profit. 1h is the least-bad base.
+- **mean_reversion trend_ema=200 @ 1h**: near-breakeven (−0.8%) but tiny sample (~11 trades) — filter adopted as principled downside reduction, not proven edge.
+- **grid ±12%/13 levels @ 15m**: oscillation engine profits per-cycle but bag-holds in downtrends → −20% net over 90d (−9.5% even with range-exit stop). Directional bet, not signal edge; also needs $40+ capital.
+- **Live real-money** (1m volatile scanner): 16 trades, −$0.29 net, ~70% of loss was fees. Empirically confirmed negative edge. Stopped; moved to testnet + this automated research.
+
+Structured versions of these in `research/decisions.jsonl`. Overarching prior: no robust
+edge found; simple RSI/BB/EMA signals appear over-arbitraged, fees turn ~breakeven negative.
