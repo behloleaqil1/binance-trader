@@ -17,11 +17,28 @@ this research.
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
-**No robust, generalizing edge has been found yet, across 2 sessions and
-~40 configs.** Every strategy/timeframe combo tested so far is either
+**No robust, generalizing edge has been found yet, across 3 sessions and
+~60 configs.** Every strategy/timeframe combo tested so far is either
 net-negative or only clears the OOS bar by luck/small-sample noise. Honest
 baseline: simple RSI/BB/EMA signals on these 8 majors appear
 over-arbitraged; fees turn near-breakeven setups negative.
+
+- **trend_momentum: no edge at any grid-searched TF.** Fully grid-searched
+  with train/test rigor at 4h (Run 1, 18 combos, best train PF 0.79, all
+  fail) and now 1h (Run 3, 18 combos, best train PF 0.90, all fail; OOS on
+  the best-train combo confirms PF 0.463/105 trades). Do not re-grid
+  trend_momentum at 1h/4h without a materially different signal design
+  (current ema-cross+RSI+MACD family is exhausted at these TFs).
+- **mean_reversion @ 1h default params: 3-window check now CLOSES this
+  question — it's regime luck, not an edge.** Run 2 found the shipped
+  defaults (bb_std=2.0, rsi_oversold=30, exit_at=middle, trend_ema=0) at
+  OOS PF 1.903/120 trades on the 60-0d window despite train PF 0.472, and
+  flagged it as needing a 3rd window before trusting either way. Run 3
+  tested a 3rd, older, non-overlapping window (240-150d ago): PF 0.441/136
+  trades, all 8 symbols individually negative. 2 of 3 windows negative for
+  the identical untouched param set — confirms this is not a stable edge,
+  just one lucky 60-day slice. No further action; matches the broader
+  no-edge finding, don't re-test this specific combo again.
 
 - **1m: catastrophic, any strategy.** −34% to −42%, PF 0.01–0.09. Over-trades
   (~200+ trades/coin), fee drag (0.15% round-trip) dominates. Never retest 1m.
@@ -43,10 +60,10 @@ over-arbitraged; fees turn near-breakeven setups negative.
 - **trend_momentum @ 4h:** 18-combo grid (ema pairs × rsi_buy_min ×
   require_macd) — **every combo had train PF < 1** (best 0.79) on a choppy
   train window; no in-sample edge to even validate OOS (Run 1).
-- **trend_momentum @ 1h:** only ever tested as a single default config
-  (PF 0.82, 30 trades, -3.6%, no train/test split) — near-breakeven but
-  negative. Not yet grid-searched with proper train/test rigor — do that
-  next.
+- **trend_momentum @ 1h:** grid-searched with train/test rigor in Run 3
+  (18 combos: ema pairs x rsi_buy_min x require_macd) — every combo train
+  PF < 1 (best 0.90); OOS on the best-train combo confirms PF 0.463/105
+  trades. See summary bullet above; no edge, don't re-test this family.
 - **grid strategy:** profits from range oscillation in-sample but is a
   **directional bet in disguise** — bag-holds through downtrends. Confirmed
   twice now: informally at 15m/90d (−20% net, founding session) and
@@ -61,10 +78,74 @@ over-arbitraged; fees turn near-breakeven setups negative.
   session (11 trades) and confirmed still tiny-sample (3–6 trades) in Run 2's
   grid. Kept in the codebase as a principled downside-reduction knob, not a
   proven edge. Do not flip its default on without a large-sample OOS pass.
-- **DCA strategy: fully untested.** Next candidate for a research region.
+- **DCA strategy: fully untested, and needs a DIFFERENT evaluation
+  methodology before testing it.** `run_dca_backtest` produces zero
+  round-trip `trades` (it only accumulates inventory) — the PF>1.1/>=30
+  trades anti-noise bar from the rest of this research does not apply.
+  Next run should define a DCA-specific bar first (e.g. avg_cost achieved
+  vs. a plain fixed-schedule buy-hold baseline, compared across >=2
+  non-overlapping windows) before running any DCA grid.
 - **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss
   was fees — empirically confirms the negative-edge finding from backtests.
   Stopped; testnet + this automated research only from here on.
+
+---
+
+## 2026-08-11 — Run 3
+
+**Self-correction check:** reviewed commits since Run 2 — none landed
+(`abec798` was Run 2's own log commit). Nothing strategy-affecting to
+revert.
+
+**Region A — trend_momentum @ 1h, all 8 symbols, train/test grid search
+(closes the gap flagged after Runs 1-2).** Same anchors as prior runs
+(train 2026-03-14→2026-06-12, test 2026-06-12→2026-08-11). Grid:
+`ema_fast/slow` ∈ {(10,30),(20,50),(12,26)} × `rsi_buy_min` ∈ {45,50,55} ×
+`require_macd` ∈ {True,False} (18 combos, same grid shape as the Run 1
+4h search).
+
+Train screen: **all 18 combos had train PF < 1** (range 0.55–0.90; best
+was ema_fast=10, ema_slow=30, rsi_buy_min=45/50 [identical result — no
+train trades fell between RSI 45 and 50], require_macd=True, PF 0.901,
+122 trades). OOS on the best-train combo: PF 0.463, 105 trades (real
+sample, well over the 30-trade floor), ret -0.113%. **Verdict: FAIL.**
+trend_momentum now has full train/test grid coverage at both 4h (Run 1)
+and 1h (this run) — no in-sample edge at either timeframe with this
+ema-cross+RSI+MACD signal family. Don't re-grid this strategy at these
+TFs without a different signal design.
+
+**Region B — mean_reversion @ 1h shipped-default params, THIRD
+non-overlapping window (follow-up to Run 2's explicit flag).** Run 2 found
+the shipped defaults (`bb_std=2.0, rsi_oversold=30, exit_at=middle,
+trend_ema=0`) scored OOS PF 1.903/120 trades on the 60-0d test window
+despite train PF 0.472 on the 150-60d window — flagged as regime-dependent
+and *not adopted*, pending a third window. This run tested the identical,
+untouched param set on window 2025-12-15→2026-03-14 (240-150d ago, doesn't
+overlap either prior window): **PF 0.441, 136 trades, -$187.93 aggregate,
+every one of the 8 symbols individually negative** (PF 0.20–0.85, per
+symbol trade counts 14–20). **Verdict: FAIL.** 2 of 3 windows now negative
+for this exact param set — the Run 2 result was regime luck on one 60-day
+slice, not a stable edge. This closes the open question from Run 2: no
+code/param change was made either time (it's already what ships), and this
+result doesn't argue for changing it — it argues no config in this family
+is worth shipping over the current default.
+
+**$100 / $1000 translation:** both regions this run are net negative OOS.
+Region A: -$0.11/-$1.13 over 60d on the best-train combo. Region B:
+-$0.23/-$2.35 over the 90-day third window. No positive candidate.
+
+**Verdict: no promising candidate this run.** No code or default-param
+changes made. Nothing to revert (no strategy-affecting commits since Run 2).
+
+**Next run should rotate to:** define a DCA-specific evaluation
+methodology first (avg_cost vs. buy-hold baseline across >=2 windows —
+the existing PF/trade-count bar doesn't apply, `run_dca_backtest` produces
+no round-trip trades), then run it. Standard candle-strategy families
+(mean_reversion, trend_momentum) are now exhausted at 15m/1h/4h and grid
+at 1h — DCA and possibly a 5m timeframe sweep (untested, low priority
+given 1m's catastrophic result) are the remaining unexplored regions.
+
+_No CANDIDATE FOUND this run._
 
 ---
 
