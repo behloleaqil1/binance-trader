@@ -22,6 +22,13 @@ jobs:
           H="${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
           ssh -o ConnectTimeout=15 "$H" 'bash -s' <<'EOF'
           echo "===== HOST ====="; hostname; uname -a; uptime; echo
+          echo "===== HEALTH PROBE (diagnose deploy health-check) ====="
+          echo "-- systemctl is-active: --"; systemctl is-active binance-trader
+          echo "-- which curl: --"; which curl || echo "NO CURL IN PATH"
+          echo "-- proxy env: --"; env | grep -iE 'proxy' || echo "(no proxy env)"
+          echo "-- curl 127.0.0.1:8100/api/health: --"; curl -sf -m 5 http://127.0.0.1:8100/api/health && echo " <curl OK>" || echo "<curl FAILED rc=$?>"
+          echo "-- curl localhost:8100/api/health: --"; curl -sf -m 5 http://localhost:8100/api/health && echo " <curl OK>" || echo "<curl FAILED rc=$?>"
+          echo
           echo "===== DISK ====="; df -h / /var 2>/dev/null; echo
           echo "===== LISTENING PORTS ====="; ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null; echo
           echo "===== DOCKER ====="; which docker && docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null; echo
