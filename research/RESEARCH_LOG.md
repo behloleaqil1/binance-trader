@@ -17,11 +17,14 @@ this research.
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
-**No robust, generalizing edge has been found yet, across 3 sessions and
-~60 configs.** Every strategy/timeframe combo tested so far is either
-net-negative or only clears the OOS bar by luck/small-sample noise. Honest
-baseline: simple RSI/BB/EMA signals on these 8 majors appear
-over-arbitraged; fees turn near-breakeven setups negative.
+**No robust, generalizing edge has been found yet in the candle-strategy
+families, across 4 sessions and ~62 configs.** Every trend_momentum /
+mean_reversion / grid combo tested so far is either net-negative or only
+clears the OOS bar by luck/small-sample noise. Honest baseline: simple
+RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
+near-breakeven setups negative. The one asymmetric, mechanically-explicable
+(not curve-fit) positive finding so far is DCA's dip-buy feature — see
+below — which is already shipped as the default, not a new change.
 
 - **trend_momentum: no edge at any grid-searched TF.** Fully grid-searched
   with train/test rigor at 4h (Run 1, 18 combos, best train PF 0.79, all
@@ -78,16 +81,108 @@ over-arbitraged; fees turn near-breakeven setups negative.
   session (11 trades) and confirmed still tiny-sample (3–6 trades) in Run 2's
   grid. Kept in the codebase as a principled downside-reduction knob, not a
   proven edge. Do not flip its default on without a large-sample OOS pass.
-- **DCA strategy: fully untested, and needs a DIFFERENT evaluation
-  methodology before testing it.** `run_dca_backtest` produces zero
-  round-trip `trades` (it only accumulates inventory) — the PF>1.1/>=30
-  trades anti-noise bar from the rest of this research does not apply.
-  Next run should define a DCA-specific bar first (e.g. avg_cost achieved
-  vs. a plain fixed-schedule buy-hold baseline, compared across >=2
-  non-overlapping windows) before running any DCA grid.
+- **DCA strategy: methodology now defined and first pass run (Run 4).**
+  `run_dca_backtest` produces zero round-trip `trades`, so the PF/trade-count
+  bar doesn't apply. New metric: capital-normalized ROI
+  (`unrealized_pnl/invested %`) of a variant vs. a flat fixed-schedule
+  baseline, same total-invested-dollar basis (raw "avg_cost % below last
+  close" is misleading here — a dip-buy variant deploys *more* total
+  capital, so a cheaper unit cost doesn't by itself mean a better dollar
+  outcome; always normalize by invested $ before comparing DCA variants).
+  Finding: the **shipped default dip-buy feature** (`dip_enabled=True,
+  dip_threshold_pct=5.0, dip_multiplier=1.5`) beats a flat schedule on ROI
+  in 2 of 3 non-overlapping windows (choppy/declining regimes: +0.26pp to
+  +0.61pp) and is ~neutral, not negative, in a trending-up window (-0.07pp,
+  noise-level) — mechanically explicable (extra buys only land at
+  locally-lower prices when a 24h dip actually occurs, so the feature is a
+  no-op, not a loss, when the market doesn't dip) and consistent with why
+  it's already the default. A more aggressive variant (3%/2.5×) shows a
+  stronger version of the same pattern but only wins 4/8 symbols (noise
+  level) in the trending-up window and requires 13–30% more deployed
+  capital — not adopted; no clean win in a trending-up regime plus a real
+  capital/exposure cost is enough to reject it. **No code/param change —
+  validates the existing default, doesn't argue for changing it.**
 - **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss
   was fees — empirically confirms the negative-edge finding from backtests.
   Stopped; testnet + this automated research only from here on.
+
+---
+
+## 2026-08-12 — Run 4
+
+**Self-correction check:** reviewed commits since Run 3 — only `765defe`
+(scanner: exclude newer USD stablecoins from the coin scanner). Doesn't
+touch the fixed 8-symbol research universe, any strategy default, or any
+backtest code. Nothing strategy-affecting to revert.
+
+**Region — DCA strategy, first-ever pass, new evaluation methodology
+(per Run 3's flagged next step).** `run_dca_backtest` accumulates inventory
+and returns zero round-trip `trades`, so the PF>1.1/≥30-trades bar used for
+candle strategies doesn't apply. Defined a DCA-specific bar: compare
+**capital-normalized ROI** (`unrealized_pnl / invested`, in %) of a variant
+against a flat fixed-schedule baseline (same `interval=daily,
+quote_amount=$15`, `dip_enabled=False`) — NOT raw avg-cost-vs-last-close,
+which is misleading here since dip-buy variants deploy *more* total
+capital than the flat baseline (extra $ on qualifying dip days), so a
+lower unit cost doesn't automatically mean a better dollar outcome without
+normalizing by $ invested first.
+
+Tested 3 variants (`flat` baseline, `dip_default` = shipped default
+`dip_threshold_pct=5.0/dip_multiplier=1.5`, `dip_aggressive` =
+`3.0/2.5`) × 8 symbols × 3 non-overlapping windows (train 2026-03-14→
+2026-06-12, test 2026-06-12→2026-08-11, plus an older window
+2025-12-15→2026-03-14 — same anchors as the candle-strategy research) =
+72 backtests, hourly candles (for the 24h dip lookback), fees 7.5bps /
+slippage 4bps.
+
+**`dip_default` (shipped default) vs flat:** ROI beats flat on 6/8 symbols
+in train (+0.26pp avg), 8/8 in the older window (+0.61pp avg), but only
+2/8 in the test window (-0.07pp avg, noise-level, not a real loss).
+**Verdict: mixed across windows, doesn't clear a majority-of-symbols win
+in every window** — so not an unconditional edge by this research's own
+anti-noise standard. But the mechanism is explicable, not curve-fit: extra
+buys land at locally-lower prices only when a 24h dip actually happens, so
+the feature is a no-op (not a loss) in a trending-up market and a real
+help in choppy/declining ones — consistent with 2/3 windows meaningfully
+positive and the 3rd being ~flat rather than negative. **This is already
+the shipped default; the run validates keeping it, doesn't argue for
+changing it either direction.**
+
+**`dip_aggressive` (3%/2.5×) vs shipped default:** beats it on ROI in the
+older window (8/8, +1.72pp) and train (7/8, +0.55pp), but only 4/8 (50%,
++0.09pp, noise) in the trending-up test window — not a clean win in every
+regime. It also deploys **13–30% more total capital** than the default
+across symbols (lower threshold triggers more often), a real
+capital/liquidity requirement and larger concentration of exposure into
+still-declining assets that isn't captured by the ROI-% comparison alone.
+**Verdict: reject** — no clean win in a trending-up window, plus a real
+added capital/exposure cost, isn't enough to justify shipping a more
+aggressive default.
+
+**$100 / $1000 translation:** `dip_default` vs flat: -$0.07/-$0.70 (test
+window, the regime that matters most for "is this still working now"),
++$0.26/+$2.63 (train window), on the ROI-normalized basis. `dip_aggressive`
+vs default: +$0.02/+$0.24 (test window, noise-level). No candidate found —
+smallest of the three verdicts is "keep the untouched default."
+
+**Verdict: no promising candidate this run.** No code or default-param
+changes made (the one interesting finding — dip-buy helps and never
+meaningfully hurts — describes the *existing* shipped default, not a
+change). Nothing to revert (no strategy-affecting commits since Run 3).
+
+**Next run should rotate to:** a genuinely new region — candle-strategy
+families (mean_reversion, trend_momentum, grid) are exhausted at
+15m/1h/4h; DCA now has a working methodology and first-pass result. Worth
+trying: (a) a 5m timeframe sweep for mean_reversion/trend_momentum
+(untested, low priority given 1m's catastrophic result, but 15m/1h/4h are
+all exhausted); (b) re-testing `dip_default` vs flat on a 4th window if a
+genuinely trending-up historical window can be found deliberately (the
+test window here was the only trending-up one of the three tried, so its
+verdict rests on a single window); (c) DCA `interval` (hourly vs
+daily vs weekly) has never been varied — only `dip_*` params were, this
+run assumed daily throughout.
+
+_No CANDIDATE FOUND this run._
 
 ---
 
