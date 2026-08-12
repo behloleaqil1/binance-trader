@@ -49,7 +49,15 @@ jobs:
           ssh "$H" 'set -e
             sudo -u botrunner /opt/binance-trader/venv/bin/pip install -q -r /opt/binance-trader/app/backend/requirements.txt
             systemctl restart binance-trader
-            sleep 5
-            systemctl is-active binance-trader >/dev/null && curl -sf http://127.0.0.1:8100/api/health >/dev/null \
-              && echo "testnet bot redeployed and healthy" \
-              || { echo "health check FAILED after deploy"; journalctl -u binance-trader -n 20 --no-pager; exit 1; }'
+            # Poll health for up to ~40s — the app needs a few seconds to sync
+            # its clock and init the Binance gateway before uvicorn serves, so a
+            # single curl after a fixed sleep races startup and false-fails.
+            ok=""
+            for i in $(seq 1 20); do
+              if systemctl is-active binance-trader >/dev/null \
+                 && curl -sf http://127.0.0.1:8100/api/health >/dev/null; then
+                ok=1; echo "testnet bot redeployed and healthy (after ${i} tries)"; break
+              fi
+              sleep 2
+            done
+            [ -n "$ok" ] || { echo "health check FAILED after deploy"; journalctl -u binance-trader -n 20 --no-pager; exit 1; }'
