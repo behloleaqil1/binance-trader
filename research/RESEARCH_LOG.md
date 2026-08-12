@@ -105,6 +105,90 @@ below — which is already shipped as the default, not a new change.
 - **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss
   was fees — empirically confirms the negative-edge finding from backtests.
   Stopped; testnet + this automated research only from here on.
+- **DCA schedule `interval` (hourly/daily/weekly): now swept (Run 5).**
+  Hourly vs shipped daily: noise (<=0.11pp ROI delta in any window, sign
+  flips between windows) — makes sense, hourly just re-slices the same
+  buying period daily already averages over, so cost basis barely moves;
+  also a real live-trading cost (24x more orders/window) for zero benefit.
+  Weekly vs daily: **reject, don't recommend** — systematically worse in
+  ALL 3 windows (older -1.10pp/0% win, train -0.29pp/31% win, test
+  -0.61pp/25% win), unlike dip-buying's "helps in declines, neutral in
+  uptrends" pattern weekly has no offsetting upside anywhere. Mechanism:
+  only ~10-14 buys/window on one fixed weekday samples a far less
+  representative slice of the price path than daily's ~90. **Validates
+  keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-12 — Run 5
+
+**Self-correction check:** reviewed commits since Run 4 — only `a4798a2`
+(auto-deploy: poll health for ~40s instead of one-shot, fixes a startup
+race). Deploy-tooling only; doesn't touch any strategy default, risk
+config, or backtest code. Nothing strategy-affecting to revert.
+
+**Region — DCA `interval` sweep (hourly/daily/weekly), first-ever variation
+of this param** (per Run 4's flagged next step (c); prior DCA runs only
+varied `dip_*` params, always on the `daily` schedule). Same 3-window
+methodology as Run 4 (capital-normalized ROI = `unrealized_pnl/invested %`,
+since `run_dca_backtest` has no round-trip trades): older
+2025-12-15→2026-03-14, train 2026-03-14→2026-06-12, test
+2026-06-12→2026-08-11. Klines fetched once per (symbol, window) at 1h
+granularity — schedule interval is independent of candle granularity, so
+all three schedule variants reuse the same cached candles. Ran both `flat`
+(dip disabled) and shipped `dip_default` on each interval × window ×
+symbol = 144 backtests total. `quote_amount` scaled per interval
+(hourly=$1, daily=$15, weekly=$105) to keep a roughly similar deploy rate;
+ROI is capital-normalized so this doesn't bias the comparison.
+
+**Hourly vs daily:** avg ROI delta +0.11pp (older, 87.5% symbol-win),
++0.06pp (train, 93.8% win), **-0.03pp (test, 43.8% win — sign flips)**.
+Magnitude is trivial everywhere (≤0.11pp — cents on $100) and the sign
+isn't even stable across windows. Mechanically expected: hourly just
+finely re-slices the same buying period daily already covers, so the
+average purchase price barely moves — no reason to expect an edge, and
+none found. Also carries a real, uncaptured-by-ROI operational cost: 2160
+buy events per symbol per 90-day window vs 90 for daily — 24x more live
+orders per dollar deployed (minimum-notional issues, API/exchange load)
+for zero measurable benefit. **Verdict: noise, reject.**
+
+**Weekly vs daily:** avg ROI delta **-1.10pp (older, 0/16 = 0% win)**,
+**-0.29pp (train, 31% win)**, **-0.61pp (test, 25% win)** — worse in
+**every one of the 3 independent windows**, never close to a majority
+win, and even its best window (train) is still a net loss vs daily, not a
+wash. This is qualitatively different from the dip-buying pattern (helps
+in declines, neutral in uptrends, Run 4) — weekly shows no offsetting
+upside in any regime tested. Mechanism: only ~10-14 buys per 90-day window
+on a single fixed weekday/time samples a far less representative slice of
+the price path than daily's ~90 buys, so each lump-sum buy carries more
+single-draw timing risk — and that risk realized negative in all 3
+non-overlapping windows, not just down-trending ones. **Verdict: reject —
+do not recommend weekly as a DCA schedule.**
+
+**$100 / $1000 translation (test window, most decision-relevant):**
+hourly vs daily: -$0.03/-$0.30 (noise-level, don't act on the sign).
+Weekly vs daily: -$0.61/-$6.08 — small in absolute terms but consistently
+negative across all 3 windows with no compensating upside anywhere.
+
+**Verdict: no promising candidate this run.** No code or default-param
+change (the finding validates the existing shipped default, `interval=
+daily`, over both alternatives — hourly is a no-op with extra operational
+cost, weekly is a real net negative). Nothing to revert (no
+strategy-affecting commits since Run 4).
+
+**Next run should rotate to:** DCA's interval/dip axes are now both
+explored (this run + Run 4) — candle-strategy families (mean_reversion,
+trend_momentum, grid) remain exhausted at 15m/1h/4h. Worth trying next:
+(a) a 5m timeframe sweep for mean_reversion/trend_momentum (still
+untested, low priority given 1m's catastrophic result); (b) DCA
+`time_utc` sensitivity (does the specific hour-of-day for a daily buy
+matter, given weekly's day-of-week/lump-size finding this run suggests
+schedule *granularity* matters more than *anchor point*, worth a
+quick confirmatory check); (c) re-testing `dip_default` vs flat on a
+genuinely different trending-up window if one can be found, per Run 4's
+still-open flag (only tested in one trending-up window so far).
+
+_No CANDIDATE FOUND this run._
 
 ---
 
