@@ -5,6 +5,7 @@ The React dashboard talks to /api/* and /ws/stream.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -47,14 +48,25 @@ async def lifespan(app: FastAPI):
     log.info("Binance trader backend up — %s | keys: %s | auto_start: %s",
              mode, settings.masked_key(), settings.auto_start)
     log.info("─" * 60)
+    # Auto-start the engine in the BACKGROUND so uvicorn reaches `yield` and
+    # begins serving immediately. engine.start() does a slow bootstrap (clock
+    # sync, gateway init, scanner scan, ~21 market-stream websockets) that can
+    # take 20-60s; running it inline blocked the socket bind, so /api/health
+    # (and every endpoint) was unreachable until warmup finished — which false-
+    # failed the deploy health-check and hid the API during every restart.
+    start_task: asyncio.Task | None = None
     if settings.auto_start and settings.has_keys:
-        try:
-            await engine.start()
-        except Exception as e:  # noqa: BLE001 — surface in status, don't crash boot
-            log.error("auto-start failed: %s", e)
+        async def _bg_start() -> None:
+            try:
+                await engine.start()
+            except Exception as e:  # noqa: BLE001 — surface in status, don't crash boot
+                log.error("auto-start failed: %s", e)
+        start_task = asyncio.create_task(_bg_start())
     try:
         yield
     finally:
+        if start_task is not None and not start_task.done():
+            start_task.cancel()
         await engine.shutdown()
         await database.dispose()
 
