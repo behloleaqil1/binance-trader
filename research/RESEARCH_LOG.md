@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 6 sessions and ~65 configs.** Every trend_momentum /
+families, across 7 sessions and ~69 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -26,14 +26,22 @@ near-breakeven setups negative. The one asymmetric, mechanically-explicable
 (not curve-fit) positive finding so far is DCA's dip-buy feature — see
 below — which is already shipped as the default, not a new change.
 
-- **trend_momentum: no edge at any grid-searched TF.** Fully grid-searched
-  with train/test rigor at 4h (Run 1, 18 combos, best train PF 0.79, all
-  fail) and now 1h (Run 3, 18 combos, best train PF 0.90, all fail; OOS on
-  the best-train combo confirms PF 0.463/105 trades). Do not re-grid
-  trend_momentum at 1h/4h without a materially different signal design
-  (current ema-cross+RSI+MACD family is exhausted at these TFs). 15m
-  untested (low priority — 15m mean_reversion already showed the same
-  pattern as 1h/4h, and 1m is catastrophic for any strategy).
+- **trend_momentum: no edge at ANY grid-searched TF — family now closed
+  across 15m/1h/4h.** Fully grid-searched with train/test rigor at 4h
+  (Run 1, 18 combos, best train PF 0.79, all fail), 1h (Run 3, 18 combos,
+  best train PF 0.90, all fail; OOS on the best-train combo confirms PF
+  0.463/105 trades), and now 15m (Run 7, 12 combos, best train PF 0.993 —
+  literally the shipped default — still <1; OOS confirms PF 0.325/74
+  trades, real sample, clearly negative). Unlike 1h/4h's default-reference
+  finding (train fails, OOS looks lucky = regime ambiguity), 15m's default
+  fails BOTH windows consistently — the cleanest non-edge result yet for
+  this family, no regime-luck story available. Faster EMA pairs (9/21,
+  12/26) are strictly worse than 20/50 at 15m (train PF 0.08–0.22 vs
+  0.99), and dropping MACD confirmation is strictly worse than requiring
+  it. Do not re-grid trend_momentum at 15m/1h/4h without a materially
+  different signal design (current ema-cross+RSI+MACD family is exhausted
+  at every TF tested; 1m is catastrophic for any strategy, never tested
+  here nor worth testing).
 - **mean_reversion @ 4h: first pass done (Run 6), no edge, and the TF is
   now too short-window to say more.** 24-combo grid (bb_std x
   rsi_oversold x exit_at x trend_ema, 90-day train / 60-day test — only
@@ -138,6 +146,70 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-13 — Run 7
+
+**Self-correction check:** reviewed commits since Run 6 — only `433f7ae`
+(research: log run 6). No strategy/risk/backtest code touched since Run 6;
+nothing to re-validate or revert.
+
+**Region chosen:** `trend_momentum` @ 15m — the last untested timeframe for
+this family (4h done Run 1, 1h done Run 3, both no-edge). Closes the family
+if this also fails.
+
+**Method:** train/test split, TRAIN = 150d–60d ago, TEST = 60d–0d ago (2026-
+08-13 anchor), same as every prior candle-strategy run. 12-combo grid: EMA
+pairs {9/21, 12/26, 20/50 (shipped default)} × rsi_buy_min {45, 50} ×
+require_macd {True, False}, TP/SL held at repo defaults (4%/2%). All 8
+symbols, fees 7.5bps + slippage 4bps, $10,000/symbol.
+
+**Result: every combo fails the train screen.** Best train PF was 0.993 —
+literally the shipped default (`ema_fast=20, ema_slow=50, rsi_buy_min=50,
+require_macd=True`) — still just under 1.0, with a real sample (141 train
+trades). `rsi_buy_min` (45 vs 50) made zero difference to any combo's
+result — RSI at the moment of an EMA cross-up never landed in [45, 50) in
+this data, so the grid effectively collapsed to 6 distinct combos (3 EMA
+pairs × require_macd). Ranked (train PF): 20/50+MACD 0.993/141 trades >
+20/50 no-MACD 0.453/81 > 9/21 no-MACD 0.215/85 > 9/21+MACD 0.152/95 >
+12/26 no-MACD 0.183/73 > 12/26+MACD 0.082/69. Faster EMA pairs (9/21,
+12/26) are uniformly worse than 20/50 — more whipsaw entries, much lower
+win rate (10–15% vs 29%). Dropping MACD confirmation is uniformly worse
+than requiring it.
+
+**OOS validation (top train-ranked combo, i.e. the shipped default):**
+train PF 0.993/141 trades → test PF 0.325/74 trades (real sample). Also
+ran the 2nd-ranked (20/50, no MACD): train PF 0.453/81 → test PF 0.307/78.
+Both fail OOS decisively — no ambiguity, no lucky window. Unlike the 1h/4h
+runs (where the *shipped default* scored train PF < 1 but then looked
+lucky OOS, needing extra windows to debunk), 15m's default fails **both**
+windows consistently. This is the cleanest, least-ambiguous no-edge result
+for trend_momentum yet — no regime-luck story is even available here.
+
+**Verdict: trend_momentum has now been grid-searched with full train/test
+rigor at 15m, 1h, and 4h — no edge at any timeframe.** The family is closed
+for the current ema-cross+RSI+MACD signal design; re-opening it would need
+a materially different signal (e.g. ADX-based trend strength, volume
+confirmation, a different indicator set entirely), not further parameter
+tuning within this design.
+
+**$100 / $1000 account translation:** shipped-default 15m config would
+have lost ~$0.10 per $100 (~$1.00 per $1000) over the 60-day OOS window —
+consistent with (slightly better than) its already-worse 1h OOS showing
+in isolated windows, and worse than its 4h OOS reading; net picture across
+all three TFs for this exact param set is "no reliable edge, sometimes
+worse than fees, never reliably better."
+
+**Next run should rotate to:** `grid` strategy @ 4h (untested — 15m and 1h
+both done, both rejected for the same directional-bag-holding reason; 4h
+would confirm/close the pattern at the last major TF), or start exploring
+a materially different trend_momentum signal design (ADX filter) if the
+research budget allows a code-level experiment rather than pure param
+sweep.
+
+_No CANDIDATE FOUND this run — trend_momentum family closed with a clean,
+unambiguous null result across all three timeframes tested._
 
 ---
 
