@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 4 sessions and ~62 configs.** Every trend_momentum /
+families, across 6 sessions and ~65 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -31,7 +31,28 @@ below — which is already shipped as the default, not a new change.
   fail) and now 1h (Run 3, 18 combos, best train PF 0.90, all fail; OOS on
   the best-train combo confirms PF 0.463/105 trades). Do not re-grid
   trend_momentum at 1h/4h without a materially different signal design
-  (current ema-cross+RSI+MACD family is exhausted at these TFs).
+  (current ema-cross+RSI+MACD family is exhausted at these TFs). 15m
+  untested (low priority — 15m mean_reversion already showed the same
+  pattern as 1h/4h, and 1m is catastrophic for any strategy).
+- **mean_reversion @ 4h: first pass done (Run 6), no edge, and the TF is
+  now too short-window to say more.** 24-combo grid (bb_std x
+  rsi_oversold x exit_at x trend_ema, 90-day train / 60-day test — only
+  540 / 360 4h-candles respectively). All `trend_ema=200` combos (half
+  the grid) produced **zero train trades across all 8 symbols** — at 4h
+  the 200-EMA warmup (≈33 days) plus the rarity of "oversold dip AND
+  above a slow trend EMA" simultaneously never fired in a 90-day window;
+  worse starvation than the 3-6 trades trend_ema=200 got at 1h (Run 2),
+  confirming trend_ema=200 needs far more history than any window this
+  research uses to be testable at all — don't retry it at 4h without a
+  multi-year window. Best real-sample train combo (bb_std=2.5,
+  rsi_oversold=30, exit=middle, trend_ema=0, train PF 1.143/35 trades)
+  hit OOS PF 1.241 but only 14 trades — clears the PF bar, misses the
+  30-trade floor by a wide margin (60-day test window is just too short
+  at 4h to accumulate a trustworthy sample even when train showed a weak
+  edge). Shipped-default reference repeated the same train-fails/OOS-
+  clears pattern already debunked at 1h (train PF 0.663, OOS PF
+  1.786/27 trades) — not re-opened, 1h's 3-window check already closed
+  this question for the same params.
 - **mean_reversion @ 1h default params: 3-window check now CLOSES this
   question — it's regime luck, not an edge.** Run 2 found the shipped
   defaults (bb_std=2.0, rsi_oversold=30, exit_at=middle, trend_ema=0) at
@@ -117,6 +138,78 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-13 — Run 6
+
+**Self-correction check:** reviewed commits since Run 5 — `18145e4`
+(recon: add a non-mutating localhost health probe) and `e684399`
+(backend: start engine in background so uvicorn serves /api/health
+immediately). Both are deploy/health-check plumbing only; neither touches
+a strategy default, risk config, or backtest code. Nothing strategy-
+affecting to revert.
+
+**Region — mean_reversion @ 4h, first-ever pass (per rotation: candle-
+strategy families were exhausted only at the specific TFs actually tested
+so far — mean_reversion had 15m + 1h, trend_momentum had 4h + 1h, grid had
+15m + 1h; 4h was the one genuinely untested cell for mean_reversion).**
+Same train/test anchors as every prior run (train 2026-03-14→2026-06-12,
+test 2026-06-12→2026-08-11) and the same 24-combo grid shape as Run 2's
+1h search: `bb_std` ∈ {2.0,2.5,3.0} × `rsi_oversold` ∈ {25,30} × `exit_at`
+∈ {middle,upper} × `trend_ema` ∈ {0,200}, aggregated across all 8 symbols.
+
+At 4h a 90-day train window is only 540 candles and the 60-day test window
+only 360 — much thinner than 1h's 2160/1440. This mattered immediately:
+**every `trend_ema=200` combo (12 of 24) produced zero train trades across
+all 8 symbols.** The 200-EMA warmup alone is ~33 days at 4h, and requiring
+"oversold dip AND price above a slow trend EMA" simultaneously in the
+remaining ~57 days never fired once for any symbol — a harder starvation
+than the 3-6 trades trend_ema=200 managed at 1h (Run 2). Not a bug, just
+confirms trend_ema=200 is untestable at 4h with a 90-day window; not worth
+retrying without years of history.
+
+Train screen on the remaining 12 `trend_ema=0` combos: best by PF was
+bb_std=3.0/rsi_oversold=25 (PF 1.791) but only **2 train trades** (bb_std=
+3.0 rarely triggers) — too small to mean anything, and it went on to score
+**0 OOS trades**. The only combo with both train PF>1 *and* a real sample
+was bb_std=2.5/rsi_oversold=30/exit=middle (train PF 1.143, 35 trades):
+OOS PF 1.241 — numerically clears the 1.1 bar — but only **14 OOS trades**,
+well under the 30-trade floor (the 60-day/360-candle test window just
+can't accumulate more at this signal's fire rate). **Verdict: FAIL**, no
+combo clears both anti-noise conditions.
+
+Also re-ran the shipped-default params (`bb_std=2.0, rsi_oversold=30,
+exit_at=middle, trend_ema=0`) as a reference at 4h, same as done at 1h in
+Run 2/3: train PF 0.663 (fails the train screen — would not have been
+selected by optimization), OOS PF 1.786/27 trades (still under 30). This
+is the exact same train-fails/OOS-clears shape already investigated and
+closed at 1h (Run 2 found OOS PF 1.903/120 trades on one window, Run 3's
+3rd window then found PF 0.441/136 trades — net verdict: regime luck, not
+an edge). The 4h version has an even smaller OOS sample than the already-
+debunked 1h version, so it's not reopening anything, just confirming the
+same params don't show a different story at a different TF either.
+
+**$100 / $1000 translation:** best OOS result this run was the bb_std=2.5
+combo, +$0.01/+$0.09 over 60 days on $8,000 test notional (14 trades,
+sub-floor). Every other combo is flat, zero-trade, or matches the already-
+rejected default pattern. No positive candidate.
+
+**Verdict: no promising candidate this run.** No code or default-param
+changes made. Nothing to revert (no strategy-affecting commits since
+Run 5).
+
+**Next run should rotate to:** the one remaining untested candle-strategy
+cell is `grid @ 4h` (grid has only been tested at 15m and 1h so far, both
+directional-bet failures — distilled learnings already say don't re-grid
+it without a range-detection filter, so if picked up, that filter should
+be built first rather than re-running the same directional bet at a new
+TF). Otherwise: (a) DCA `time_utc` sensitivity (flagged by Run 5, still
+open); (b) a 5m sweep for mean_reversion/trend_momentum (still untested,
+low priority given 1m's catastrophic result and 15m already showing the
+same no-edge pattern).
+
+_No CANDIDATE FOUND this run._
 
 ---
 
