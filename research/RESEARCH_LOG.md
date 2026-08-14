@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 7 sessions and ~69 configs.** Every trend_momentum /
+families, across 8 sessions and ~78 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -26,6 +26,32 @@ near-breakeven setups negative. The one asymmetric, mechanically-explicable
 (not curve-fit) positive finding so far is DCA's dip-buy feature — see
 below — which is already shipped as the default, not a new change.
 
+- **grid: no edge at ANY grid-searched TF — family now closed across
+  15m/1h/4h.** Fully grid-searched with train/test rigor at 1h (Run 2, 8
+  combos, best train PF 1.51 collapses to OOS PF 0.66) and now 4h (Run 8,
+  8 combos + shipped-default reference). At 4h, properly risk-managed
+  (`flatten_on_stop=True`) combos fail even the train screen outright (PF
+  0.31–0.69, all <1) and stay negative OOS (PF 0.35–0.83) — an even
+  cleaner failure than 1h's train-passes/OOS-collapses pattern, no
+  regime-luck ambiguity. Separately, Run 8 found and documented a **PF
+  accounting artifact for `flatten_on_stop=False`**: a grid sell only ever
+  fires above its paired buy, so every *closed* trade is a win by
+  construction (100% win rate, trade-PF literally undefined/infinite)
+  regardless of whether the strategy is actually profitable — losses on
+  held-but-never-flattened inventory are invisible to trade-level PF and
+  only show up in account-level mark-to-market return. That real return
+  flip-flopped sign between windows for all 4 `flatten=False` combos and
+  the shipped default (train −0.68pp to −1.01pp vs test +0.16pp to
+  +0.39pp) — the same train-loses/test-gains flip-flop signature already
+  seen elsewhere in this research, confirming (not contradicting) the
+  standing conclusion that unflattened grid inventory is just unhedged
+  directional spot exposure wearing a grid-strategy costume. **Do not
+  trust `flatten_on_stop=False` trade-PF as a metric in any future grid
+  run — always read account-level return instead.** Confirms the founding
+  distilled learning (grid is a directional bet in disguise) at a third
+  timeframe; don't re-grid this strategy without first building a
+  range-detection filter (ADX/volatility gate), which no run has
+  attempted yet.
 - **trend_momentum: no edge at ANY grid-searched TF — family now closed
   across 15m/1h/4h.** Fully grid-searched with train/test rigor at 4h
   (Run 1, 18 combos, best train PF 0.79, all fail), 1h (Run 3, 18 combos,
@@ -98,13 +124,14 @@ below — which is already shipped as the default, not a new change.
   trades. See summary bullet above; no edge, don't re-test this family.
 - **grid strategy:** profits from range oscillation in-sample but is a
   **directional bet in disguise** — bag-holds through downtrends. Confirmed
-  twice now: informally at 15m/90d (−20% net, founding session) and
+  three times now: informally at 15m/90d (−20% net, founding session),
   rigorously at 1h with train/test split (best train PF 1.51 → OOS PF 0.66,
-  **every** train-ranked config among 8 collapsed OOS, Run 2). Do not
-  grid-search this strategy again without first finding a *range-detection*
-  filter (e.g. only run it when ADX/volatility says "ranging") — parameter
-  tuning alone (range width, level count, flatten-on-stop) cannot fix a
-  strategy whose core risk is directional exposure.
+  Run 2), and at 4h (Run 8) — see full summary bullet above. Family now
+  closed at 15m/1h/4h; do not grid-search this strategy again without first
+  finding a *range-detection* filter (e.g. only run it when ADX/volatility
+  says "ranging") — parameter tuning alone (range width, level count,
+  flatten-on-stop) cannot fix a strategy whose core risk is directional
+  exposure.
 - **mean_reversion trend_ema filter (opt-in, default off):** buy-the-dip
   only in uptrends. Near-breakeven at 1h with trend_ema=200 in the founding
   session (11 trades) and confirmed still tiny-sample (3–6 trades) in Run 2's
@@ -146,6 +173,89 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-14 — Run 8
+
+**Self-correction check:** reviewed commits since Run 7 — none landed
+(`1943c23` was Run 7's own log commit). No strategy/risk/backtest code
+touched since Run 7; nothing to re-validate or revert.
+
+**Region chosen:** `grid` @ 4h — the last untested cell for this family
+(15m done founding session, 1h done Run 2 with full train/test rigor, both
+directional-bag-holding failures). Closes the family if 4h also fails, per
+Run 7's flagged next step.
+
+**Method:** train/test split, TRAIN = 2026-03-17→2026-06-15 (150d–60d ago),
+TEST = 2026-06-15→2026-08-14 (60d–0d ago, today's anchor). 8-combo grid:
+`auto_range_pct` ∈ {6, 10} × `levels` ∈ {8, 13} × `flatten_on_stop` ∈
+{True, False}, `quote_per_level=150`, `stop_outside_range=True` always, all
+8 symbols aggregated per combo, fees 7.5bps + slippage 4bps, $10,000/symbol.
+Also ran the shipped-default params (`auto_range_pct=5.0, levels=8,
+flatten_on_stop=False`) as a reference, same as every prior grid run.
+
+**Result — two distinct findings:**
+
+1. **`flatten_on_stop=True` (properly risk-managed) fails the train screen
+   outright, no ambiguity.** All 4 combos: train PF 0.31–0.69 (all <1),
+   OOS PF 0.35–0.83 (all <1, real samples of 50–188 trades). Best of the 4
+   (`auto_range_pct=6, levels=13`): train PF 0.689/105 trades → OOS PF
+   0.826/183 trades — closest to breakeven but still a loser both windows.
+   Narrower range + more levels (finer ladder) is consistently
+   less-bad than wider range + fewer levels, but no combo gets anywhere
+   near PF 1. This is an even cleaner failure than 1h's pattern (Run 2:
+   train PF 1.51 looked good, then collapsed OOS to 0.66) — here train
+   already rejects every combo, no regime-luck story is even available.
+
+2. **`flatten_on_stop=False` produces a PF accounting artifact — new
+   finding, not seen at 15m/1h because those runs didn't isolate it.** A
+   grid sell order only ever fires *above* its paired buy (that's the whole
+   mechanism), so if inventory is never force-flattened, every trade that
+   *does* close is, by construction, a win — 100% win rate, trade-level PF
+   literally undefined/infinite, for all 4 `flatten=False` combos AND the
+   shipped default. This says nothing about whether the strategy is
+   profitable: losses sit as unrealized mark-to-market drag on held
+   inventory and never appear in trade PF at all. Reading the real,
+   account-level return instead (`avg_ret_pct`, which marks inventory to
+   the closing price) tells the true story: **every one of the 4 combos
+   plus the shipped default lost money in train** (−0.68pp to −1.01pp) and
+   **every one flipped to a small gain in test** (+0.16pp to +0.39pp,
+   except the shipped default which was flat at −0.002pp). Train-loses/
+   test-gains for literally every combo in the family is the clearest
+   possible confirmation that this isn't a strategy edge — it's just
+   unhedged directional spot exposure (whatever inventory happens to be
+   held rides the market), riding the fact that the 60-day test window
+   happened to trend more favorably than the 90-day train window.
+
+**Verdict: grid has now been grid-searched with full train/test rigor at
+15m, 1h, and 4h — no edge at any timeframe, and the mechanism is now fully
+understood** (oscillation profit only exists while flattened losses are
+excluded; the moment risk is actually managed, PF drops under 1). Family
+closed for parameter tuning alone; would need a genuine range-detection
+filter (ADX/volatility gate) to reopen, which no run has attempted.
+
+**$100 / $1000 account translation:** best `flatten_on_stop=True` (real,
+risk-managed) result this run: −$0.05/−$0.54 over 60d OOS. Shipped default
+(`flatten=False`) reference: −$0.00/−$0.02 OOS (flat/noise), but −$0.70/
+−$7.04 in-sample — a real loss the trade-level PF metric completely hides.
+No positive candidate anywhere in the grid.
+
+**Next run should rotate to:** with mean_reversion, trend_momentum, and
+grid all now exhausted at 15m/1h/4h with train/test rigor, the standard
+candle-strategy parameter-tuning approach is fully explored on this 8-symbol
+universe. Worth trying next: (a) a genuinely new signal design — an ADX-
+based range/trend-strength filter, applicable to both gating `grid` (only
+run it when ranging) and as a new confirmation layer for `trend_momentum`
+(flagged as the reopen condition for both families in the distilled
+learnings); (b) a 5m timeframe sweep (still untested, low priority given
+1m's catastrophic result); (c) DCA `time_utc` sensitivity (still open,
+flagged since Run 5).
+
+_No CANDIDATE FOUND this run — grid family closed with a clean,
+mechanism-explained null result across all three timeframes tested, plus a
+new methodological finding (flatten_on_stop=False PF is not a trustworthy
+metric) that future grid runs should carry forward._
 
 ---
 
