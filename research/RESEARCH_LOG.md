@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 8 sessions and ~78 configs.** Every trend_momentum /
+families, across 9 sessions and ~82 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -26,6 +26,30 @@ near-breakeven setups negative. The one asymmetric, mechanically-explicable
 (not curve-fit) positive finding so far is DCA's dip-buy feature — see
 below — which is already shipped as the default, not a new change.
 
+- **mean_reversion @ 5m: first pass done (Run 9) — cleanest, most decisive
+  failure of any mean_reversion TF tested.** 24-combo grid (bb_std x
+  rsi_oversold x exit_at x trend_ema, same shape as 1h/4h), 150d train /
+  60d test, all real samples (5m gives plenty of candles even at 90 days).
+  All `trend_ema=0` combos have real train samples (11-274 trades) and
+  **every one has train PF < 1** (best 0.748, `bb_std=3.0, rsi_os=25,
+  exit=upper`) — a clean train-screen rejection with no small-sample
+  ambiguity, unlike 1h/4h where the starved `trend_ema=200` half produced
+  a few misleadingly-high-PF tiny samples. OOS-validated the top 3
+  train-ranked real-sample combos anyway: best got PF 1.064/171 trades —
+  doesn't even clear the 1.1 anti-noise bar despite a real sample — the
+  other two stayed negative both windows (PF 0.836/0.745 OOS). **Shipped
+  default reference is the most decisive default-failure yet**: train PF
+  0.181/126 trades, test PF 0.347/146 trades — negative in BOTH windows,
+  no train-fails/OOS-clears regime-luck story available at all (unlike the
+  ambiguous pattern seen for the same default params at 1h and 4h). Fee
+  drag likely plays a bigger role at 5m than 15m/1h/4h (more candles per
+  day, more RSI/BB fire opportunities) without 1m's catastrophic
+  over-trading — a genuine intermediate point on the TF spectrum, and it's
+  unambiguously a loser. mean_reversion is now grid-searched with train/
+  test rigor at 5m/15m/1h/4h — no edge at any TF from 5m to 4h; only 1m
+  (catastrophic) and 1d (untested, low priority — even fewer candles per
+  window than 4h, likely to hit the same starvation issues as
+  `trend_ema=200` did at 4h) remain unexplored for this family.
 - **grid: no edge at ANY grid-searched TF — family now closed across
   15m/1h/4h.** Fully grid-searched with train/test rigor at 1h (Run 2, 8
   combos, best train PF 1.51 collapses to OOS PF 0.66) and now 4h (Run 8,
@@ -173,6 +197,78 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-14 — Run 9
+
+**Self-correction check:** reviewed commits since Run 8 — none landed
+(`76435c4` was Run 8's own log commit). No strategy/risk/backtest code
+touched since Run 8; nothing to re-validate or revert.
+
+**Region chosen:** `mean_reversion` @ 5m — the last untested TF for this
+family (15m/1h/4h all done in prior runs, all no-edge), per Run 8's
+flagged next step (b). Closes the standard-TF sweep (5m-4h) for
+mean_reversion if this also fails.
+
+**Method:** train/test split, TRAIN = 2026-03-17→2026-06-15 (150d-60d
+ago), TEST = 2026-06-15→2026-08-14 (60d-0d ago, today's anchor) — same
+anchors as Run 8. 24-combo grid: `bb_std` ∈ {2.0,2.5,3.0} × `rsi_oversold`
+∈ {25,30} × `exit_at` ∈ {middle,upper} × `trend_ema` ∈ {0,200}, identical
+shape to the 1h (Run 2) and 4h (Run 6) searches, aggregated across all 8
+symbols. Also ran the shipped-default params (`bb_std=2.0,
+rsi_oversold=30, exit_at=middle, trend_ema=0`) as a reference, same as
+every prior grid run. Fees 7.5bps + slippage 4bps, $10,000/symbol.
+
+**Result: decisive, unambiguous failure — no small-sample noise this
+time.** Unlike 1h/4h where the `trend_ema=200` half of the grid starved to
+2-6 trades, at 5m even `trend_ema=200` combos got real samples (5-91
+train trades) because a 150-day window is ~43,000 5m-candles — plenty of
+data. Despite that, **every `trend_ema=0` combo has train PF < 1** (11
+combos, range 0.181-0.748, best 262 real trades) — a clean train-screen
+rejection with no ambiguity about sample size. OOS-validated the top 3
+train-ranked real-sample combos anyway: best (`bb_std=3.0, rsi_os=25,
+exit=upper, trend_ema=0`) went train PF 0.748/262 trades → test PF
+1.064/171 trades — a real sample, but PF itself is too weak to clear the
+1.1 anti-noise bar. The other two stayed negative both windows (test PF
+0.836/171→235 trades and 0.745/192 trades). **Shipped default reference
+is the cleanest default-failure of any TF tested so far**: train PF
+0.181/126 trades, test PF 0.347/146 trades — negative in BOTH windows by
+a wide margin, no train-fails/OOS-clears regime-luck story available (the
+pattern that made the same default params ambiguous at 1h and 4h simply
+doesn't appear here — 5m fails outright, same shape as 15m's
+trend_momentum failure in Run 7).
+
+**Verdict: mean_reversion now has full train/test grid coverage at
+5m/15m/1h/4h — no edge at any of these four timeframes.** Only 1m
+(already catastrophic, never retest) and 1d (untested, low priority —
+even a 150-day train window is only ~150 daily candles, likely to starve
+`trend_ema=200` the way 4h's 90-day/540-candle window did) remain
+unexplored for this family.
+
+**$100 / $1000 account translation:** best OOS result this run (the
+train-PF-0.748 combo): +$0.02/+$0.17 over 60d — real sample, but PF too
+weak to trust, and the parent train window already rejected it. Shipped
+default: -$0.09/-$0.93 OOS (60d), -$0.14/-$1.40 in-sample. No positive
+candidate anywhere in the grid.
+
+**Next run should rotate to:** with mean_reversion now closed at
+5m/15m/1h/4h (joining trend_momentum and grid, both closed at 15m/1h/4h),
+the standard candle-strategy parameter-tuning approach is essentially
+exhausted on this 8-symbol universe at every TF worth testing. Worth
+trying next: (a) a genuinely new signal design — an ADX-based range/
+trend-strength filter, applicable to gating `grid` (only run it when
+ranging) and as a confirmation layer for `trend_momentum` (flagged since
+Run 8, still the most promising unexplored direction — everything else is
+now parameter-tuning within exhausted designs); (b) DCA `time_utc`
+sensitivity (flagged since Run 5, still open, low-effort confirmatory
+check); (c) 1d timeframe for mean_reversion/trend_momentum, low priority
+given the likely `trend_ema=200` starvation problem and very thin sample
+sizes even without it (a 150-day train window is only ~150 1d-candles).
+
+_No CANDIDATE FOUND this run — mean_reversion's standard-TF sweep (5m-4h)
+now closes with the cleanest, least-ambiguous null result of any TF
+tested for this family._
 
 ---
 
