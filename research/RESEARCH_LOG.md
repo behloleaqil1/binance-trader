@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 9 sessions and ~82 configs.** Every trend_momentum /
+families, across 10 sessions and ~92 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -26,6 +26,31 @@ near-breakeven setups negative. The one asymmetric, mechanically-explicable
 (not curve-fit) positive finding so far is DCA's dip-buy feature — see
 below — which is already shipped as the default, not a new change.
 
+- **grid + ADX trend-strength gate: first "genuinely new signal design"
+  tried (Run 10) — clean negative result, does not reopen the family.**
+  Implemented ADX(14) (Wilder) in a standalone research script
+  (`research/experiments/adx_grid_gate.py`, not merged into production —
+  no code shipped) and gated new grid buys off whenever ADX(14) >= a
+  threshold (30/25/20/15 tested), leaving the existing stop_outside_range/
+  flatten_on_stop safety mechanism untouched, at 1h on the two least-bad
+  `flatten_on_stop=True` configs from Run 8 (range=10%/levels=13 and
+  range=6%/levels=13). On this run's window (train 2026-03-18..2026-06-16,
+  test 2026-06-16..2026-08-15 — notably worse for grid than Run 2/8's
+  window even at threshold=None: baseline train/test PF 0.285/0.285 and
+  0.236/0.481 vs Run 2's 1.506/0.655 and 1.169/0.647 for the identical
+  params, underscoring how regime-dependent this strategy's headline
+  numbers are), **every ADX threshold made results flat or modestly worse
+  than the no-gate baseline, never better** — e.g. range=10 baseline train
+  PF 0.285 vs gated 0.194-0.214 at every threshold; range=6 baseline train
+  PF 0.236 vs gated 0.072-0.230. Mechanism: with the wide 6-10% auto-range
+  already in place, grid's losses come from ordinary in-range chop and the
+  eventual out-of-range exit, not specifically high-ADX periods — by the
+  time ADX(14) actually elevates, price has typically already left the
+  range and `stop_outside_range` has already fired, so the ADX gate is
+  largely redundant with a mechanism that's already there and just prunes
+  trade count for no PF benefit. **Closes the grid-ADX idea as tested; the
+  ADX indicator function is reusable (kept in the research script) for a
+  future trend_momentum-confirmation test, which remains open.**
 - **mean_reversion @ 5m: first pass done (Run 9) — cleanest, most decisive
   failure of any mean_reversion TF tested.** 24-combo grid (bb_std x
   rsi_oversold x exit_at x trend_ema, same shape as 1h/4h), 150d train /
@@ -197,6 +222,92 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-15 — Run 10
+
+**Self-correction check:** reviewed commits since Run 9 — only `2af62cc`
+(Run 9's own log commit). No strategy/risk/backtest code touched since
+Run 9; nothing to re-validate or revert.
+
+**Region chosen:** a genuinely new signal design, per Run 8/9's flagged
+next step — with mean_reversion/trend_momentum/grid all fully
+train/test-grid-searched at every standard TF (5m-4h) with no edge found,
+further parameter tuning within the existing signal families is
+exhausted. Implemented an ADX(14) trend-strength indicator (Wilder,
+standard TR/+DI/-DI/DX/ADX smoothing) and tested it as a **range-vs-trend
+gate for the grid strategy** — the more mechanistically motivated of the
+two flagged ADX applications, since grid's documented failure mode
+(bag-holding through directional trends) is exactly what a trend-strength
+filter should address, unlike trend_momentum where MACD already serves a
+similar confirmation role.
+
+**Method:** ADX implemented in a standalone research script
+(`research/experiments/adx_grid_gate.py`) — NOT merged into
+`indicators.py`/`grid.py`/`simulator.py`, since this is exploration, not
+an adopted change. The script copies `run_grid_backtest`'s exact logic
+and adds one gate: new grid buys are skipped on any candle where
+ADX(14) >= threshold; the existing `stop_outside_range`/
+`flatten_on_stop` pause-and-flatten mechanism is completely untouched
+(sells/pause continue exactly as in production). Tested at 1h on the two
+least-bad `flatten_on_stop=True` configs from Run 8
+(`auto_range_pct=10/levels=13` and `auto_range_pct=6/levels=13`,
+`quote_per_level=150`), across ADX thresholds {none (baseline), 30, 25,
+20, 15}, train/test split (TRAIN 2026-03-18→2026-06-16, TEST
+2026-06-16→2026-08-15 — today's anchor), fees 7.5bps + slippage 4bps,
+$10,000/symbol, all 8 symbols aggregated per combo. Sanity-checked the
+copied backtest logic against production `run_grid_backtest` directly
+(threshold=None case) — trade count and return matched exactly (110
+trades, -0.438% avg return for the range=10 config), confirming the
+research script isn't introducing its own bug.
+
+**Result: clean negative — ADX gating never helps, sometimes hurts.**
+This run's window is markedly worse for grid than Run 2/8's window even
+at the ungated baseline: range=10 baseline train/test PF 0.285/0.285 and
+range=6 baseline 0.236/0.481, vs Run 2's identical params on its window
+(1.506/0.655 and 1.169/0.647) — a reminder of how regime-dependent grid's
+raw numbers are, consistent with the standing "directional bet in
+disguise" finding. Against that baseline, **every ADX threshold tested
+made train PF flat-to-worse, never better**: range=10 baseline 0.285 →
+gated 0.194-0.214 across all 4 thresholds; range=6 baseline 0.236 →
+gated 0.072-0.230. Test-window PF shows the same non-improving pattern.
+Trade count drops substantially as the threshold tightens (up to 4x fewer
+trades at adx<15) with no compensating PF gain — the gate filters out
+volume, not losses.
+
+**Why:** with the wide 6-10% auto-range already in place, grid's losses
+come from ordinary in-range price chop and the eventual out-of-range
+exit, not specifically from high-ADX periods. By the time ADX(14)
+actually elevates on a 1h chart, price has typically already left the
+grid's range and `stop_outside_range` has already paused it — so the
+ADX gate is largely redundant with a mechanism the strategy already has,
+and just prunes trade count for no PF benefit.
+
+**$100 / $1000 account translation:** best result this run is still the
+range=6 no-gate baseline test window (-0.267% → -$0.27/-$2.67 over 60d);
+every gated variant is flat-to-worse than that. No positive candidate
+anywhere in the sweep.
+
+**Verdict:** the grid+ADX idea is closed as tested — a genuinely new
+signal design was tried in good faith and failed cleanly, which is itself
+useful (rules out the most obvious "fix" for grid's known failure mode).
+The ADX(14) implementation is kept in the research script for reuse.
+
+**Next run should rotate to:** (a) the sibling ADX idea — trend_momentum
+with an ADX confirmation layer (only take EMA-cross entries when
+ADX(14) is above a trend-strength floor), still open and now the only
+untested "new signal design" flagged; unlike grid, trend_momentum's
+failure mode (whipsaw entries in choppy/weak-trend conditions) is a more
+direct match for what ADX measures, so this may behave differently than
+the grid result; (b) DCA `time_utc` sensitivity (flagged since Run 5,
+still open, low-effort confirmatory check); (c) 1d timeframe for
+mean_reversion/trend_momentum, low priority given likely `trend_ema=200`
+starvation and thin daily-candle samples.
+
+_No CANDIDATE FOUND this run — first test of a genuinely new signal
+design (ADX trend-strength gate) fails cleanly for grid; the idea remains
+open for trend_momentum next._
 
 ---
 
