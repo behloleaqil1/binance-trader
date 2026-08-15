@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 10 sessions and ~92 configs.** Every trend_momentum /
+families, across 11 sessions and ~97 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -26,6 +26,30 @@ near-breakeven setups negative. The one asymmetric, mechanically-explicable
 (not curve-fit) positive finding so far is DCA's dip-buy feature — see
 below — which is already shipped as the default, not a new change.
 
+- **trend_momentum + ADX(14) entry floor: second "genuinely new signal
+  design" tried (Run 11) — 2-window pass, 3-window fail, closes as regime
+  luck, not an edge.** Sibling idea to Run 10's grid+ADX gate, this time
+  *requiring* ADX(14) >= a floor at entry (trend-strength confirmation, the
+  opposite direction from grid's ceiling-gate) on top of the shipped-default
+  1h EMA20/50+RSI+MACD combo (`research/experiments/adx_trend_momentum_gate.py`,
+  research-only, not merged). Swept floor ∈ {none,15,20,25,30} on train
+  2026-03-18→2026-06-16 / test 2026-06-16→2026-08-15. **floor=20 looked like
+  a real candidate at first**: train PF 1.124/73 trades, test PF 1.176/35
+  trades — both windows clear PF>1, both clear the 30-trade floor, PF and
+  win% (34%→43%) move together rather than the usual train-fails/OOS-lucky
+  shape. Per the standing precedent (mean_reversion@1h needed a 3rd window
+  before Run 3 could reject it), ran a 3rd non-overlapping window
+  (2025-12-15→2026-03-15, 240-150d ago) before calling it a candidate: **PF
+  0.706/56 trades — clearly negative**, and per-symbol test breakdown is
+  paper-thin under the encouraging aggregate (1-6 trades/symbol, 0% win on
+  2 symbols). **Verdict: noise — 1 of 3 non-overlapping windows passing is
+  not an edge, closes this exact regime-luck signature a second time.**
+  floor=15 monotonically improves over baseline but both windows still <1;
+  floor=25/30 are textbook small-sample noise (10 and 3 test trades). The
+  ADX(14) implementation (shared with Run 10) is reusable for future work;
+  **both flagged ADX applications (grid ceiling-gate, trend_momentum
+  entry-floor) are now closed — a genuinely different indicator family is
+  needed to reopen this line, not more ADX threshold tuning.**
 - **grid + ADX trend-strength gate: first "genuinely new signal design"
   tried (Run 10) — clean negative result, does not reopen the family.**
   Implemented ADX(14) (Wilder) in a standalone research script
@@ -222,6 +246,108 @@ below — which is already shipped as the default, not a new change.
   only ~10-14 buys/window on one fixed weekday samples a far less
   representative slice of the price path than daily's ~90. **Validates
   keeping `interval=daily` as the default; no code change.**
+
+---
+
+## 2026-08-15 — Run 11
+
+**Self-correction check:** reviewed commits since Run 10 — only `2c69383`
+(Run 10's own log commit). No strategy/risk/backtest code touched since
+Run 10; nothing to re-validate or revert.
+
+**Region chosen:** the sibling ADX idea flagged explicitly as the priority
+next step in Run 10's log — `trend_momentum` with an ADX(14) confirmation
+**floor** at entry (only take an EMA-cross entry when ADX(14) already
+indicates a real trend), as opposed to grid's ADX **ceiling** gate (block
+entries when ADX is too high). Motivated the same way Run 10 reasoned about
+it: trend_momentum's documented failure mode across every TF tested
+(15m/1h/4h, Runs 1/3/7) is whipsaw EMA-cross entries in weak/choppy
+conditions — MACD confirmation already helps some but doesn't fix it; an
+ADX floor is a more direct match for what "is there a real trend" measures
+than grid's range-vs-trend question was.
+
+**Method:** implemented as a thin subclass of the production
+`TrendMomentumStrategy` in a standalone research script
+(`research/experiments/adx_trend_momentum_gate.py`, NOT merged into
+`trend_momentum.py`/`indicators.py` — exploration, no code shipped).
+`compute_indicators` adds one ADX(14) column (Wilder, same implementation
+validated in Run 10); `decide()` defers entirely to the parent's unmodified
+`decide()` and adds exactly one veto: a BUY signal is downgraded to HOLD if
+ADX(14) at that candle is below the floor. `adx_min_for_entry`/`adx_period`
+are set as plain instance attributes (not routed through
+`param_specs()`/`validate_params()`, which silently drops unknown keys —
+first pass of the script had this bug and produced identical output at
+every threshold; caught it by noticing the results didn't vary at all
+across 5 different thresholds, a give-away that the gate wasn't firing).
+Used production `run_candle_backtest` unmodified (unlike Run 10's grid
+experiment, which had to copy the simulator loop). Fixed at the
+shipped-default 1h combo (`ema_fast=20, ema_slow=50, rsi_buy_min=50,
+require_macd=True` — the least-bad train combo from Run 3's 18-combo grid),
+swept `adx_min_for_entry` ∈ {none (baseline), 15, 20, 25, 30}, train
+2026-03-18→2026-06-16 / test 2026-06-16→2026-08-15 (same anchors as Run
+10), fees 7.5bps + slippage 4bps, $10,000/symbol, all 8 symbols aggregated.
+
+**Result — one config looked like a real candidate, then failed a 3rd
+window.** Baseline (no gate): train PF 0.575/95 trades, test PF 0.492/80 —
+matches the standing no-edge finding for this exact combo (Run 3). Sweep
+was monotonic through floor=20 then broke down:
+floor=15 train 0.738/109→test 0.938/70 (both still <1);
+**floor=20 train 1.124/73→test 1.176/35 — clears PF>1.1-ish and the
+30-trade floor in BOTH windows**, win% moving with PF (22%→34%→43% as the
+floor tightens) rather than the disconnected train-fails/OOS-lucky shape
+seen everywhere else in this research; floor=25 train 0.897/32 (test PF
+1.809 but only 10 trades, sub-floor); floor=30 train 0.489/17 (test PF
+6.723 on 3 trades — obvious noise, one winning trade dominates).
+
+Per the standing precedent set by mean_reversion@1h (Run 2 found a
+similar-looking OOS pass despite a failing train screen, flagged as needing
+a 3rd window, Run 3 then rejected it on that 3rd window), ran a third,
+non-overlapping window for floor=20 before calling it anything:
+**2025-12-15→2026-03-15 (240-150d ago): PF 0.706/56 trades — clearly
+negative.** Also pulled the per-symbol breakdown for train/test/older: the
+encouraging test-window aggregate (PF 1.176/35 trades) is built from only
+1-6 trades per symbol (XRP 0% win/5 trades, DOGE 0% win/1 trade) — a lot of
+single-draw noise sits under a smooth-looking aggregate number.
+
+**Why:** ADX(14)>=20 on a 1h chart is a fairly loose floor (many candles
+qualify), so it isn't filtering hard enough to be a real "only trade
+confirmed trends" signal — it's closer to a soft, regime-sensitive
+re-weighting of which of the existing (weak) EMA-cross entries fire, and
+different 60-90 day windows apparently disagree on whether that
+re-weighting helps or hurts. Exactly the same shape as the grid+ADX result
+(Run 10) and the mean_reversion@1h default-params finding (Runs 2-3): a
+plausible-looking mechanism that doesn't survive a third independent
+sample.
+
+**$100 / $1000 account translation:** floor=20 test window (the one that
+looked good): +$0.01/+$0.09 over 60d. Same config, older window:
+-$0.05/-$0.48 over 90d. Net picture: not a reliable source of profit in
+either direction, consistent with "noise" rather than "small edge."
+
+**Verdict: closed as tested.** Both ADX applications flagged since Run 8
+(grid ceiling-gate in Run 10, trend_momentum entry-floor here) are now
+tried and rejected. The ADX(14) implementation remains reusable in the
+research scripts, but further threshold tuning of either application is
+not worth re-attempting — a materially different indicator family (volume-
+based, volatility-regime, or multi-timeframe confirmation) would be needed
+to reopen either strategy family.
+
+**Next run should rotate to:** (a) DCA `time_utc` sensitivity (flagged
+since Run 5, still open, low-effort confirmatory check — the last
+unexplored DCA axis); (b) 1d timeframe for mean_reversion/trend_momentum
+(low priority — likely `trend_ema=200`/EMA-warmup starvation given even a
+150d train window is only ~150 daily candles, similar to 4h's starvation
+issue in Run 6); (c) if a genuinely new signal-design idea presents itself,
+it would need to be a different indicator family than ADX, since both
+flagged ADX directions are now closed.
+
+_No CANDIDATE FOUND this run — a config that initially looked like a real,
+non-curve-fit edge (trend_momentum 1h + ADX(14)>=20 floor, clearing both
+anti-noise bars in both train and test) failed a mandatory 3rd-window
+cross-check, the same discipline that closed a similar-looking
+mean_reversion@1h result in Run 3. Honesty over optimism: logging the
+near-miss and why it didn't survive is more valuable than the 2-window
+pass alone would have been._
 
 ---
 
