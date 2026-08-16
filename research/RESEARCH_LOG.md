@@ -18,252 +18,227 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 12 sessions and ~109 configs.** Every trend_momentum /
-mean_reversion / grid combo tested so far is either net-negative or only
+families, across 13 sessions and ~111 configs.** trend_momentum,
+mean_reversion, and grid are now each **fully closed across the entire
+5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
-RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
+RSI/BB/EMA/grid signals on these 8 majors appear over-arbitraged; fees turn
 near-breakeven setups negative. The one asymmetric, mechanically-explicable
-(not curve-fit) positive finding so far is DCA's dip-buy feature — see
-below — which is already shipped as the default, not a new change.
+(not curve-fit) positive finding so far is DCA's dip-buy feature — already
+shipped as the default, not a new change. **Full evidence for every closed
+TF/param combo lives in `research/decisions.jsonl` and archived run
+sections below/in `research/archive/`; this section states only the
+conclusions and why, not the blow-by-blow.**
 
-- **trend_momentum + ADX(14) entry floor: second "genuinely new signal
-  design" tried (Run 11) — 2-window pass, 3-window fail, closes as regime
-  luck, not an edge.** Sibling idea to Run 10's grid+ADX gate, this time
-  *requiring* ADX(14) >= a floor at entry (trend-strength confirmation, the
-  opposite direction from grid's ceiling-gate) on top of the shipped-default
-  1h EMA20/50+RSI+MACD combo (`research/experiments/adx_trend_momentum_gate.py`,
-  research-only, not merged). Swept floor ∈ {none,15,20,25,30} on train
-  2026-03-18→2026-06-16 / test 2026-06-16→2026-08-15. **floor=20 looked like
-  a real candidate at first**: train PF 1.124/73 trades, test PF 1.176/35
-  trades — both windows clear PF>1, both clear the 30-trade floor, PF and
-  win% (34%→43%) move together rather than the usual train-fails/OOS-lucky
-  shape. Per the standing precedent (mean_reversion@1h needed a 3rd window
-  before Run 3 could reject it), ran a 3rd non-overlapping window
-  (2025-12-15→2026-03-15, 240-150d ago) before calling it a candidate: **PF
-  0.706/56 trades — clearly negative**, and per-symbol test breakdown is
-  paper-thin under the encouraging aggregate (1-6 trades/symbol, 0% win on
-  2 symbols). **Verdict: noise — 1 of 3 non-overlapping windows passing is
-  not an edge, closes this exact regime-luck signature a second time.**
-  floor=15 monotonically improves over baseline but both windows still <1;
-  floor=25/30 are textbook small-sample noise (10 and 3 test trades). The
-  ADX(14) implementation (shared with Run 10) is reusable for future work;
-  **both flagged ADX applications (grid ceiling-gate, trend_momentum
-  entry-floor) are now closed — a genuinely different indicator family is
-  needed to reopen this line, not more ADX threshold tuning.**
-- **grid + ADX trend-strength gate: first "genuinely new signal design"
-  tried (Run 10) — clean negative result, does not reopen the family.**
-  Implemented ADX(14) (Wilder) in a standalone research script
-  (`research/experiments/adx_grid_gate.py`, not merged into production —
-  no code shipped) and gated new grid buys off whenever ADX(14) >= a
-  threshold (30/25/20/15 tested), leaving the existing stop_outside_range/
-  flatten_on_stop safety mechanism untouched, at 1h on the two least-bad
-  `flatten_on_stop=True` configs from Run 8 (range=10%/levels=13 and
-  range=6%/levels=13). On this run's window (train 2026-03-18..2026-06-16,
-  test 2026-06-16..2026-08-15 — notably worse for grid than Run 2/8's
-  window even at threshold=None: baseline train/test PF 0.285/0.285 and
-  0.236/0.481 vs Run 2's 1.506/0.655 and 1.169/0.647 for the identical
-  params, underscoring how regime-dependent this strategy's headline
-  numbers are), **every ADX threshold made results flat or modestly worse
-  than the no-gate baseline, never better** — e.g. range=10 baseline train
-  PF 0.285 vs gated 0.194-0.214 at every threshold; range=6 baseline train
-  PF 0.236 vs gated 0.072-0.230. Mechanism: with the wide 6-10% auto-range
-  already in place, grid's losses come from ordinary in-range chop and the
-  eventual out-of-range exit, not specifically high-ADX periods — by the
-  time ADX(14) actually elevates, price has typically already left the
-  range and `stop_outside_range` has already fired, so the ADX gate is
-  largely redundant with a mechanism that's already there and just prunes
-  trade count for no PF benefit. **Closes the grid-ADX idea as tested; the
-  ADX indicator function is reusable (kept in the research script) for a
-  future trend_momentum-confirmation test, which remains open.**
-- **mean_reversion @ 5m: first pass done (Run 9) — cleanest, most decisive
-  failure of any mean_reversion TF tested.** 24-combo grid (bb_std x
-  rsi_oversold x exit_at x trend_ema, same shape as 1h/4h), 150d train /
-  60d test, all real samples (5m gives plenty of candles even at 90 days).
-  All `trend_ema=0` combos have real train samples (11-274 trades) and
-  **every one has train PF < 1** (best 0.748, `bb_std=3.0, rsi_os=25,
-  exit=upper`) — a clean train-screen rejection with no small-sample
-  ambiguity, unlike 1h/4h where the starved `trend_ema=200` half produced
-  a few misleadingly-high-PF tiny samples. OOS-validated the top 3
-  train-ranked real-sample combos anyway: best got PF 1.064/171 trades —
-  doesn't even clear the 1.1 anti-noise bar despite a real sample — the
-  other two stayed negative both windows (PF 0.836/0.745 OOS). **Shipped
-  default reference is the most decisive default-failure yet**: train PF
-  0.181/126 trades, test PF 0.347/146 trades — negative in BOTH windows,
-  no train-fails/OOS-clears regime-luck story available at all (unlike the
-  ambiguous pattern seen for the same default params at 1h and 4h). Fee
-  drag likely plays a bigger role at 5m than 15m/1h/4h (more candles per
-  day, more RSI/BB fire opportunities) without 1m's catastrophic
-  over-trading — a genuine intermediate point on the TF spectrum, and it's
-  unambiguously a loser. mean_reversion is now grid-searched with train/
-  test rigor at 5m/15m/1h/4h — no edge at any TF from 5m to 4h; only 1m
-  (catastrophic) and 1d (untested, low priority — even fewer candles per
-  window than 4h, likely to hit the same starvation issues as
-  `trend_ema=200` did at 4h) remain unexplored for this family.
-- **grid: no edge at ANY grid-searched TF — family now closed across
-  15m/1h/4h.** Fully grid-searched with train/test rigor at 1h (Run 2, 8
-  combos, best train PF 1.51 collapses to OOS PF 0.66) and now 4h (Run 8,
-  8 combos + shipped-default reference). At 4h, properly risk-managed
-  (`flatten_on_stop=True`) combos fail even the train screen outright (PF
-  0.31–0.69, all <1) and stay negative OOS (PF 0.35–0.83) — an even
-  cleaner failure than 1h's train-passes/OOS-collapses pattern, no
-  regime-luck ambiguity. Separately, Run 8 found and documented a **PF
-  accounting artifact for `flatten_on_stop=False`**: a grid sell only ever
-  fires above its paired buy, so every *closed* trade is a win by
-  construction (100% win rate, trade-PF literally undefined/infinite)
-  regardless of whether the strategy is actually profitable — losses on
-  held-but-never-flattened inventory are invisible to trade-level PF and
-  only show up in account-level mark-to-market return. That real return
-  flip-flopped sign between windows for all 4 `flatten=False` combos and
-  the shipped default (train −0.68pp to −1.01pp vs test +0.16pp to
-  +0.39pp) — the same train-loses/test-gains flip-flop signature already
-  seen elsewhere in this research, confirming (not contradicting) the
-  standing conclusion that unflattened grid inventory is just unhedged
-  directional spot exposure wearing a grid-strategy costume. **Do not
-  trust `flatten_on_stop=False` trade-PF as a metric in any future grid
-  run — always read account-level return instead.** Confirms the founding
-  distilled learning (grid is a directional bet in disguise) at a third
-  timeframe; don't re-grid this strategy without first building a
-  range-detection filter (ADX/volatility gate), which no run has
-  attempted yet.
-- **trend_momentum: no edge at ANY grid-searched TF — family now closed
-  across 5m/15m/1h/4h, the full sweep this research programme uses.**
-  Fully grid-searched with train/test rigor at 4h (Run 1, 18 combos, best
-  train PF 0.79, all fail), 1h (Run 3, 18 combos, best train PF 0.90, all
-  fail; OOS on the best-train combo confirms PF 0.463/105 trades), 15m
-  (Run 7, 12 combos, best train PF 0.993 — literally the shipped default —
-  still <1; OOS confirms PF 0.325/74 trades, real sample, clearly
-  negative), and now 5m (Run 12, same 12-combo grid shape as Run 7 — 3 EMA
-  pairs x 2 rsi_buy_min x 2 require_macd). **5m is the single worst result
-  of any TF tested for this family**: the best (20/50 EMA) combo scored
-  train PF 0.211/29 trades, collapsing further OOS to PF 0.028/42 trades —
-  decisively negative both windows, no regime-luck ambiguity at all.
-  Notably, 5m produced *fewer* train trades (29) than 15m's same-pair
-  combo (141) despite far more raw candles per window — the mechanism is
-  almost certainly the 3%-daily-loss halt tripping early and often (SL
-  2%/TP 4% against 5m noise fires stop-losses in rapid same-day clusters,
-  each halting new entries for the rest of that UTC day) rather than the
-  EMA cross itself becoming rarer; a useful general caution for any future
-  fast-TF test with tight fixed-pct stops — daily-halt interaction can
-  silently prune the effective sample far below what raw candle count
-  would suggest. Faster EMA pairs (9/21, 12/26) are strictly worse than
-  20/50 at every TF tested, and at 5m are effectively starved outright
-  (0–1 train trades) — even less viable than their already-worst 15m
-  showing (train PF 0.08–0.22, at least 69–95 trades there). Dropping MACD
-  confirmation is strictly worse than requiring it at every TF where both
-  were compared. Do not re-grid trend_momentum at 5m/15m/1h/4h without a
-  materially different signal design (current ema-cross+RSI+MACD family is
-  exhausted at every TF tested and the ADX-floor confirmation variant is
-  also closed, see Run 11 above; 1m is catastrophic for any strategy,
-  never tested here nor worth testing; 1d remains untested but low
-  priority — even fewer candles per window than 4h).
-- **mean_reversion @ 4h: first pass done (Run 6), no edge, and the TF is
-  now too short-window to say more.** 24-combo grid (bb_std x
-  rsi_oversold x exit_at x trend_ema, 90-day train / 60-day test — only
-  540 / 360 4h-candles respectively). All `trend_ema=200` combos (half
-  the grid) produced **zero train trades across all 8 symbols** — at 4h
-  the 200-EMA warmup (≈33 days) plus the rarity of "oversold dip AND
-  above a slow trend EMA" simultaneously never fired in a 90-day window;
-  worse starvation than the 3-6 trades trend_ema=200 got at 1h (Run 2),
-  confirming trend_ema=200 needs far more history than any window this
-  research uses to be testable at all — don't retry it at 4h without a
-  multi-year window. Best real-sample train combo (bb_std=2.5,
-  rsi_oversold=30, exit=middle, trend_ema=0, train PF 1.143/35 trades)
-  hit OOS PF 1.241 but only 14 trades — clears the PF bar, misses the
-  30-trade floor by a wide margin (60-day test window is just too short
-  at 4h to accumulate a trustworthy sample even when train showed a weak
-  edge). Shipped-default reference repeated the same train-fails/OOS-
-  clears pattern already debunked at 1h (train PF 0.663, OOS PF
-  1.786/27 trades) — not re-opened, 1h's 3-window check already closed
-  this question for the same params.
-- **mean_reversion @ 1h default params: 3-window check now CLOSES this
-  question — it's regime luck, not an edge.** Run 2 found the shipped
-  defaults (bb_std=2.0, rsi_oversold=30, exit_at=middle, trend_ema=0) at
-  OOS PF 1.903/120 trades on the 60-0d window despite train PF 0.472, and
-  flagged it as needing a 3rd window before trusting either way. Run 3
-  tested a 3rd, older, non-overlapping window (240-150d ago): PF 0.441/136
-  trades, all 8 symbols individually negative. 2 of 3 windows negative for
-  the identical untouched param set — confirms this is not a stable edge,
-  just one lucky 60-day slice. No further action; matches the broader
-  no-edge finding, don't re-test this specific combo again.
+**Do not re-test, without a materially new signal/indicator:**
+- **trend_momentum** (EMA-cross + RSI + MACD): every TF 5m–4h, best train PF
+  ever seen was 0.99 (15m, literally the shipped default). 5m is the worst
+  (train PF 0.211→test 0.028) — likely the 3%-daily-loss halt tripping early
+  on 5m noise and pruning the effective sample, not the EMA cross itself
+  getting rarer. Faster EMA pairs (9/21, 12/26) are strictly worse/starved
+  at every TF. Dropping MACD confirmation is strictly worse than requiring
+  it everywhere tested.
+- **mean_reversion** (BB + RSI, optional trend_ema filter): every TF 5m–4h,
+  22/24-ish combos fail the train screen at every TF; the rare train-PF>1
+  survivors are starved (trend_ema=200 needs far more history than any
+  window used here — 0 trades at 4h, 3–6 at 1h) or fail a 3rd
+  non-overlapping window when checked (1h default params: OOS PF 1.9 on one
+  window, PF 0.44 on another — regime luck, not edge). 5m default is the
+  most decisive failure (train PF 0.18, test PF 0.35, both real samples).
+- **grid** (range ladder): a **directional bet in disguise** — bag-holds
+  through trends. Confirmed at every TF 15m/1h/4h/5m; 5m (Run 13) is the
+  cleanest rejection yet (train PF 0.42–0.85, test PF 0.23–0.34, real
+  samples, no train/test ambiguity, despite an unusually high 67-77% train
+  win-rate — many small in-range wins offset by large losses when price
+  breaks the range). **`flatten_on_stop=False` trade-level PF is a known
+  accounting artifact (100% win rate by construction) — always read
+  account-level return for that mode, never trade-PF.** Needs a
+  range-detection filter (volatility gate) to ever be worth re-testing;
+  parameter tuning alone (range/levels/flatten) cannot fix directional risk.
+- **ADX(14) as a confirmation/gate indicator**: tried both directions —
+  grid ceiling-gate (Run 10, blocks buys when ADX high: flat-to-worse at
+  every threshold, redundant with existing stop_outside_range) and
+  trend_momentum floor-gate (Run 11, requires ADX high to enter: floor=20
+  passed 2 of 3 non-overlapping windows, closed as regime luck same as the
+  mean_reversion@1h precedent). **Both closed — a genuinely different
+  indicator family is needed, not more ADX threshold tuning.**
+- **1m, any strategy**: catastrophic (−34% to −42%, PF 0.01–0.09,
+  ~200+ trades/coin, fee drag dominates). Never retest.
 
-- **1m: catastrophic, any strategy.** −34% to −42%, PF 0.01–0.09. Over-trades
-  (~200+ trades/coin), fee drag (0.15% round-trip) dominates. Never retest 1m.
-- **Timeframe generally: higher TF = less fee drag, not more edge.** Return
-  ordering 1m ≪ 15m < 1h ≈ 4h, but none of mean_reversion/trend_momentum have
-  shown a *stable* in-sample (train) edge at any TF 15m–4h — see below.
-- **mean_reversion @ 15m:** default params ~breakeven OOS (PF 1.02). A
-  16-combo grid's best OOS survivor (bb_std=2.5, rsi_os=30, exit=upper,
-  trend_ema=0) hit OOS PF 1.24/231 trades but had **train PF 0.65** — didn't
-  show an edge in-sample, just got lucky OOS. Rejected as noise (Run 1).
-- **mean_reversion @ 1h:** 24-combo grid (bb_std×rsi_oversold×exit_at×
-  trend_ema) — **22/24 combos have train PF < 1**; no bb_std/rsi setting
-  shows an in-sample edge at this TF. The 2 combos with train PF > 1 only
-  had 3–6 train trades (trend_ema=200 filter starves entries at 1h) — too
-  small to trust, and OOS confirmed (0–4 trades). Shipped defaults happen to
-  score OOS PF 1.9/120 trades on the current test window despite **train PF
-  0.472** — flagged as regime-dependent, not adopted, needs a 3rd window
-  before it means anything (Run 2).
-- **trend_momentum @ 4h:** 18-combo grid (ema pairs × rsi_buy_min ×
-  require_macd) — **every combo had train PF < 1** (best 0.79) on a choppy
-  train window; no in-sample edge to even validate OOS (Run 1).
-- **trend_momentum @ 1h:** grid-searched with train/test rigor in Run 3
-  (18 combos: ema pairs x rsi_buy_min x require_macd) — every combo train
-  PF < 1 (best 0.90); OOS on the best-train combo confirms PF 0.463/105
-  trades. See summary bullet above; no edge, don't re-test this family.
-- **grid strategy:** profits from range oscillation in-sample but is a
-  **directional bet in disguise** — bag-holds through downtrends. Confirmed
-  three times now: informally at 15m/90d (−20% net, founding session),
-  rigorously at 1h with train/test split (best train PF 1.51 → OOS PF 0.66,
-  Run 2), and at 4h (Run 8) — see full summary bullet above. Family now
-  closed at 15m/1h/4h; do not grid-search this strategy again without first
-  finding a *range-detection* filter (e.g. only run it when ADX/volatility
-  says "ranging") — parameter tuning alone (range width, level count,
-  flatten-on-stop) cannot fix a strategy whose core risk is directional
-  exposure.
-- **mean_reversion trend_ema filter (opt-in, default off):** buy-the-dip
-  only in uptrends. Near-breakeven at 1h with trend_ema=200 in the founding
-  session (11 trades) and confirmed still tiny-sample (3–6 trades) in Run 2's
-  grid. Kept in the codebase as a principled downside-reduction knob, not a
-  proven edge. Do not flip its default on without a large-sample OOS pass.
-- **DCA strategy: methodology now defined and first pass run (Run 4).**
-  `run_dca_backtest` produces zero round-trip `trades`, so the PF/trade-count
-  bar doesn't apply. New metric: capital-normalized ROI
-  (`unrealized_pnl/invested %`) of a variant vs. a flat fixed-schedule
-  baseline, same total-invested-dollar basis (raw "avg_cost % below last
-  close" is misleading here — a dip-buy variant deploys *more* total
-  capital, so a cheaper unit cost doesn't by itself mean a better dollar
-  outcome; always normalize by invested $ before comparing DCA variants).
-  Finding: the **shipped default dip-buy feature** (`dip_enabled=True,
-  dip_threshold_pct=5.0, dip_multiplier=1.5`) beats a flat schedule on ROI
-  in 2 of 3 non-overlapping windows (choppy/declining regimes: +0.26pp to
-  +0.61pp) and is ~neutral, not negative, in a trending-up window (-0.07pp,
-  noise-level) — mechanically explicable (extra buys only land at
-  locally-lower prices when a 24h dip actually occurs, so the feature is a
-  no-op, not a loss, when the market doesn't dip) and consistent with why
-  it's already the default. A more aggressive variant (3%/2.5×) shows a
-  stronger version of the same pattern but only wins 4/8 symbols (noise
-  level) in the trending-up window and requires 13–30% more deployed
-  capital — not adopted; no clean win in a trending-up regime plus a real
-  capital/exposure cost is enough to reject it. **No code/param change —
-  validates the existing default, doesn't argue for changing it.**
-- **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss
-  was fees — empirically confirms the negative-edge finding from backtests.
-  Stopped; testnet + this automated research only from here on.
-- **DCA schedule `interval` (hourly/daily/weekly): now swept (Run 5).**
-  Hourly vs shipped daily: noise (<=0.11pp ROI delta in any window, sign
-  flips between windows) — makes sense, hourly just re-slices the same
-  buying period daily already averages over, so cost basis barely moves;
-  also a real live-trading cost (24x more orders/window) for zero benefit.
-  Weekly vs daily: **reject, don't recommend** — systematically worse in
-  ALL 3 windows (older -1.10pp/0% win, train -0.29pp/31% win, test
-  -0.61pp/25% win), unlike dip-buying's "helps in declines, neutral in
-  uptrends" pattern weekly has no offsetting upside anywhere. Mechanism:
-  only ~10-14 buys/window on one fixed weekday samples a far less
-  representative slice of the price path than daily's ~90. **Validates
-  keeping `interval=daily` as the default; no code change.**
+**Untested, low priority (not expected to change the verdict):** 1d for
+all three families — even fewer candles per window than 4h, likely to hit
+the same starvation issues `trend_ema=200` already showed at 4h.
+
+**What actually works (already shipped, no change needed):**
+- **DCA dip-buy** (`dip_enabled=True, dip_threshold_pct=5.0,
+  dip_multiplier=1.5`, Run 4): beats a flat schedule on capital-normalized
+  ROI in 2/3 non-overlapping windows (+0.26 to +0.61pp in choppy/declining
+  regimes) and is neutral (not negative, -0.07pp noise) in a trending-up
+  window — mechanically explicable (extra buys only land when a real 24h
+  dip occurs, so it's a no-op not a loss otherwise). A more aggressive
+  3%/2.5× variant wins only 4/8 symbols in trending-up (noise) and costs
+  13-30% more deployed capital — not adopted.
+- **DCA interval=daily** (Run 5): hourly is noise-level indifferent (finer
+  slicing of the same window, no benefit, 24x more live orders for
+  nothing); weekly is systematically worse in all 3 windows tested
+  (samples too few/unrepresentative). Keep daily.
+- **mean_reversion trend_ema filter** (opt-in, default off): a principled
+  downside-reduction knob, not a proven edge (still tiny-sample, 3-6
+  trades, everywhere tested). Leave as opt-in; don't flip default without a
+  large-sample OOS pass.
+
+**Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss was
+fees — empirically confirmed the negative-edge finding from backtests.
+Stopped; testnet + this automated research only from here on.
+
+**Where this research programme stands (as of Run 13):** all three
+candle-strategy families are exhausted across the full TF sweep this
+programme uses, and the one cross-cutting indicator idea tried (ADX) is
+closed in both directions tried. The next genuinely new avenue is either
+(a) a different indicator/signal family entirely (not ADX), or (b)
+revisiting DCA — the one strategy with a validated positive mechanism —
+for further variants (e.g. multiplier magnitude, cap on dip re-buys).
+"More TF/param sweeps of trend_momentum/mean_reversion/grid" should be
+treated as a dead end absent a new idea.
 
 ---
 
+_Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-16 — Run 13
+
+**Self-correction check:** reviewed commits since Run 12 — only the log/
+decisions commit for Run 12. No strategy/risk/backtest code touched since
+Run 12; nothing to re-validate or revert.
+
+**Region chosen:** `grid` @ 5m — the last untested TF for this family
+(15m/1h/4h already grid-searched and closed with no edge, Runs 2/8). This
+was the gap flagged but not taken in Run 12 (which chose trend_momentum @
+5m instead). Both ADX-gate variants of this research programme (grid
+ceiling-gate Run 10, trend_momentum floor-gate Run 11) are closed as
+no-improvement/noise, so this run does not re-attempt ADX gating — pure
+baseline sweep.
+
+**Method:** 2 configs (range=10%/6%, levels=13, `flatten_on_stop=True`,
+quote_per_level=150 — identical shape to Run 2/8 for direct TF-to-TF
+comparability), unmodified production `run_grid_backtest` +
+`compute_metrics`, no code changes. Train 2026-03-19→2026-06-17
+(150d-60d ago), test 2026-06-17→2026-08-16 (60d-0d ago, today's anchor).
+Fees 7.5bps + slippage 4bps, $10,000/symbol, all 8 symbols aggregated.
+Script: `research/experiments/grid_5m.py`.
+
+**Result — decisive rejection, no ambiguity.** range=10%: train PF 0.848
+(199 trades), test PF 0.228 (106 trades). range=6%: train PF 0.42 (184
+trades), test PF 0.343 (154 trades). Both configs fail the train screen
+outright (PF<1) and stay negative OOS with real samples well above the
+30-trade floor — the cleanest grid rejection of any TF tested (1h/4h both
+had at least one train-passes/OOS-collapses pattern to disentangle; 5m
+has none).
+
+**Mechanism, and why the "candle-count-independent" hypothesis was
+wrong.** Went in expecting grid's range math (operates on price levels
+touched, not candle count) might behave differently from
+trend_momentum/mean_reversion's TF sensitivity (driven by signal noise
+and daily-loss-halt interaction). It didn't: train win-rate was unusually
+*high* (67-77%, vs ~50-55% typical at 1h/4h) yet PF still collapsed —
+many small wins from tight, noisy intra-range chop on 5m candles, offset
+by a handful of large losses whenever price actually breaks the range and
+`stop_outside_range`/`flatten_on_stop` fires. Finer time resolution
+increases the *count* of round-trips inside the same overall price
+excursion without improving their quality — more granular sampling of
+the same directional risk, not a new edge.
+
+**Verdict: `reject` both configs, real (non-noise) samples in both
+windows.** No code change. This closes the grid family across every
+swept TF (5m/15m/1h/4h) — combined with trend_momentum (Run 12) and
+mean_reversion (Run 9) already being closed at 5m too, **all three
+candle-strategy families are now fully closed across the entire 5m-4h TF
+sweep.** Remaining unexplored regions for these families (1m — known
+catastrophic pattern from every strategy tested there, not worth
+retesting; 1d — untested everywhere, low priority, same starvation
+concerns as 4h's `trend_ema=200` issue) are not expected to change the
+verdict. Future sessions should treat further TF/param sweeps of these
+three families as exhausted and prioritize a genuinely different
+signal/indicator family (ADX is also closed, both applications), or
+revisit DCA — this research programme's one validated positive
+mechanism.
+
+**Commit:** pending (this run). $ impact: on $100/$1000, both configs
+net negative over the 60-day test window — range=10% -$0.50/-$4.96,
+range=6% -$0.30/-$2.97 (average per-symbol return basis, matching how
+every prior run in this log computes usd_pnl).
+
+---
+
+## 2026-08-16 — Run 12
+
+**Self-correction check:** reviewed commits since Run 11 — only `ac76c86`
+(Run 11's own log commit). No strategy/risk/backtest code touched since
+Run 11; nothing to re-validate or revert.
+
+**Region chosen:** `trend_momentum` @ 5m — the last untested TF for this
+family (4h/1h/15m already grid-searched and closed with no edge, Runs
+1/3/7; both ADX-confirmation variants, Runs 10/11, also closed). Chosen
+over the alternative gap (`grid` @ 5m, also untested) because
+mean_reversion's own 5m pass (Run 9) turned out to be the cleanest,
+most decisive failure of that family — filling the last TF gap was more
+informative than expected, so the same reasoning was applied here rather
+than assuming the outcome and skipping it.
+
+**Method:** 12-combo grid (3 EMA pairs {20/50, 9/21, 12/26} x 2
+`rsi_buy_min` {45, 50} x 2 `require_macd` {True, False}) — identical
+shape to Run 7's 15m grid, for direct TF-to-TF comparability. Production
+`TrendMomentumStrategy` and `run_candle_backtest`, unmodified — pure
+evaluation, no code changes. Train 2026-03-19→2026-06-17 (150d-60d ago),
+test 2026-06-17→2026-08-16 (60d-0d ago, today's anchor), 3-day warmup
+buffer (ema_slow≤50 candles @ 5m warms up in under a day). Fees 7.5bps +
+slippage 4bps, $10,000/symbol, all 8 symbols aggregated. Script:
+`research/experiments/trend_momentum_5m_grid.py`.
+
+**Result — the worst trend_momentum result of any TF, and a sample-size
+surprise.** Best (20/50 EMA, either rsi_buy_min, `require_macd=True`):
+train PF 0.211/29 trades, test PF **0.028**/42 trades — decisively
+negative in both windows, the lowest PF this research programme has
+recorded for a real (>10-trade) sample. Dropping MACD confirmation
+scored similarly on train (PF 0.201/29) and numerically better on test
+(PF 0.189/55) only because more (still-losing) trades got through — not
+an improvement, MACD confirmation remains directionally useful as at
+every other TF. The faster EMA pairs were effectively starved: 9/21 had
+**zero** train trades across all 8 symbols over 90 days; 12/26 had just
+1 train trade (34 real test trades, PF 0.094 — logged as noise, the
+train screen never passed).
+
+**Why fewer trades at a faster TF, not more?** The surprising part isn't
+that 5m loses — every TF has — it's that the 20/50 combo produced *fewer*
+train trades (29) than the identical combo at 15m (141), despite 5m
+having ~3x more raw candles per day. The likely mechanism: the repo's
+`max_daily_loss_pct=3%` halt blocks new entries for the rest of the UTC
+day once tripped, and at 5m a fixed 2%/4% SL/TP against 5-minute noise
+produces same-day loss clusters far more easily than at 15m — so the
+effective sample gets silently pruned well below what the crossover
+frequency alone would suggest. Not verified by direct instrumentation
+this run (would require logging halt events, out of scope for a
+no-code-change evaluation), but consistent with the shape of the data and
+worth flagging as a general caution for any future fast-TF test that uses
+tight fixed-pct stops: raw candle count is not a reliable predictor of
+executed-trade count once daily risk halts are in the loop.
+
+**Decision: reject / noise (4 combos logged in `decisions.jsonl`,
+representative of all 12 per this run's established convention — top
+combo, MACD-off sibling, and the two starved fast-EMA pairs).** No
+code/param change — closes trend_momentum's TF sweep. The family is now
+grid-searched with train/test rigor at every TF from 5m to 4h with zero
+survivors; re-opening it needs a genuinely different signal design, not
+another EMA/RSI/MACD parameter sweep (the ADX-floor variant already
+explored this exact idea at 1h and also failed a 3rd-window check, Run
+11). Remaining open gaps across all three candle strategies: `grid` @ 5m
+(untested) and `1d` for any strategy (untested everywhere, low priority —
+even fewer candles per window than 4h, likely the same starvation
+pattern already seen for `trend_ema=200` at 4h).
+
+**Verdict: no candidate. Honest null result — trend_momentum has now
+been exhaustively searched across its full TF range with no edge found
+anywhere.**
 ## 2026-08-15 — Run 11
 
 **Self-correction check:** reviewed commits since Run 10 — only `2c69383`
@@ -742,429 +717,3 @@ same no-edge pattern).
 _No CANDIDATE FOUND this run._
 
 ---
-
-## 2026-08-12 — Run 5
-
-**Self-correction check:** reviewed commits since Run 4 — only `a4798a2`
-(auto-deploy: poll health for ~40s instead of one-shot, fixes a startup
-race). Deploy-tooling only; doesn't touch any strategy default, risk
-config, or backtest code. Nothing strategy-affecting to revert.
-
-**Region — DCA `interval` sweep (hourly/daily/weekly), first-ever variation
-of this param** (per Run 4's flagged next step (c); prior DCA runs only
-varied `dip_*` params, always on the `daily` schedule). Same 3-window
-methodology as Run 4 (capital-normalized ROI = `unrealized_pnl/invested %`,
-since `run_dca_backtest` has no round-trip trades): older
-2025-12-15→2026-03-14, train 2026-03-14→2026-06-12, test
-2026-06-12→2026-08-11. Klines fetched once per (symbol, window) at 1h
-granularity — schedule interval is independent of candle granularity, so
-all three schedule variants reuse the same cached candles. Ran both `flat`
-(dip disabled) and shipped `dip_default` on each interval × window ×
-symbol = 144 backtests total. `quote_amount` scaled per interval
-(hourly=$1, daily=$15, weekly=$105) to keep a roughly similar deploy rate;
-ROI is capital-normalized so this doesn't bias the comparison.
-
-**Hourly vs daily:** avg ROI delta +0.11pp (older, 87.5% symbol-win),
-+0.06pp (train, 93.8% win), **-0.03pp (test, 43.8% win — sign flips)**.
-Magnitude is trivial everywhere (≤0.11pp — cents on $100) and the sign
-isn't even stable across windows. Mechanically expected: hourly just
-finely re-slices the same buying period daily already covers, so the
-average purchase price barely moves — no reason to expect an edge, and
-none found. Also carries a real, uncaptured-by-ROI operational cost: 2160
-buy events per symbol per 90-day window vs 90 for daily — 24x more live
-orders per dollar deployed (minimum-notional issues, API/exchange load)
-for zero measurable benefit. **Verdict: noise, reject.**
-
-**Weekly vs daily:** avg ROI delta **-1.10pp (older, 0/16 = 0% win)**,
-**-0.29pp (train, 31% win)**, **-0.61pp (test, 25% win)** — worse in
-**every one of the 3 independent windows**, never close to a majority
-win, and even its best window (train) is still a net loss vs daily, not a
-wash. This is qualitatively different from the dip-buying pattern (helps
-in declines, neutral in uptrends, Run 4) — weekly shows no offsetting
-upside in any regime tested. Mechanism: only ~10-14 buys per 90-day window
-on a single fixed weekday/time samples a far less representative slice of
-the price path than daily's ~90 buys, so each lump-sum buy carries more
-single-draw timing risk — and that risk realized negative in all 3
-non-overlapping windows, not just down-trending ones. **Verdict: reject —
-do not recommend weekly as a DCA schedule.**
-
-**$100 / $1000 translation (test window, most decision-relevant):**
-hourly vs daily: -$0.03/-$0.30 (noise-level, don't act on the sign).
-Weekly vs daily: -$0.61/-$6.08 — small in absolute terms but consistently
-negative across all 3 windows with no compensating upside anywhere.
-
-**Verdict: no promising candidate this run.** No code or default-param
-change (the finding validates the existing shipped default, `interval=
-daily`, over both alternatives — hourly is a no-op with extra operational
-cost, weekly is a real net negative). Nothing to revert (no
-strategy-affecting commits since Run 4).
-
-**Next run should rotate to:** DCA's interval/dip axes are now both
-explored (this run + Run 4) — candle-strategy families (mean_reversion,
-trend_momentum, grid) remain exhausted at 15m/1h/4h. Worth trying next:
-(a) a 5m timeframe sweep for mean_reversion/trend_momentum (still
-untested, low priority given 1m's catastrophic result); (b) DCA
-`time_utc` sensitivity (does the specific hour-of-day for a daily buy
-matter, given weekly's day-of-week/lump-size finding this run suggests
-schedule *granularity* matters more than *anchor point*, worth a
-quick confirmatory check); (c) re-testing `dip_default` vs flat on a
-genuinely different trending-up window if one can be found, per Run 4's
-still-open flag (only tested in one trending-up window so far).
-
-_No CANDIDATE FOUND this run._
-
----
-
-## 2026-08-12 — Run 4
-
-**Self-correction check:** reviewed commits since Run 3 — only `765defe`
-(scanner: exclude newer USD stablecoins from the coin scanner). Doesn't
-touch the fixed 8-symbol research universe, any strategy default, or any
-backtest code. Nothing strategy-affecting to revert.
-
-**Region — DCA strategy, first-ever pass, new evaluation methodology
-(per Run 3's flagged next step).** `run_dca_backtest` accumulates inventory
-and returns zero round-trip `trades`, so the PF>1.1/≥30-trades bar used for
-candle strategies doesn't apply. Defined a DCA-specific bar: compare
-**capital-normalized ROI** (`unrealized_pnl / invested`, in %) of a variant
-against a flat fixed-schedule baseline (same `interval=daily,
-quote_amount=$15`, `dip_enabled=False`) — NOT raw avg-cost-vs-last-close,
-which is misleading here since dip-buy variants deploy *more* total
-capital than the flat baseline (extra $ on qualifying dip days), so a
-lower unit cost doesn't automatically mean a better dollar outcome without
-normalizing by $ invested first.
-
-Tested 3 variants (`flat` baseline, `dip_default` = shipped default
-`dip_threshold_pct=5.0/dip_multiplier=1.5`, `dip_aggressive` =
-`3.0/2.5`) × 8 symbols × 3 non-overlapping windows (train 2026-03-14→
-2026-06-12, test 2026-06-12→2026-08-11, plus an older window
-2025-12-15→2026-03-14 — same anchors as the candle-strategy research) =
-72 backtests, hourly candles (for the 24h dip lookback), fees 7.5bps /
-slippage 4bps.
-
-**`dip_default` (shipped default) vs flat:** ROI beats flat on 6/8 symbols
-in train (+0.26pp avg), 8/8 in the older window (+0.61pp avg), but only
-2/8 in the test window (-0.07pp avg, noise-level, not a real loss).
-**Verdict: mixed across windows, doesn't clear a majority-of-symbols win
-in every window** — so not an unconditional edge by this research's own
-anti-noise standard. But the mechanism is explicable, not curve-fit: extra
-buys land at locally-lower prices only when a 24h dip actually happens, so
-the feature is a no-op (not a loss) in a trending-up market and a real
-help in choppy/declining ones — consistent with 2/3 windows meaningfully
-positive and the 3rd being ~flat rather than negative. **This is already
-the shipped default; the run validates keeping it, doesn't argue for
-changing it either direction.**
-
-**`dip_aggressive` (3%/2.5×) vs shipped default:** beats it on ROI in the
-older window (8/8, +1.72pp) and train (7/8, +0.55pp), but only 4/8 (50%,
-+0.09pp, noise) in the trending-up test window — not a clean win in every
-regime. It also deploys **13–30% more total capital** than the default
-across symbols (lower threshold triggers more often), a real
-capital/liquidity requirement and larger concentration of exposure into
-still-declining assets that isn't captured by the ROI-% comparison alone.
-**Verdict: reject** — no clean win in a trending-up window, plus a real
-added capital/exposure cost, isn't enough to justify shipping a more
-aggressive default.
-
-**$100 / $1000 translation:** `dip_default` vs flat: -$0.07/-$0.70 (test
-window, the regime that matters most for "is this still working now"),
-+$0.26/+$2.63 (train window), on the ROI-normalized basis. `dip_aggressive`
-vs default: +$0.02/+$0.24 (test window, noise-level). No candidate found —
-smallest of the three verdicts is "keep the untouched default."
-
-**Verdict: no promising candidate this run.** No code or default-param
-changes made (the one interesting finding — dip-buy helps and never
-meaningfully hurts — describes the *existing* shipped default, not a
-change). Nothing to revert (no strategy-affecting commits since Run 3).
-
-**Next run should rotate to:** a genuinely new region — candle-strategy
-families (mean_reversion, trend_momentum, grid) are exhausted at
-15m/1h/4h; DCA now has a working methodology and first-pass result. Worth
-trying: (a) a 5m timeframe sweep for mean_reversion/trend_momentum
-(untested, low priority given 1m's catastrophic result, but 15m/1h/4h are
-all exhausted); (b) re-testing `dip_default` vs flat on a 4th window if a
-genuinely trending-up historical window can be found deliberately (the
-test window here was the only trending-up one of the three tried, so its
-verdict rests on a single window); (c) DCA `interval` (hourly vs
-daily vs weekly) has never been varied — only `dip_*` params were, this
-run assumed daily throughout.
-
-_No CANDIDATE FOUND this run._
-
----
-
-## 2026-08-11 — Run 3
-
-**Self-correction check:** reviewed commits since Run 2 — none landed
-(`abec798` was Run 2's own log commit). Nothing strategy-affecting to
-revert.
-
-**Region A — trend_momentum @ 1h, all 8 symbols, train/test grid search
-(closes the gap flagged after Runs 1-2).** Same anchors as prior runs
-(train 2026-03-14→2026-06-12, test 2026-06-12→2026-08-11). Grid:
-`ema_fast/slow` ∈ {(10,30),(20,50),(12,26)} × `rsi_buy_min` ∈ {45,50,55} ×
-`require_macd` ∈ {True,False} (18 combos, same grid shape as the Run 1
-4h search).
-
-Train screen: **all 18 combos had train PF < 1** (range 0.55–0.90; best
-was ema_fast=10, ema_slow=30, rsi_buy_min=45/50 [identical result — no
-train trades fell between RSI 45 and 50], require_macd=True, PF 0.901,
-122 trades). OOS on the best-train combo: PF 0.463, 105 trades (real
-sample, well over the 30-trade floor), ret -0.113%. **Verdict: FAIL.**
-trend_momentum now has full train/test grid coverage at both 4h (Run 1)
-and 1h (this run) — no in-sample edge at either timeframe with this
-ema-cross+RSI+MACD signal family. Don't re-grid this strategy at these
-TFs without a different signal design.
-
-**Region B — mean_reversion @ 1h shipped-default params, THIRD
-non-overlapping window (follow-up to Run 2's explicit flag).** Run 2 found
-the shipped defaults (`bb_std=2.0, rsi_oversold=30, exit_at=middle,
-trend_ema=0`) scored OOS PF 1.903/120 trades on the 60-0d test window
-despite train PF 0.472 on the 150-60d window — flagged as regime-dependent
-and *not adopted*, pending a third window. This run tested the identical,
-untouched param set on window 2025-12-15→2026-03-14 (240-150d ago, doesn't
-overlap either prior window): **PF 0.441, 136 trades, -$187.93 aggregate,
-every one of the 8 symbols individually negative** (PF 0.20–0.85, per
-symbol trade counts 14–20). **Verdict: FAIL.** 2 of 3 windows now negative
-for this exact param set — the Run 2 result was regime luck on one 60-day
-slice, not a stable edge. This closes the open question from Run 2: no
-code/param change was made either time (it's already what ships), and this
-result doesn't argue for changing it — it argues no config in this family
-is worth shipping over the current default.
-
-**$100 / $1000 translation:** both regions this run are net negative OOS.
-Region A: -$0.11/-$1.13 over 60d on the best-train combo. Region B:
--$0.23/-$2.35 over the 90-day third window. No positive candidate.
-
-**Verdict: no promising candidate this run.** No code or default-param
-changes made. Nothing to revert (no strategy-affecting commits since Run 2).
-
-**Next run should rotate to:** define a DCA-specific evaluation
-methodology first (avg_cost vs. buy-hold baseline across >=2 windows —
-the existing PF/trade-count bar doesn't apply, `run_dca_backtest` produces
-no round-trip trades), then run it. Standard candle-strategy families
-(mean_reversion, trend_momentum) are now exhausted at 15m/1h/4h and grid
-at 1h — DCA and possibly a 5m timeframe sweep (untested, low priority
-given 1m's catastrophic result) are the remaining unexplored regions.
-
-_No CANDIDATE FOUND this run._
-
----
-
-## 2026-08-11 — Run 2
-
-**Self-correction check:** no strategy-affecting commits landed since Run 1
-(`5c23fd9` mean_reversion trend-filter is still the most recent, already
-re-validated last run; still opt-in/off by default). Nothing to revert.
-
-**Region A — mean_reversion @ 1h, all 8 symbols.** Same train/test anchors as
-Run 1 (train 2026-03-14→2026-06-12, test 2026-06-12→2026-08-11). Grid:
-`bb_std` ∈ {2.0,2.5,3.0} × `rsi_oversold` ∈ {25,30} × `exit_at` ∈
-{middle,upper} × `trend_ema` ∈ {0,200} (24 combos).
-
-Train screen: 22/24 combos had train PF < 1 (`trend_ema=0` variants ranged
-0.05–0.60 across bb_std/rsi settings — 1h mean_reversion is not profitable
-in-sample at any bb_std/rsi setting tested). The only two combos with train
-PF > 1 both used `trend_ema=200`, which at 1h restricts entries to 3–6
-train trades total across all 8 symbols — too few to mean anything. OOS on
-the top 3: PF 0.0/0/trades, PF 1.105/4 trades, PF 0.961/4 trades — none
-clear the 30-trade floor. **Verdict: FAIL**, no candidate from the grid.
-
-Notable side-finding while running the reference baseline: the **shipped
-default params** (`bb_std=2.0, rsi_oversold=30, exit_at=middle,
-trend_ema=0` — not selected by this search, just the repo default) scored
-OOS PF **1.903, 120 trades, +$118.36 on $80k notional (+0.148%, ~$0.15 per
-$100 / $1.48 per $1000 over 60d)** on the same held-out window — numerically
-clears the anti-noise bar (real sample size this time, not small-N luck).
-**Not treated as a candidate or acted on**, because this identical param
-combo scored **train PF 0.472** in the grid above — it would have been
-rejected by the very screen used to pick candidates. It only "works" on
-this specific 60-day slice; that is the signature of regime dependence, not
-a discovered edge. No code or param change — it's already what ships.
-Logged so a future run can re-check it against a **third, non-overlapping
-window**; if it holds up there too it becomes more credible, not less.
-
-**Region B — grid strategy @ 1h, all 8 symbols, proper train/test (first
-time — prior grid tests were single-window, no split).** Grid:
-`auto_range_pct` ∈ {6,10} × `levels` ∈ {8,13} × `flatten_on_stop` ∈
-{True,False} (8 combos, `stop_outside_range=True` always).
-
-Every train-ranked config collapsed OOS: best train PF 1.506 (190 trades,
-+$130) → OOS PF 0.655 (140 trades, **-$147**); 2nd 1.421→0.639 (-$85); 3rd
-1.169→0.647 (-$109). **Verdict: FAIL** across the board — this directly
-confirms, with a rigorous split this time, the founding session's informal
-finding that grid's in-sample oscillation profit is a directional/regime
-bet, not a generalizing edge. `flatten_on_stop=False` variants weren't even
-worth OOS-checking: all had 0 gross losses recorded in-sample terms that
-collapse to `pf=None`/near-zero once a losing streak actually closes a lot
-(inventory accumulates as unrealized loss without flattening, masking risk
-in-sample).
-
-**$100 / $1000 translation:** best OOS result across both regions this run
-is the default-baseline observation above (+$0.15 / +$1.48 over 60d, not
-acted on). Every actively-searched grid combo (both regions) was flat or
-negative OOS.
-
-**Verdict: no promising candidate this run.** No code or default-param
-changes made.
-
-**Next run should rotate to:** trend_momentum @ 1h with the same
-train/test grid-search rigor (only ever tested as a single default config
-at 1h so far, not searched); or the DCA strategy (fully untested so far in
-this research). Also worth a rolling 3rd-window re-check of the mean_reversion
-1h default-params side-finding above before it's fully dismissed.
-
-_No CANDIDATE FOUND this run._
-
----
-
-## 2026-08-11 — Run 1
-
-**Self-correction check:** reviewed the most recent strategy-affecting
-commit, `5c23fd9` (mean_reversion optional trend-filter EMA). It ships
-`trend_ema=0` (off) by default in `param_specs()` — it's an opt-in knob,
-not a default-behavior change, so there is nothing live to re-validate or
-revert. No other recent commit changes a strategy default. No reverts this
-run.
-
-**Region A — trend_momentum @ 4h, all 8 symbols**
-Train window 2026-03-14→2026-06-12 (150-60d ago), test window
-2026-06-12→2026-08-11 (60-0d ago). Grid: `ema_fast/slow` ∈
-{(10,30),(20,50),(12,26)} × `rsi_buy_min` ∈ {45,50,55} × `require_macd` ∈
-{True,False} (18 combos), aggregated across all 8 symbols per combo.
-
-Result: **every single combo had train profit_factor < 1** (best was 0.79,
-worst 0.40). The train window was choppy/ranging for this strategy on this
-timeframe — there was no in-sample edge to even validate OOS. Verdict:
-**FAIL, not promising.** Did not proceed to OOS (nothing passed the train
-screen). Default trend_momentum params on the same OOS window: PF 1.12,
-24 trades — under the 30-trade floor, inconclusive either way.
-
-**Region B — mean_reversion @ 15m, all 8 symbols**
-Same train/test windows. Grid: `bb_std` ∈ {2.0,2.5} × `rsi_oversold` ∈
-{25,30} × `exit_at` ∈ {middle,upper} × `trend_ema` ∈ {0,200} (16 combos).
-
-Top train-ranked candidate (bb_std=2.0, rsi_oversold=30, exit_at=middle,
-trend_ema=200, train PF 0.88, 31 train trades) **failed OOS**: PF 0.53,
-21 trades, -$8.40 aggregate P&L.
-
-Second-ranked candidate (bb_std=2.5, rsi_oversold=30, exit_at=upper,
-trend_ema=0) technically **clears the numeric bar**: OOS PF 1.24, 231
-trades, 59.3% win rate, +$78.89 aggregate P&L across 8×$10,000 sim
-accounts over the 60-day test window. Per-symbol OOS PF: BTC 1.23, ETH
-0.92, SOL 1.41, BNB 1.51, XRP 0.72, LINK 2.09, DOGE 1.62, ADA 0.93 — 5/8
-symbols positive, reasonably broad-based rather than one symbol carrying
-the whole result.
-
-**Why I'm not calling this a candidate despite passing the numeric bar:**
-1. Its own **train-window PF was 0.65** — this parameter set never showed
-   an edge in-sample. It was the least-bad of 16 combos that were mostly
-   in-sample losers, then got lucky OOS. That's the signature of noise
-   surviving a screen, not a real effect strengthening out-of-sample.
-2. **Economic magnitude is negligible**: +$78.89 on $80,000 deployed
-   notional over 60 days ≈ 0.10% (roughly 0.6% annualized) — smaller than
-   likely model/venue slippage error, and default (untuned) mean_reversion
-   params scored almost the same on the same OOS window (PF 1.02, 336
-   trades) — i.e. the "improvement" from this whole 16-combo search over
-   just using the shipped defaults is within noise.
-3. 16-combo grid search with only the top-3 validated OOS is enough
-   multiple-comparison risk to produce a >1.1 PF by chance alone.
-
-**Verdict: no promising candidate this run.** No code or default-param
-changes made. Nothing to revert from prior runs.
-
-**$100 / $1000 account translation (for the OOS-passing but rejected
-candidate, purely illustrative — not deployed):** ~$0.10 profit per $100,
-~$1.00 per $1000, over 60 days, before accounting for real-world execution
-slippage beyond the simulated 4bps. Not worth the operational risk of
-shipping a parameter change for.
-
-**Next run should rotate to:** mean_reversion or trend_momentum @ 1h, and
-the `grid` strategy (untested so far), on a different train/test anchor
-if enough time has passed.
-
-_No CANDIDATE FOUND this run — proving nothing works is a valid result._
-
----
-
-## 2026-08-10 — Prior session findings (human-seeded, for the agent's memory)
-
-Configs already tested in the founding live+backtest session — **do not re-test these**:
-- **1m any strategy**: catastrophic (−34% to −42%, PF 0.01–0.09) — fee drag from over-trading. Avoid 1m entirely.
-- **Timeframe sweep** (mean_reversion/trend_momentum): 1m −34%/−42%, 15m −8%/−22%, 1h −5.8%/−3.6%, 4h −3.9%/−5.4%. Higher TF cuts fee drag hugely but none reach profit. 1h is the least-bad base.
-- **mean_reversion trend_ema=200 @ 1h**: near-breakeven (−0.8%) but tiny sample (~11 trades) — filter adopted as principled downside reduction, not proven edge.
-- **grid ±12%/13 levels @ 15m**: oscillation engine profits per-cycle but bag-holds in downtrends → −20% net over 90d (−9.5% even with range-exit stop). Directional bet, not signal edge; also needs $40+ capital.
-- **Live real-money** (1m volatile scanner): 16 trades, −$0.29 net, ~70% of loss was fees. Empirically confirmed negative edge. Stopped; moved to testnet + this automated research.
-
-Structured versions of these in `research/decisions.jsonl`. Overarching prior: no robust
-edge found; simple RSI/BB/EMA signals appear over-arbitraged, fees turn ~breakeven negative.
-
-## 2026-08-16 — Run 12
-
-**Self-correction check:** reviewed commits since Run 11 — only `ac76c86`
-(Run 11's own log commit). No strategy/risk/backtest code touched since
-Run 11; nothing to re-validate or revert.
-
-**Region chosen:** `trend_momentum` @ 5m — the last untested TF for this
-family (4h/1h/15m already grid-searched and closed with no edge, Runs
-1/3/7; both ADX-confirmation variants, Runs 10/11, also closed). Chosen
-over the alternative gap (`grid` @ 5m, also untested) because
-mean_reversion's own 5m pass (Run 9) turned out to be the cleanest,
-most decisive failure of that family — filling the last TF gap was more
-informative than expected, so the same reasoning was applied here rather
-than assuming the outcome and skipping it.
-
-**Method:** 12-combo grid (3 EMA pairs {20/50, 9/21, 12/26} x 2
-`rsi_buy_min` {45, 50} x 2 `require_macd` {True, False}) — identical
-shape to Run 7's 15m grid, for direct TF-to-TF comparability. Production
-`TrendMomentumStrategy` and `run_candle_backtest`, unmodified — pure
-evaluation, no code changes. Train 2026-03-19→2026-06-17 (150d-60d ago),
-test 2026-06-17→2026-08-16 (60d-0d ago, today's anchor), 3-day warmup
-buffer (ema_slow≤50 candles @ 5m warms up in under a day). Fees 7.5bps +
-slippage 4bps, $10,000/symbol, all 8 symbols aggregated. Script:
-`research/experiments/trend_momentum_5m_grid.py`.
-
-**Result — the worst trend_momentum result of any TF, and a sample-size
-surprise.** Best (20/50 EMA, either rsi_buy_min, `require_macd=True`):
-train PF 0.211/29 trades, test PF **0.028**/42 trades — decisively
-negative in both windows, the lowest PF this research programme has
-recorded for a real (>10-trade) sample. Dropping MACD confirmation
-scored similarly on train (PF 0.201/29) and numerically better on test
-(PF 0.189/55) only because more (still-losing) trades got through — not
-an improvement, MACD confirmation remains directionally useful as at
-every other TF. The faster EMA pairs were effectively starved: 9/21 had
-**zero** train trades across all 8 symbols over 90 days; 12/26 had just
-1 train trade (34 real test trades, PF 0.094 — logged as noise, the
-train screen never passed).
-
-**Why fewer trades at a faster TF, not more?** The surprising part isn't
-that 5m loses — every TF has — it's that the 20/50 combo produced *fewer*
-train trades (29) than the identical combo at 15m (141), despite 5m
-having ~3x more raw candles per day. The likely mechanism: the repo's
-`max_daily_loss_pct=3%` halt blocks new entries for the rest of the UTC
-day once tripped, and at 5m a fixed 2%/4% SL/TP against 5-minute noise
-produces same-day loss clusters far more easily than at 15m — so the
-effective sample gets silently pruned well below what the crossover
-frequency alone would suggest. Not verified by direct instrumentation
-this run (would require logging halt events, out of scope for a
-no-code-change evaluation), but consistent with the shape of the data and
-worth flagging as a general caution for any future fast-TF test that uses
-tight fixed-pct stops: raw candle count is not a reliable predictor of
-executed-trade count once daily risk halts are in the loop.
-
-**Decision: reject / noise (4 combos logged in `decisions.jsonl`,
-representative of all 12 per this run's established convention — top
-combo, MACD-off sibling, and the two starved fast-EMA pairs).** No
-code/param change — closes trend_momentum's TF sweep. The family is now
-grid-searched with train/test rigor at every TF from 5m to 4h with zero
-survivors; re-opening it needs a genuinely different signal design, not
-another EMA/RSI/MACD parameter sweep (the ADX-floor variant already
-explored this exact idea at 1h and also failed a 3rd-window check, Run
-11). Remaining open gaps across all three candle strategies: `grid` @ 5m
-(untested) and `1d` for any strategy (untested everywhere, low priority —
-even fewer candles per window than 4h, likely the same starvation
-pattern already seen for `trend_ema=200` at 4h).
-
-**Verdict: no candidate. Honest null result — trend_momentum has now
-been exhaustively searched across its full TF range with no edge found
-anywhere.**
