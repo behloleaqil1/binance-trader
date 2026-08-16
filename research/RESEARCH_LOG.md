@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 11 sessions and ~97 configs.** Every trend_momentum /
+families, across 12 sessions and ~109 configs.** Every trend_momentum /
 mean_reversion / grid combo tested so far is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
 RSI/BB/EMA signals on these 8 majors appear over-arbitraged; fees turn
@@ -126,21 +126,36 @@ below — which is already shipped as the default, not a new change.
   range-detection filter (ADX/volatility gate), which no run has
   attempted yet.
 - **trend_momentum: no edge at ANY grid-searched TF — family now closed
-  across 15m/1h/4h.** Fully grid-searched with train/test rigor at 4h
-  (Run 1, 18 combos, best train PF 0.79, all fail), 1h (Run 3, 18 combos,
-  best train PF 0.90, all fail; OOS on the best-train combo confirms PF
-  0.463/105 trades), and now 15m (Run 7, 12 combos, best train PF 0.993 —
-  literally the shipped default — still <1; OOS confirms PF 0.325/74
-  trades, real sample, clearly negative). Unlike 1h/4h's default-reference
-  finding (train fails, OOS looks lucky = regime ambiguity), 15m's default
-  fails BOTH windows consistently — the cleanest non-edge result yet for
-  this family, no regime-luck story available. Faster EMA pairs (9/21,
-  12/26) are strictly worse than 20/50 at 15m (train PF 0.08–0.22 vs
-  0.99), and dropping MACD confirmation is strictly worse than requiring
-  it. Do not re-grid trend_momentum at 15m/1h/4h without a materially
-  different signal design (current ema-cross+RSI+MACD family is exhausted
-  at every TF tested; 1m is catastrophic for any strategy, never tested
-  here nor worth testing).
+  across 5m/15m/1h/4h, the full sweep this research programme uses.**
+  Fully grid-searched with train/test rigor at 4h (Run 1, 18 combos, best
+  train PF 0.79, all fail), 1h (Run 3, 18 combos, best train PF 0.90, all
+  fail; OOS on the best-train combo confirms PF 0.463/105 trades), 15m
+  (Run 7, 12 combos, best train PF 0.993 — literally the shipped default —
+  still <1; OOS confirms PF 0.325/74 trades, real sample, clearly
+  negative), and now 5m (Run 12, same 12-combo grid shape as Run 7 — 3 EMA
+  pairs x 2 rsi_buy_min x 2 require_macd). **5m is the single worst result
+  of any TF tested for this family**: the best (20/50 EMA) combo scored
+  train PF 0.211/29 trades, collapsing further OOS to PF 0.028/42 trades —
+  decisively negative both windows, no regime-luck ambiguity at all.
+  Notably, 5m produced *fewer* train trades (29) than 15m's same-pair
+  combo (141) despite far more raw candles per window — the mechanism is
+  almost certainly the 3%-daily-loss halt tripping early and often (SL
+  2%/TP 4% against 5m noise fires stop-losses in rapid same-day clusters,
+  each halting new entries for the rest of that UTC day) rather than the
+  EMA cross itself becoming rarer; a useful general caution for any future
+  fast-TF test with tight fixed-pct stops — daily-halt interaction can
+  silently prune the effective sample far below what raw candle count
+  would suggest. Faster EMA pairs (9/21, 12/26) are strictly worse than
+  20/50 at every TF tested, and at 5m are effectively starved outright
+  (0–1 train trades) — even less viable than their already-worst 15m
+  showing (train PF 0.08–0.22, at least 69–95 trades there). Dropping MACD
+  confirmation is strictly worse than requiring it at every TF where both
+  were compared. Do not re-grid trend_momentum at 5m/15m/1h/4h without a
+  materially different signal design (current ema-cross+RSI+MACD family is
+  exhausted at every TF tested and the ADX-floor confirmation variant is
+  also closed, see Run 11 above; 1m is catastrophic for any strategy,
+  never tested here nor worth testing; 1d remains untested but low
+  priority — even fewer candles per window than 4h).
 - **mean_reversion @ 4h: first pass done (Run 6), no edge, and the TF is
   now too short-window to say more.** 24-combo grid (bb_std x
   rsi_oversold x exit_at x trend_ema, 90-day train / 60-day test — only
@@ -1083,3 +1098,73 @@ Configs already tested in the founding live+backtest session — **do not re-tes
 
 Structured versions of these in `research/decisions.jsonl`. Overarching prior: no robust
 edge found; simple RSI/BB/EMA signals appear over-arbitraged, fees turn ~breakeven negative.
+
+## 2026-08-16 — Run 12
+
+**Self-correction check:** reviewed commits since Run 11 — only `ac76c86`
+(Run 11's own log commit). No strategy/risk/backtest code touched since
+Run 11; nothing to re-validate or revert.
+
+**Region chosen:** `trend_momentum` @ 5m — the last untested TF for this
+family (4h/1h/15m already grid-searched and closed with no edge, Runs
+1/3/7; both ADX-confirmation variants, Runs 10/11, also closed). Chosen
+over the alternative gap (`grid` @ 5m, also untested) because
+mean_reversion's own 5m pass (Run 9) turned out to be the cleanest,
+most decisive failure of that family — filling the last TF gap was more
+informative than expected, so the same reasoning was applied here rather
+than assuming the outcome and skipping it.
+
+**Method:** 12-combo grid (3 EMA pairs {20/50, 9/21, 12/26} x 2
+`rsi_buy_min` {45, 50} x 2 `require_macd` {True, False}) — identical
+shape to Run 7's 15m grid, for direct TF-to-TF comparability. Production
+`TrendMomentumStrategy` and `run_candle_backtest`, unmodified — pure
+evaluation, no code changes. Train 2026-03-19→2026-06-17 (150d-60d ago),
+test 2026-06-17→2026-08-16 (60d-0d ago, today's anchor), 3-day warmup
+buffer (ema_slow≤50 candles @ 5m warms up in under a day). Fees 7.5bps +
+slippage 4bps, $10,000/symbol, all 8 symbols aggregated. Script:
+`research/experiments/trend_momentum_5m_grid.py`.
+
+**Result — the worst trend_momentum result of any TF, and a sample-size
+surprise.** Best (20/50 EMA, either rsi_buy_min, `require_macd=True`):
+train PF 0.211/29 trades, test PF **0.028**/42 trades — decisively
+negative in both windows, the lowest PF this research programme has
+recorded for a real (>10-trade) sample. Dropping MACD confirmation
+scored similarly on train (PF 0.201/29) and numerically better on test
+(PF 0.189/55) only because more (still-losing) trades got through — not
+an improvement, MACD confirmation remains directionally useful as at
+every other TF. The faster EMA pairs were effectively starved: 9/21 had
+**zero** train trades across all 8 symbols over 90 days; 12/26 had just
+1 train trade (34 real test trades, PF 0.094 — logged as noise, the
+train screen never passed).
+
+**Why fewer trades at a faster TF, not more?** The surprising part isn't
+that 5m loses — every TF has — it's that the 20/50 combo produced *fewer*
+train trades (29) than the identical combo at 15m (141), despite 5m
+having ~3x more raw candles per day. The likely mechanism: the repo's
+`max_daily_loss_pct=3%` halt blocks new entries for the rest of the UTC
+day once tripped, and at 5m a fixed 2%/4% SL/TP against 5-minute noise
+produces same-day loss clusters far more easily than at 15m — so the
+effective sample gets silently pruned well below what the crossover
+frequency alone would suggest. Not verified by direct instrumentation
+this run (would require logging halt events, out of scope for a
+no-code-change evaluation), but consistent with the shape of the data and
+worth flagging as a general caution for any future fast-TF test that uses
+tight fixed-pct stops: raw candle count is not a reliable predictor of
+executed-trade count once daily risk halts are in the loop.
+
+**Decision: reject / noise (4 combos logged in `decisions.jsonl`,
+representative of all 12 per this run's established convention — top
+combo, MACD-off sibling, and the two starved fast-EMA pairs).** No
+code/param change — closes trend_momentum's TF sweep. The family is now
+grid-searched with train/test rigor at every TF from 5m to 4h with zero
+survivors; re-opening it needs a genuinely different signal design, not
+another EMA/RSI/MACD parameter sweep (the ADX-floor variant already
+explored this exact idea at 1h and also failed a 3rd-window check, Run
+11). Remaining open gaps across all three candle strategies: `grid` @ 5m
+(untested) and `1d` for any strategy (untested everywhere, low priority —
+even fewer candles per window than 4h, likely the same starvation
+pattern already seen for `trend_ema=200` at 4h).
+
+**Verdict: no candidate. Honest null result — trend_momentum has now
+been exhaustively searched across its full TF range with no edge found
+anywhere.**
