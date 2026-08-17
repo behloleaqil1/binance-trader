@@ -86,24 +86,138 @@ the same starvation issues `trend_ema=200` already showed at 4h.
   downside-reduction knob, not a proven edge (still tiny-sample, 3-6
   trades, everywhere tested). Leave as opt-in; don't flip default without a
   large-sample OOS pass.
+- **DCA dip-rebuy cap** (Run 14): capping the number of dip-multiplied
+  buys per window (allow only the first N qualifying dips, then flat
+  amount thereafter) — tested N=5,3,2,1 vs the uncapped shipped default,
+  same 3-window ROI methodology as Run 4/5. **Closed, decisive reject**:
+  capping the ROI delta vs uncapped is negative or zero in every
+  symbol/window tested (0/8 symbols ever benefit; strictly monotonic
+  worsening as the cap tightens in the two windows with a real sample —
+  train 27 dip events, older-reference 56 dip events; test window only
+  saw 3 dip events total so the cap essentially never bound there — a
+  tie, not a real test). Mechanism: in a decline, MORE dip-buys lower the
+  average cost basis further — capping removes exactly the buys that
+  would have landed at the lowest prices, so it can only match or hurt
+  ROI, never help. This is the opposite of the "over-concentration risk"
+  concern that motivated testing it (raised when the more-aggressive
+  2.5x/3% variant was rejected in Run 4) — the data says more dip-buying
+  in a decline is a benefit, not a risk, at the shipped 1.5x/5%
+  magnitude. No code change; production `dca.py` untouched.
 
 **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss was
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 13):** all three
+**Where this research programme stands (as of Run 14):** all three
 candle-strategy families are exhausted across the full TF sweep this
-programme uses, and the one cross-cutting indicator idea tried (ADX) is
-closed in both directions tried. The next genuinely new avenue is either
-(a) a different indicator/signal family entirely (not ADX), or (b)
-revisiting DCA — the one strategy with a validated positive mechanism —
-for further variants (e.g. multiplier magnitude, cap on dip re-buys).
-"More TF/param sweeps of trend_momentum/mean_reversion/grid" should be
-treated as a dead end absent a new idea.
+programme uses, the ADX indicator idea is closed in both directions
+tried, and the DCA dip-rebuy cap idea is now closed too (reject — capping
+never helps). The one DCA variant still open per Run 4's original list is
+multiplier *magnitude* between the shipped 1.5x and the already-rejected
+2.5x (e.g. 2.0x) — untested, low priority given the cap result suggests
+this family's edge is already close to its natural shape. Otherwise the
+next genuinely new avenue is a different indicator/signal family entirely
+(not ADX) for the candle strategies. "More TF/param sweeps of
+trend_momentum/mean_reversion/grid" and "more DCA dip-cap variants"
+should both be treated as dead ends absent a new idea.
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-17 — Run 14
+
+**Self-correction check:** reviewed commits since Run 13 — only `3350b1a`
+(Run 13's own log commit). No strategy/risk/backtest code touched since
+Run 13; nothing to re-validate or revert.
+
+**Region chosen:** DCA dip-rebuy cap — the specific open variant flagged
+in Run 13's distilled learnings ("revisit DCA ... for further variants
+(e.g. multiplier magnitude, cap on dip re-buys)"), since all three
+candle-strategy families (trend_momentum, mean_reversion, grid) are fully
+closed across the 5m-4h TF sweep as of Run 13 and ADX is closed in both
+directions tried. Picked the cap idea over multiplier magnitude because
+it directly tests the specific "over-concentration into a falling asset"
+concern that was the stated reason the more-aggressive 2.5x/3% variant
+was rejected in Run 4 — a sharper, more informative question than another
+magnitude point.
+
+**Method:** research-only reimplementation of `run_dca_backtest`'s core
+loop (`research/experiments/dca_dip_cap.py`, production `dca.py`
+untouched) adding a per-window counter: once `dip_max_buys` dip-
+multiplied buys have fired, later qualifying dips still buy on schedule
+at the flat `quote_amount` (schedule is never skipped), just without the
+1.5x bonus. Sanity-checked `dip_max_buys=None` against unmodified
+production `run_dca_backtest` on BTC/train — unrealized_pnl matched to
+within 0.05% (float-rounding-order noise, not a logic bug). Same 3-
+non-overlapping-window x 8-symbol capital-normalized-ROI methodology as
+Run 4/5 (`unrealized_pnl/invested %`, no round-trip trades so PF/trade-
+count doesn't apply), windows shifted to today's anchor: older reference
+2025-12-19→2026-03-19, train 2026-03-19→2026-06-18 (150d-60d ago), test
+2026-06-18→2026-08-17 (60d-0d ago, today). Shipped default params
+throughout (`interval=daily, quote_amount=15, dip_threshold_pct=5.0,
+dip_multiplier=1.5`); only the new `dip_max_buys` cap varied: None
+(uncapped baseline), 5, 3, 2, 1.
+
+**Result — decisive, monotonic reject.** ROI delta (capped − uncapped),
+averaged across all 8 symbols:
+
+| window | uncapped ROI% | cap=5 Δ | cap=3 Δ | cap=2 Δ | cap=1 Δ | dip events (uncapped) |
+|---|---|---|---|---|---|---|
+| older (ref) | −11.48 | −0.23pp | −0.36pp | −0.38pp | −0.35pp | 56 |
+| train | −12.90 | −0.02pp | −0.08pp | −0.12pp | −0.15pp | 27 |
+| test | +1.81 | 0.00pp | 0.00pp | 0.00pp | 0.00pp | 3 |
+
+**0 of 8 symbols ever beat the uncapped baseline, at any cap level, in
+any window.** The older and train windows (56 and 27 real dip events
+respectively) show a consistent, near-monotonic worsening as the cap
+tightens — cap=5 barely dents ROI, cap=1 (allow only the very first
+qualifying dip, then never again) costs the most. The test window is not
+informative either way: only 3 total dip events fired across all 8
+symbols in 60 days, so even the strictest cap (1) never actually bound
+for 7/8 symbols — ROI is identical to uncapped by construction, a tie
+not a real comparison. (cap=2 was marginally worse than cap=1 in the
+older window, −0.3819pp vs −0.3531pp — noise-level non-monotonicity
+between two adjacent tight caps, doesn't change the overall trend.)
+
+**Mechanism.** This result is mechanically clean, not curve-fit: dip
+events cluster in declining/volatile stretches (by construction — the
+trigger *is* a ≥5% 24h drop). In such a stretch, buying MORE at the dip
+lowers the accumulated position's average cost basis further, which
+directly improves (or least-worsens) unrealized ROI once the window ends
+— capping removes exactly the buys that land at locally-lower prices, so
+it can only tie or hurt, structurally, never help. This is the opposite
+of the "repeated dip-buying over-concentrates into a still-declining
+asset" concern that motivated testing this (the stated reason the
+2.5x/3% variant was rejected in Run 4) — that concern turns out to not
+apply at the shipped 1.5x/5% magnitude: more dip-buying in a decline is
+a cost-basis benefit here, not a risk amplifier.
+
+**Verdict: `reject` — do not cap dip re-buys.** The uncapped shipped
+default (`dip_enabled=True, dip_threshold_pct=5.0, dip_multiplier=1.5`,
+no cap) remains correct and unchanged. No code change; this was a pure
+evaluation against a research-only script, production `dca.py` untouched.
+3 representative decisions (cap=5, cap=3, cap=1) logged in
+`decisions.jsonl`.
+
+**$100 / $1000 translation:** worst case tested (cap=1) would have cost
+−$0.15 per $100 (−$1.51 per $1000) deployed over the train window vs
+just leaving the shipped default uncapped; the older reference window
+shows a larger −$0.35/−$3.53 cost at the same cap. Never positive at any
+cap level in any window.
+
+**Next run should rotate to:** either (a) DCA multiplier magnitude
+between 1.5x (shipped) and 2.5x (rejected) — e.g. 2.0x, the one DCA
+variant from Run 4's original list still untested, though the cap result
+here suggests the shipped magnitude is already close to right; or (b) a
+genuinely different indicator/signal family for the candle strategies
+(not ADX, which is closed) — this is likely the higher-value avenue given
+DCA's remaining search space is now small.
+
+_No CANDIDATE FOUND this run — DCA dip-rebuy cap closed with a clean,
+mechanically-explicable null result; shipped default confirmed correct._
+
+---
 
 ## 2026-08-16 — Run 13
 
