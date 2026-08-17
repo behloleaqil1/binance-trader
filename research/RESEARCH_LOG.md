@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 13 sessions and ~111 configs.** trend_momentum,
+families, across 15 sessions and ~116 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
@@ -62,6 +62,24 @@ conclusions and why, not the blow-by-blow.**
   passed 2 of 3 non-overlapping windows, closed as regime luck same as the
   mean_reversion@1h precedent). **Both closed — a genuinely different
   indicator family is needed, not more ADX threshold tuning.**
+- **Relative-volume confirmation gate (trend_momentum, Run 15)**: first
+  indicator family tried outside price-derived signals (EMA/RSI/MACD/ADX).
+  Gate = BUY only if entry-candle volume >= vol_mult x its own 20-period
+  rolling mean, tested at 1h on the same shipped-default combo Run 11 used
+  for the ADX floor (ema 20/50, rsi_buy_min=50, require_macd=True), 5
+  thresholds {none,1.0,1.2,1.5,2.0}. **Decisive reject, no 3rd-window check
+  needed** (nothing cleared both OOS bars): train PF rises monotonically as
+  the gate tightens (0.586->0.925->0.898->1.193->1.217, win% 22%->41%) but
+  test PF stays flat-to-worse the whole time (0.483->0.53->0.619->0.598
+  ->0.668, never above 0.67) — a clean train-overfits/test-doesn't-follow
+  shape, plus the two highest-train-PF thresholds (1.5, 2.0) also starve
+  the sample (37/29 and 22/19 trades). Mechanism: a volume gate removes
+  low-conviction crosses, which happens to make the *surviving* train
+  trades look better in-sample, but the underlying EMA-cross signal has no
+  edge regardless of the volume regime it fires in — filtering doesn't fix
+  a signal that isn't there. **Closed — do not re-tune vol_mult; a further-
+  different indicator family (not price-derived, not volume-derived) would
+  be needed to reopen trend_momentum.**
 - **1m, any strategy**: catastrophic (−34% to −42%, PF 0.01–0.09,
   ~200+ trades/coin, fee drag dominates). Never retest.
 
@@ -108,22 +126,140 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 14):** all three
+**Where this research programme stands (as of Run 15):** all three
 candle-strategy families are exhausted across the full TF sweep this
-programme uses, the ADX indicator idea is closed in both directions
-tried, and the DCA dip-rebuy cap idea is now closed too (reject — capping
-never helps). The one DCA variant still open per Run 4's original list is
-multiplier *magnitude* between the shipped 1.5x and the already-rejected
-2.5x (e.g. 2.0x) — untested, low priority given the cap result suggests
-this family's edge is already close to its natural shape. Otherwise the
-next genuinely new avenue is a different indicator/signal family entirely
-(not ADX) for the candle strategies. "More TF/param sweeps of
-trend_momentum/mean_reversion/grid" and "more DCA dip-cap variants"
-should both be treated as dead ends absent a new idea.
+programme uses, and two independent confirmation-indicator ideas
+(ADX trend-strength, relative-volume) are now both closed for
+trend_momentum with the same train-overfits/test-fails shape. The DCA
+dip-rebuy cap idea is closed too (reject — capping never helps). The one
+DCA variant still open per Run 4's original list is multiplier
+*magnitude* between the shipped 1.5x and the already-rejected 2.5x (e.g.
+2.0x) — untested, low priority given the cap result suggests this
+family's edge is already close to its natural shape. Otherwise the next
+genuinely new avenue is a different indicator/signal family entirely (not
+ADX, not simple relative-volume) — e.g. multi-timeframe trend
+confirmation (gate an entry TF's signal on a higher TF's own trend
+direction) is untested and mechanically distinct from both closed gates.
+"More TF/param sweeps of trend_momentum/mean_reversion/grid", "more ADX
+variants", and "more DCA dip-cap variants" should all be treated as dead
+ends absent a new idea.
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-17 — Run 15
+
+**Self-correction check:** reviewed commits since Run 14 — only `5b148cc`
+(Run 14's own log commit). No strategy/risk/backtest code touched since
+Run 14; nothing to re-validate or revert. (More broadly: `git log` on
+`backend/app/strategies|risk|backtest` shows the only non-research commits
+there predate this research programme entirely — this programme has never
+adopted a code/param change, so there has never been anything to
+self-correct across all 15 runs. A well-recorded string of null results.)
+
+**Region chosen:** relative-volume confirmation gate for `trend_momentum`
+@ 1h — per Run 14's flagged option (b), "a genuinely different
+indicator/signal family entirely (not ADX)". Volume is a natural next
+choice: unlike MACD/RSI/ADX (all derived purely from price), volume
+measures participation, and Binance klines already carry it (unused by
+any strategy in this repo today). Picked over DCA multiplier magnitude
+(option (a)) because Run 14 flagged that DCA avenue as low-priority (the
+cap result already suggests the shipped magnitude is close to its natural
+shape), while a new indicator family for the still-fully-closed
+candle-strategy side is the higher-value open question.
+
+**Method:** implemented as a thin subclass of the production
+`TrendMomentumStrategy` in a standalone research script
+(`research/experiments/volume_trend_momentum_gate.py`, NOT merged into
+`trend_momentum.py`/`indicators.py` — exploration, no code shipped), same
+pattern as Run 11's ADX floor script: `compute_indicators` adds one
+relative-volume column (`rel_vol = volume / rolling_mean(volume, 20)`),
+`decide()` defers entirely to the parent's unmodified `decide()` and adds
+exactly one veto — a BUY signal is downgraded to HOLD if `rel_vol` at that
+candle is below `vol_mult`. Fixed at the same 1h shipped-default combo
+Run 11 used (`ema_fast=20, ema_slow=50, rsi_buy_min=50,
+require_macd=True`) for direct comparability between gate mechanisms on
+the same base signal. Swept `vol_mult` ∈ {none (baseline), 1.0, 1.2, 1.5,
+2.0}, train 2026-03-19→2026-06-18 (150d-60d ago) / test
+2026-06-18→2026-08-17 (60d-0d ago, today's anchor), fees 7.5bps +
+slippage 4bps, $10,000/symbol, all 8 symbols aggregated. Production
+`run_candle_backtest` used unmodified.
+
+**Result — decisive, monotonic reject; no 3rd-window check needed.**
+Baseline (no gate): train PF 0.586/94 trades, test PF 0.483/82 — matches
+the standing no-edge finding for this combo (Run 11's baseline on a
+slightly earlier window: train 0.575/95, test 0.492/80, same shape).
+Sweep:
+
+| vol_mult | train PF | train n | test PF | test n |
+|---|---|---|---|---|
+| none | 0.586 | 94 | 0.483 | 82 |
+| 1.0 | 0.925 | 63 | 0.530 | 47 |
+| 1.2 | 0.898 | 61 | 0.619 | 34 |
+| 1.5 | 1.193 | 37 | 0.598 | 29 |
+| 2.0 | 1.217 | 22 | 0.668 | 19 |
+
+Train PF rises steadily as the gate tightens (fewer, more "confirmed"
+entries, win% 22%→41%) — at 1.5 and 2.0 it even clears 1.0, the first
+time this exact 1h combo has ever done so on a train screen (Run 11's
+best was 0.575 with require_macd, up to 0.738 there with an ADX floor=15
+that itself failed). **Test PF never follows** — it stays in a tight
+0.48-0.67 band across every threshold, decisively below the 1.1 bar
+regardless of gate tightness. The two highest-train-PF thresholds (1.5,
+2.0) also fall under/at the 30-trade OOS floor (29, 19 trades) — a double
+failure (small-sample AND wrong-direction), but even the sample-adequate
+middle thresholds (1.0: 47 test trades, 1.2: 34 test trades) show the
+same flat-low test PF, so this isn't merely a sample-size artifact.
+
+**Mechanism.** A relative-volume gate filters *which* EMA crosses get
+taken, but doesn't change *whether* the EMA-cross signal itself has edge.
+The gate happens to correlate with higher win-rate trades within this
+specific train window (classic in-sample selection — of the 94 raw
+crosses, the ~20-40% "highest volume" subset just happened to perform
+better here), but that correlation is regime-specific and doesn't carry
+to the test window. This is the same qualitative shape as the ADX floor
+result (Run 11: floor=20 cleared both bars on 2 windows then failed a
+3rd) and the mean_reversion@1h default-params near-miss (Run 2-3) — a
+confirmation filter reshuffling which of a fundamentally weak signal's
+trades survive, not adding real predictive power. Unlike those two cases,
+this one is unambiguous enough (test PF never gets remotely close to 1.1
+at any threshold) that a 3rd-window cross-check isn't needed to reach a
+verdict — the protocol's 3rd-window step is reserved for configs that
+pass both anti-noise bars in both windows, which none of these do.
+
+**$100 / $1000 account translation:** every threshold is net negative on
+test — best case (vol_mult=2.0, sub-floor sample) −$0.02/−$0.20 over 60d;
+worst case (vol_mult=1.0) −$0.06/−$0.59 over 60d. Baseline (no gate):
+−$0.10/−$1.00. No positive candidate anywhere in the sweep; gating
+doesn't even improve the dollar outcome, only the (uninformative) train
+PF.
+
+**Verdict: `reject` (baseline + vol_mult=1.0/1.2 logged as `reject`;
+vol_mult=2.0 also logged, tagged `noise` for its sub-floor sample size on
+top of the clear test-side failure). 5 configs logged in
+`decisions.jsonl`.** No code change — relative-volume confirmation is
+closed for trend_momentum@1h. Given the mechanism (filtering doesn't fix
+a signal with no underlying edge) is general, not 1h-specific, this is
+not expected to behave differently at other TFs either, so not planned
+for re-test elsewhere absent a reason to think 1h is unusually bad for
+this particular gate.
+
+**Next run should rotate to:** (a) multi-timeframe trend confirmation —
+gate a fast-TF entry (e.g. 15m/1h EMA cross) on a slower TF's own trend
+direction (e.g. 4h EMA fast>slow) — genuinely different from both closed
+gates (ADX measures trend *strength* on the same candles, volume measures
+*participation*; this would test whether a coarser timeframe's directional
+context, not measured by either, adds real information); (b) DCA
+multiplier magnitude 2.0x, the last open DCA variant from Run 4's
+original list (low priority per Run 14).
+
+_No CANDIDATE FOUND this run — relative-volume confirmation, the first
+non-price-derived indicator tried, fails cleanly for trend_momentum; the
+train-improves/test-doesn't pattern is now confirmed across two
+independent confirmation-indicator families (ADX, volume)._
+
+---
 
 ## 2026-08-17 — Run 14
 
