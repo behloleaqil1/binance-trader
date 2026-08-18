@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 15 sessions and ~116 configs.** trend_momentum,
+families, across 17 sessions and ~120 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
@@ -104,6 +104,27 @@ conclusions and why, not the blow-by-blow.**
   re-tune HTF EMA pairs on the 8-symbol/150d methodology** — if revisited,
   needs a larger universe or longer per-symbol history to resolve the
   small-sample noise, not more parameter sweeping.
+- **MTF trend-direction gate applied to mean_reversion (Run 17)**: same
+  gate mechanism as Run 16 (BUY vetoed unless 4h EMA(fast)>EMA(slow) on the
+  most recently closed 4h candle), applied to mean_reversion@1h's oversold
+  dip-buy instead of trend_momentum's EMA-cross — "buy the dip only in an
+  intact higher-TF uptrend". **Weaker than the trend_momentum application,
+  decisively closed**: only 1 of 3 windows (test) cleared both anti-noise
+  bars across all 3 HTF EMA pairs swept {10/30, 20/50, 50/100}; the
+  standout (10/30, test PF 1.139/31 trades) failed its 3rd-window check
+  outright (older-window PF 0.423/64 trades, real sample) — versus Run 16's
+  MTF trend_momentum near-miss which cleared 2/3 windows. Train PF never
+  exceeded 0.925 at any HTF pair (no train-side support anywhere), and
+  per-symbol breakdown showed the same lucky/unlucky single-symbol
+  small-sample pattern as every other closed gate. The baseline (no gate)
+  re-confirmation on today's window also reproduced the known regime-luck
+  split even more starkly than before (train PF 0.496 fail, test PF 2.207
+  huge, 91 trades) — mean_reversion@1h's underlying signal still has no
+  train-side edge to gate around. **Both applications of the MTF gate
+  mechanism (trend_momentum Run 16, mean_reversion Run 17) are now closed —
+  the mechanism itself should be considered exhausted absent a genuinely
+  new hypothesis for how to use it, not just a new base strategy to bolt it
+  onto.**
 
 **Untested, low priority (not expected to change the verdict):** 1d for
 all three families — even fewer candles per window than 4h, likely to hit
@@ -148,39 +169,118 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 16):** all three
+**Where this research programme stands (as of Run 17):** all three
 candle-strategy families are exhausted across the full TF sweep this
-programme uses, and now three independent confirmation-indicator ideas
-(ADX trend-strength, relative-volume, MTF trend-direction) are all closed
-for trend_momentum — two with a clean train-overfits/test-fails shape, one
-(MTF 20/50) as the closest-yet near-miss but still noise on per-symbol
-inspection. The DCA dip-rebuy cap idea is closed too (reject — capping
-never helps). The one DCA variant still open per Run 4's original list is
-multiplier *magnitude* between the shipped 1.5x and the already-rejected
-2.5x (e.g. 2.0x) — untested, low priority given the cap result suggests
-this family's edge is already close to its natural shape. **No genuinely
-new same-strategy avenue is currently identified** — every
-confirmation-gate family tried (same-candle: ADX, volume; cross-TF: MTF
-direction) has failed against trend_momentum's base EMA-cross signal, and
-mean_reversion/grid have no analogous gate ideas queued. "More TF/param
-sweeps of trend_momentum/mean_reversion/grid", "more ADX variants", "more
-DCA dip-cap variants", and "more confirmation gates on the base EMA-cross
-signal" should all be treated as dead ends absent a new idea. **Next run
-should consider:** (a) DCA multiplier magnitude 2.0x (low priority, per
-above); (b) applying the MTF trend-direction *gate mechanism* (proven
-mechanically sound, just not decisively edge-positive) to
-**mean_reversion** instead of trend_momentum — a mean-reversion entry
-gated to only fire *against* a higher-TF's still-intact opposite-direction
-trend is a different hypothesis than gating a momentum entry *with* the
-HTF trend, worth one clean test before the gate-mechanism idea itself is
-retired; (c) revisit whether a fundamentally different strategy family
-(not EMA-cross, not BB/RSI mean-reversion, not grid) is warranted given 16
-runs have found no edge in any of the three original families or their
-gated variants.
+programme uses, and the MTF trend-direction gate *mechanism* has now been
+tried against both trend_momentum (Run 16 — closest-yet near-miss at 20/50,
+still noise) and mean_reversion (Run 17 — weaker result, only 1/3 windows
+cleared, decisively closed). Same-candle confirmation gates (ADX,
+relative-volume) remain closed against trend_momentum from Runs 11/15. The
+DCA dip-rebuy cap idea is closed too (reject — capping never helps). The
+one DCA variant still open per Run 4's original list is multiplier
+*magnitude* between the shipped 1.5x and the already-rejected 2.5x (e.g.
+2.0x) — untested, low priority given the cap result suggests this family's
+edge is already close to its natural shape. **No genuinely new
+same-strategy avenue is currently identified** — every confirmation-gate
+family tried (same-candle: ADX, volume; cross-TF: MTF direction x 2 base
+strategies) has now failed, and grid has no analogous gate idea queued.
+"More TF/param sweeps of trend_momentum/mean_reversion/grid", "more ADX
+variants", "more DCA dip-cap variants", and "more confirmation gates on
+existing base signals (same-candle or cross-TF)" should all be treated as
+dead ends absent a new idea. **Next run should consider:** (a) DCA
+multiplier magnitude 2.0x (low priority, per above); (b) revisit whether a
+fundamentally different strategy family (not EMA-cross, not BB/RSI
+mean-reversion, not grid) is warranted given 17 runs have found no edge in
+any of the three original families or any gated variant tried so far —
+this is now the most promising remaining direction, since both the
+same-strategy TF/param space and the confirmation-gate-on-existing-signals
+space are exhausted; (c) if a new strategy family is pursued, prioritize
+one with a mechanically distinct entry signal (e.g. breakout/volatility-
+expansion, order-flow/orderbook-imbalance proxies from OHLCV, or a
+funding-rate/basis-style carry signal if data access allows) rather than
+another BB/RSI/EMA recombination, since those three primitives have now
+been tried in nearly every combination this programme's methodology
+supports.
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-18 — Run 17
+
+**Self-correction check:** reviewed commits since Run 16 — only Run 16's
+research-log/decisions commit landed (MTF trend_momentum gate, closed as
+noise); no production code was changed by Run 16, so there is nothing to
+re-validate or revert.
+
+**Hypothesis (per Run 16's flagged next step (b)):** the MTF trend-
+direction gate mechanism (BUY vetoed unless the 4h EMA(fast)>EMA(slow) on
+the most recently closed 4h candle, as-of backward join, no lookahead) is
+mechanically sound but wasn't decisively edge-positive on trend_momentum.
+Apply the *same mechanism* to mean_reversion@1h's oversold dip-buy instead:
+gate BUY on a still-intact higher-TF *uptrend*, i.e. "only buy the dip when
+the coarser timeframe hasn't actually turned down" — explicit falling-knife
+protection from a smoother, coarser TF than the existing same-TF
+`trend_ema` filter (already closed as unproven/tiny-sample). Chose
+mean_reversion@1h (not another TF) because 1h was the closest-to-edge
+mean_reversion baseline per distilled learnings (previously flagged OOS PF
+1.9 one window / 0.44 another — "regime luck"); 4h HTF matches Run 16's
+TF/HTF ratio for direct comparability.
+
+**Method:** thin subclass of production `MeanReversionStrategy` in
+`research/experiments/mtf_mean_reversion_gate.py` — `decide()` defers
+entirely to the unmodified parent and adds exactly one veto on BUY.
+Production `mean_reversion.py` untouched. Swept the same 3 HTF EMA pairs
+Run 16 used {10/30, 20/50, 50/100}. Windows: train 2026-03-21..2026-06-19
+(150d-60d ago), test 2026-06-19..2026-08-18 (60d-0d ago, today's anchor),
+older 2025-12-21..2026-03-21 (240d-150d ago) for the 3rd-window check. Base
+params: shipped defaults (bb_period=20, bb_std=2.0, rsi_period=14,
+rsi_oversold=30, rsi_overbought=70, exit_at=middle, trend_ema=0 — the
+same-TF filter left off to isolate the new gate cleanly). 8 symbols, fees
+7.5bps + slippage 4bps, $10,000/symbol.
+
+**Results:**
+
+| config | train PF / n | test PF / n |
+|---|---|---|
+| baseline (no gate) | 0.496 / 122 | 2.207 / 91 |
+| 4h EMA10/30 gate | 0.925 / 49 | 1.139 / 31 |
+| 4h EMA20/50 gate | 0.647 / 55 | 1.126 / 40 |
+| 4h EMA50/100 gate | 0.456 / 77 | 1.003 / 41 |
+
+Baseline re-confirms the standing "regime luck" pattern even more starkly
+than before (train fails decisively, test is a huge outlier) — the
+underlying signal has no train-side edge to gate around in the first
+place. 50/100 fails outright on both sides (adequate sample). 20/50
+barely clears the test-side numeric bar but has a worse train PF (0.647)
+than the 10/30 standout, so it's treated as closed by extension rather
+than independently re-verified with a 4th window. 10/30 (standout) cleared
+test but its 3rd-window check came back PF 0.423/64 trades — decisive
+fail, real sample. Only 1 of 3 windows clears the bar for the best config,
+versus 2/3 for Run 16's MTF trend_momentum near-miss. Per-symbol breakdown
+for 10/30 (24 cells) shows the same scattered lucky/unlucky single-symbol
+pattern as every other closed gate (LINK train PF 23.0/5 trades, DOGE
+train PF 0.056/5 trades, BTC test PF 4.05/9 trades, XRP test PF 0.0/1
+trade, DOGE test PF inf/4 trades) — no cross-symbol consistency.
+
+**$ impact (test window, on $100 / $1000 notional, aggregate across 8
+symbols):** baseline +$0.12 / +$1.17 (huge but decisively regime-luck per
+train side); 10/30 gate -$0.0 / -$0.01; 20/50 gate -$0.0 / -$0.01; 50/100
+gate +$0.0 / +$0.0 — all three gated variants are functionally flat,
+consistent with "no edge either way."
+
+**Decision: reject / noise (4 configs logged, no candidate).** Both
+applications of the MTF gate mechanism (trend_momentum Run 16,
+mean_reversion Run 17) are now closed. See DISTILLED LEARNINGS above for
+the durable conclusion and per-config rationale in
+`research/decisions.jsonl`.
+
+**No code changes** — this was a research-only run; no bar was cleared, so
+no production code, default params, or tests were touched.
+
+**Verdict:** _No CANDIDATE FOUND this run._
+
+---
 
 ## 2026-08-18 — Run 16
 
