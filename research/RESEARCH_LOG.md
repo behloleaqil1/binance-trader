@@ -126,6 +126,32 @@ conclusions and why, not the blow-by-blow.**
   new hypothesis for how to use it, not just a new base strategy to bolt it
   onto.**
 
+- **Donchian channel breakout (Run 18, new strategy family)**: BUY on a
+  close above its own N-period high, SELL on a close below a shorter
+  N-period low (trailing breakdown) — momentum *follows* the breakout,
+  the mirror image of mean_reversion's fade-the-band-touch logic, and
+  mechanically unrelated to trend_momentum's lagging EMA cross or grid's
+  range ladder. Swept @ 1h and 4h, 3 entry/exit channel pairs {20/10,
+  55/20, 40/20} x vol_filter {off, on — require ATR(14) above its own
+  50-period rolling mean at the breakout candle} = 12 configs. **Decisive
+  reject, the cleanest rejection in this programme's history**: every
+  single config fails both train AND test PF well below 1.1 (train PF
+  range 0.124-0.613, test PF range 0.584-0.939 — nothing even a
+  near-miss, no 3rd-window check warranted). Win rates are the tell:
+  4-38%, i.e. most breakouts are false/whipsawed and get stopped out
+  before the trail exit or TP captures a real trend leg; the few real
+  trend legs that do pay off never generate enough gross win to offset
+  the many small stopped-out losses net of fees. The vol_filter (ATR
+  expansion requirement) helps directionally at every combo (fewer,
+  higher-quality trades, test PF up in every row) but never crosses the
+  1.1 bar itself. **Closed — do not re-sweep Donchian channel
+  periods/vol-filter thresholds.** Combined with mean_reversion's
+  fade-the-touch failure, this now rules out *both directions* of
+  price-range-relative signals (follow the range break, or fade the band
+  touch) on this 8-symbol majors universe at 1h/4h — the absence of edge
+  looks like a property of the instruments/regime/fee level, not of
+  which side of the signal you pick.
+
 **Untested, low priority (not expected to change the verdict):** 1d for
 all three families — even fewer candles per window than 4h, likely to hit
 the same starvation issues `trend_ema=200` already showed at 4h.
@@ -169,42 +195,130 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 17):** all three
-candle-strategy families are exhausted across the full TF sweep this
-programme uses, and the MTF trend-direction gate *mechanism* has now been
-tried against both trend_momentum (Run 16 — closest-yet near-miss at 20/50,
-still noise) and mean_reversion (Run 17 — weaker result, only 1/3 windows
-cleared, decisively closed). Same-candle confirmation gates (ADX,
-relative-volume) remain closed against trend_momentum from Runs 11/15. The
-DCA dip-rebuy cap idea is closed too (reject — capping never helps). The
-one DCA variant still open per Run 4's original list is multiplier
-*magnitude* between the shipped 1.5x and the already-rejected 2.5x (e.g.
-2.0x) — untested, low priority given the cap result suggests this family's
-edge is already close to its natural shape. **No genuinely new
-same-strategy avenue is currently identified** — every confirmation-gate
-family tried (same-candle: ADX, volume; cross-TF: MTF direction x 2 base
-strategies) has now failed, and grid has no analogous gate idea queued.
-"More TF/param sweeps of trend_momentum/mean_reversion/grid", "more ADX
-variants", "more DCA dip-cap variants", and "more confirmation gates on
-existing base signals (same-candle or cross-TF)" should all be treated as
-dead ends absent a new idea. **Next run should consider:** (a) DCA
-multiplier magnitude 2.0x (low priority, per above); (b) revisit whether a
-fundamentally different strategy family (not EMA-cross, not BB/RSI
-mean-reversion, not grid) is warranted given 17 runs have found no edge in
-any of the three original families or any gated variant tried so far —
-this is now the most promising remaining direction, since both the
-same-strategy TF/param space and the confirmation-gate-on-existing-signals
-space are exhausted; (c) if a new strategy family is pursued, prioritize
-one with a mechanically distinct entry signal (e.g. breakout/volatility-
-expansion, order-flow/orderbook-imbalance proxies from OHLCV, or a
-funding-rate/basis-style carry signal if data access allows) rather than
-another BB/RSI/EMA recombination, since those three primitives have now
-been tried in nearly every combination this programme's methodology
-supports.
+**Where this research programme stands (as of Run 18):** all three
+original candle-strategy families are exhausted across the full TF sweep,
+every confirmation-gate mechanism tried (same-candle: ADX, relative-volume;
+cross-TF: MTF direction x 2 base strategies) has failed, and now a fourth,
+mechanically distinct strategy family — Donchian breakout, the mirror
+image of mean-reversion — has also been decisively rejected (Run 18, the
+cleanest reject yet: no config even a near-miss). The DCA dip-rebuy cap
+idea is closed too (reject — capping never helps). The one DCA variant
+still open per Run 4's original list is multiplier *magnitude* between the
+shipped 1.5x and the already-rejected 2.5x (e.g. 2.0x) — untested, low
+priority given the cap result suggests this family's edge is already close
+to its natural shape. **"More TF/param sweeps of the four closed
+families", "more confirmation gates on existing base signals", and "range-
+relative signals in either direction (fade or follow)" should all be
+treated as dead ends absent a new idea.** Both directions of a
+price-range-relative signal (fade the band touch = mean_reversion, follow
+the break = Donchian) now fail the same way at the same TFs on the same
+universe — suggesting the ceiling here may be structural (fee level +
+regime + instrument choice), not a signal-construction problem solvable by
+recombining price/volume-derived indicators. **Next run should consider:**
+(a) DCA multiplier magnitude 2.0x (low priority, per above); (b) if
+another new strategy family is pursued, prioritize one that is NOT
+price-range-relative and NOT another EMA/RSI/BB/ATR recombination on the
+same 8-symbol/1h-4h grid — e.g. a genuinely different data axis such as
+cross-symbol relative-strength/rotation (rank the 8 symbols by recent
+return, trade the leaders vs laggards) rather than a per-symbol indicator,
+since every per-symbol, price-derived signal construction tried so far
+(4 families, price-range-relative in both directions, 3 confirmation-gate
+families) has failed on this universe; (c) alternatively, treat this as
+grounds to consider the research programme's own scope/assumptions (fee
+level, universe, TF range) as the thing worth questioning next, rather
+than continuing to search for a signal within them — 18 runs and ~140+
+configs with zero surviving candidates is itself a strong, well-evidenced
+result.
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-19 — Run 18
+
+**Self-correction check:** reviewed commits since Run 17 — only Run 17's own
+log commit landed. No strategy/risk/backtest code touched since Run 17;
+nothing to re-validate or revert. This research programme has never adopted
+a code/param change across all 18 runs — a well-recorded string of null
+results.
+
+**Region chosen:** a genuinely new strategy family — Donchian channel
+breakout — per Run 17's flagged next step (c): "a fundamentally different
+strategy family... prioritize one with a mechanically distinct entry
+signal (e.g. breakout/volatility-expansion...)". This is the first
+strategy family tried in this programme that is not an EMA-cross, BB/RSI
+mean-reversion, or range-ladder grid: BUY on a close above its own
+N-period high (momentum *follows* the breakout — the opposite of
+mean_reversion's fade-the-band-touch), SELL on a close below a shorter
+N-period low (trailing breakdown exit), plus the unchanged exchange-side
+2%/4% SL/TP. An optional volatility-expansion filter (require ATR(14)
+above its own 50-period rolling mean at the breakout candle, screening for
+"real" volatility expansion vs a low-volatility false breakout) was also
+tested as a same-candle confirmation gate on the new signal.
+
+**Method:** standalone `DonchianBreakoutStrategy` in
+`research/experiments/donchian_breakout.py` — a fresh `Strategy` subclass
+(not a gated subclass of an existing production strategy, since this is a
+new base signal, not a filter on an old one). Not registered in
+`app/strategies/registry.py`; no production file touched. `compute_indicators`
+builds the entry/exit channels via `rolling().max()/.min()` on `high`/`low`,
+shifted by 1 so the channel a candle is judged against is built only from
+strictly-prior candles (no lookahead), plus a Wilder-style ATR computed
+inline (not added to shared `indicators.py` since the signal is still
+unproven). Swept timeframe {1h, 4h} x entry/exit channel pair {(20,10),
+(55,20), (40,20) — the last one being the "quarter Turtle" convention with
+a slower entry and a shorter exit} x vol_filter {off, on} = 12 configs.
+Windows: train 2026-03-21→2026-06-19 (150d-60d ago), test 2026-06-19→
+2026-08-19 (60d-0d ago, today's anchor). 8 symbols, fees 7.5bps + slippage
+4bps, $10,000/symbol, repo-default `RiskConfig` (SL 2%/TP 4%) untouched.
+
+**Results — decisive reject across the entire sweep, no near-miss:**
+
+| config | train PF / n | test PF / n | test win% |
+|---|---|---|---|
+| 1h (20/10) no filter | 0.545 / 115 | 0.658 / 107 | 29.0% |
+| 1h (20/10) vol_filter | 0.613 / 123 | 0.939 / 100 | 38.0% |
+| 1h (55/20) no filter | 0.163 / 47 | 0.662 / 98 | 32.7% |
+| 1h (55/20) vol_filter | 0.319 / 55 | 0.867 / 79 | 36.7% |
+| 1h (40/20) no filter | 0.248 / 72 | 0.592 / 111 | 27.9% |
+| 1h (40/20) vol_filter | 0.502 / 103 | 0.749 / 86 | 33.7% |
+| 4h (20/10) no filter | 0.409 / 37 | 0.584 / 59 | 25.4% |
+| 4h (20/10) vol_filter | 0.239 / 40 | 0.858 / 38 | 31.6% |
+| 4h (55/20) no filter | 0.410 / 40 | 0.723 / 42 | 28.6% |
+| 4h (55/20) vol_filter | 0.379 / 40 | 0.699 / 31 | 29.0% |
+| 4h (40/20) no filter | 0.124 / 24 | 0.936 / 50 | 34.0% |
+| 4h (40/20) vol_filter | 0.457 / 39 | 0.819 / 36 | 33.3% |
+
+Every config fails both train and test PF well below the 1.1 anti-noise
+bar (train range 0.124-0.613, test range 0.584-0.939) — nothing is even a
+near-miss, so no 3rd-window cross-check was warranted anywhere in the
+sweep (unlike Run 16/17's near-misses, which needed one). The vol_filter
+helps directionally at every single combo (test PF higher in all 6
+filtered-vs-unfiltered pairs, win% up 5-9pp) but never gets close to
+clearing 1.1 — it screens out some false breakouts but the base signal
+underneath has no edge to protect. Win rates (25-38%) show the mechanism:
+most breakouts are whipsaws that get stopped out (2% SL) before the trail
+exit or 4% TP can capture a real trend leg, and the few real trend legs
+that do pay off don't generate enough gross win to offset the many small
+stopped-out losses net of fees.
+
+**$ impact (test window, $100/$1000 notional, aggregate across 8
+symbols):** every config is negative — worst 1h (40/20) no filter -$0.12/
+-$1.19; best (closest to breakeven, still negative) 4h (40/20) no filter
+-$0.01/-$0.09. No config is worth deploying.
+
+**Decision: reject (12 configs logged, no candidate).** See DISTILLED
+LEARNINGS above for the durable conclusion — this closes the first
+mechanically-new strategy family tried since the original three, and
+combined with mean_reversion's fade-the-touch failure, rules out *both
+directions* of price-range-relative signals on this universe/TF range.
+
+**No code changes** — this was a research-only run; no bar was cleared, so
+no production code, default params, or tests were touched.
+
+**Verdict:** _No CANDIDATE FOUND this run._
+
+---
 
 ## 2026-08-18 — Run 17
 
