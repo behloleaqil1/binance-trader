@@ -18,7 +18,7 @@ this research.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 17 sessions and ~120 configs.** trend_momentum,
+families, across 20 sessions and ~207 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
@@ -180,6 +180,42 @@ conclusions and why, not the blow-by-blow.**
   need a much larger cross-section — 50-500+ assets — to average out
   single-name idiosyncratic noise the way ranking only 8 majors cannot).
 
+- **Pairs mean reversion (Run 20, mirror-image of the rotation construction)**:
+  the flagged Run 19 follow-up — instead of ranking 8 symbols by momentum
+  (rs_rotation, buy the leader), bet on relative-value convergence within a
+  single pair (buy the laggard). For each of 7 alt/BTC pairs, compute the
+  rolling z-score of the log price ratio and BUY whichever leg has lagged
+  its partner by > entry_z std devs, exit once the gap closes below
+  exit_z=0.3. Swept @ 1h: 7 pairs x lookback {20,50,100} x entry_z {1.5,2.0}
+  = 42 configs. **Decisive reject, same "near-miss -> noise" shape as every
+  prior confirmation-gate/rotation near-miss, now the cleanest version of it
+  yet**: 31/42 configs fail the OOS screen outright; the other 11 clear it
+  (test PF 1.10-1.98, n 30-45) but **every single one of the 11 has train PF
+  < 1** (worst: 0.162, best: 0.991 — zero train-side support anywhere in the
+  42-config sweep bar one n=8 fluke), a clean structural tell that the test
+  window (60-0d ago) was a broadly favorable regime for "buy the BTC-pair
+  laggard," not a per-pair edge. Checked all 11 against the OLDER
+  non-overlapping window (240-150d ago): **10/11 fail decisively (PF
+  0.44-0.86)**; the 1 survivor (ETH/BTC lb=50/entry=2.0, OLDER PF 1.25/34
+  trades) fails the per-symbol check instead — BTC leg PF 1.731/+19.5%
+  driving the aggregate while the ETH leg itself is negative (PF 0.707,
+  -6.9%), i.e. buying BTC-the-anchor on relative dips carried the result,
+  not a genuine pair-relative signal. **Closed — 0/11 near-misses survive
+  either required check, the most decisive rejection of a near-miss cohort
+  in this programme's history.** Mechanism-level read: this engine is
+  spot/long-only (confirmed no shorting anywhere in
+  app/core/types.py|app/backtest/simulator.py|app/risk/models.py), so
+  "pairs trading" here can only ever be a directional proxy bet on one leg
+  catching up — real basis risk, not a market-neutral spread trade — and
+  the data shows that proxy has no edge distinct from the single-symbol
+  price behavior (mostly BTC's own dip-buying tendency, already captured
+  and adopted separately as the DCA dip-buy feature) it's built from.
+  **Do not re-tune pair/lookback/entry_z/exit_z on this construction** —
+  a genuine market-neutral pairs trade would need short-selling capability
+  this engine doesn't have, which is out of scope (no risk-control
+  loosening, and adding shorting is a much larger architecture change, not
+  a param tune).
+
 **Untested, low priority (not expected to change the verdict):** 1d for
 all three families — even fewer candles per window than 4h, likely to hit
 the same starvation issues `trend_ema=200` already showed at 4h.
@@ -223,50 +259,133 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 19):** all three
+**Where this research programme stands (as of Run 20):** all three
 original candle-strategy families are exhausted across the full TF sweep,
 every confirmation-gate mechanism tried (same-candle: ADX, relative-volume;
 cross-TF: MTF direction x 2 base strategies) has failed, a fourth,
 mechanically distinct strategy family — Donchian breakout, the mirror
-image of mean-reversion — has been decisively rejected (Run 18), and now a
-fifth, genuinely different *data axis* — cross-symbol relative-strength
-rotation (Run 19, the first signal in this programme not derived from a
-single symbol's own price/volume history) — has also closed, its one
-near-miss failing both the 3rd-window check and the per-symbol
-concentration check same as every prior near-miss. The DCA dip-rebuy cap
-idea is closed too (reject — capping never helps). The one DCA variant
-still open per Run 4's original list is multiplier *magnitude* between the
-shipped 1.5x and the already-rejected 2.5x (e.g. 2.0x) — untested, low
-priority given the cap result suggests this family's edge is already close
-to its natural shape. **"More TF/param sweeps of the four closed
-families", "more confirmation gates on existing base signals", "range-
-relative signals in either direction (fade or follow)", and "8-symbol
-cross-sectional rotation" should all be treated as dead ends absent a new
-idea.** Both directions of a price-range-relative signal (fade the band
-touch = mean_reversion, follow the break = Donchian) fail the same way at
-the same TFs on the same universe, and now the cross-symbol axis fails
-too — for the structural reason noted above, an 8-name universe is too
-small for a rank-based rotation signal to separate real relative strength
-from single-name noise. This strengthens rather than weakens the "ceiling
-may be structural" reading: it isn't just that price-derived per-symbol
-signals lack edge, but that this specific 8-symbol/1h-4h/majors-only
-scope may be too narrow for *any* signal construction tried so far to
-clear the noise floor. **Next run should consider:** (a) DCA multiplier
-magnitude 2.0x (low priority, per above); (b) if a cross-symbol idea is
-revisited, it needs either a much larger universe (50+ symbols, likely a
-significant data/infra change) or a materially different construction
-(e.g. pairs/spread trading between two correlated symbols instead of
-ranking 8) — not more (lookback, top_k, exit_k) tuning on the same 8
-names; (c) increasingly, treat this as grounds to question the research
-programme's own scope/assumptions (fee level, 8-symbol universe, 1h-4h TF
-range) rather than continuing to search for a signal within them — 19
-runs and ~165+ configs with zero surviving candidates, now spanning both
-per-symbol and cross-symbol signal constructions, is itself a strong,
-well-evidenced result.
+image of mean-reversion — has been decisively rejected (Run 18), and both
+cross-symbol data-axis constructions tried so far — momentum rotation
+(rs_rotation, Run 19: buy the cross-sectional leader) and relative-value
+convergence (pairs_mean_reversion, Run 20: buy the pair laggard) — have
+also closed, each failing the same "near-miss -> 3rd-window/per-symbol
+check kills it" pattern. Run 20 is the cleanest version of that pattern
+yet: 11/42 configs cleared the OOS screen but *zero* survived the follow-up
+checks, and unlike Run 19's rotation (which had some train-side signal),
+Run 20 had no train-side support anywhere in the 42-config sweep — the
+test-window "edge" was regime luck from the first screen, confirmed by the
+3rd window. The DCA dip-rebuy cap idea is closed too (reject — capping
+never helps). The one DCA variant still open per Run 4's original list is
+multiplier *magnitude* between the shipped 1.5x and the already-rejected
+2.5x (e.g. 2.0x) — untested, low priority given the cap result suggests
+this family's edge is already close to its natural shape. **"More
+TF/param sweeps of the four closed strategy families", "more confirmation
+gates on existing base signals", "range-relative signals in either
+direction (fade or follow)", and "cross-symbol signals on this 8-symbol
+long-only universe (rank-based rotation or pair-relative convergence)"
+should all be treated as dead ends absent a new idea.** Both directions of
+a price-range-relative signal (fade the band touch = mean_reversion,
+follow the break = Donchian) fail the same way, and now both directions of
+a cross-symbol signal (chase the leader = rs_rotation, buy the laggard =
+pairs_mean_reversion) fail the same way too — for a specific structural
+reason confirmed twice now: this engine is spot/long-only, so any
+cross-symbol construction can only ever be a directional proxy bet on one
+leg, never a true market-neutral spread trade, and an 8-name universe is
+too small for a rank/pair-based signal to separate real relative strength
+from single-name noise. This strengthens the "ceiling may be structural"
+reading: it isn't just that price-derived per-symbol signals lack edge,
+but that this specific 8-symbol/1h-4h/majors-only/long-only scope may be
+too narrow for *any* signal construction tried so far to clear the noise
+floor. **Next run should consider:** (a) DCA multiplier magnitude 2.0x
+(low priority, per above); (b) a genuinely new construction is needed, not
+another cross-symbol variant on 8 long-only names — e.g. a materially
+different indicator family entirely (something not yet tried: volatility-
+regime-conditioned position sizing rather than entry/exit signals, or a
+multi-day 1d-timeframe DCA-style variant), since both rotation and pairs
+have now closed the cross-symbol axis specifically; (c) increasingly,
+treat this as grounds to question the research programme's own
+scope/assumptions (fee level, 8-symbol universe, 1h-4h TF range,
+long-only) rather than continuing to search for a signal within them — 20
+runs and ~207 configs with zero surviving candidates, now spanning
+per-symbol, cross-symbol-momentum, and cross-symbol-mean-reversion signal
+constructions, is itself a strong, well-evidenced result.
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-20 — Run 20
+
+**Self-correction check:** reviewed commits since Run 19 — only Run 19's
+own log commit landed. No strategy/risk/backtest code touched since Run
+19; nothing to re-validate or revert. This programme has never adopted a
+code/param change across all 20 runs — a well-recorded string of null
+results.
+
+**Region chosen:** per Run 19's flagged next step (b), the mirror-image
+cross-symbol construction to rs_rotation — pairs / relative-value mean
+reversion. rs_rotation bets on momentum (buy the cross-sectional leader,
+ranked across all 8 symbols); this bets on convergence within a single
+pair (buy whichever leg has lagged its partner, expecting the gap to
+close). Mechanically distinct from every prior signal: not a same-symbol
+range/oscillator fade (mean_reversion, grid), not a momentum/breakout
+signal (trend_momentum, Donchian, rs_rotation), but a bet on the
+relationship between two specific symbols reverting.
+
+**Method:** standalone `PairsMeanReversionStrategy` in
+`research/experiments/pairs_mean_reversion.py`. For each of 7 alt/BTC
+pairs (every alt in the universe paired against BTC as the natural crypto
+market anchor — chosen up front, not by searching for the highest
+in-sample correlation), compute the causal rolling z-score of
+spread = log(close_alt) - log(close_anchor) over `lookback` bars. BUY
+whichever leg has underperformed its partner by more than `entry_z` std
+devs (positive "underperformance" score, symmetric across both legs of the
+pair); exit once the gap closes back below `exit_z=0.3`. Confirmed this
+engine has no shorting anywhere (`app/core/types.py`,
+`app/backtest/simulator.py`, `app/risk/models.py`) — so this is a
+directional proxy for the relative-value thesis (long the laggard leg
+outright), not a market-neutral spread trade, same simplification
+rs_rotation already made buying the leader outright. Unchanged exchange-
+side 2%/4% SL/TP, same fee/slippage assumptions and train/test/older-
+window methodology as every prior run. Swept @ 1h (finer than rs_rotation's
+4h — pair divergences are shorter-lived than universe-wide momentum
+regimes, and 1h gives enough bars per lookback window): lookback in
+{20, 50, 100} x entry_z in {1.5, 2.0} x 7 pairs = 42 configs.
+
+**Results:** 31/42 configs fail the OOS screen (test PF<=1.1 or <30
+trades) outright. The other 11 clear it (test PF 1.10-1.98, 30-45 trades)
+but **every one of the 11 has train PF < 1** (range 0.162-0.991 — the
+42-config sweep has zero train-side support anywhere, bar one n=8 fluke at
+train PF 1.046) — the same train-fails/test-looks-great shape this
+programme has flagged as regime luck every time it's appeared before, and
+here it appears across a majority of pairs simultaneously (a window-level
+effect, not a per-pair one). Checked all 11 against the OLDER
+non-overlapping window (2025-12-23 to 2026-03-23, same as every prior
+3rd-window check): 10/11 fail decisively (PF 0.444-0.856), 1 more
+(LINK/BTC lb=20/entry=1.5) numerically clears PF (1.466) but on only 10
+trades — noise by sample size. The lone survivor of the PF screen,
+ETH/BTC lb=50/entry=2.0 (OLDER PF 1.25/34 trades), fails the per-symbol
+consistency check instead: BTC leg PF 1.731 (+19.5% return) is carrying
+the whole result while the ETH leg itself is negative (PF 0.707, -6.9%) —
+buying BTC-the-anchor on relative dips, not a genuine pair-relative
+signal (and directionally consistent with BTC dip-buying being the one
+proven edge this programme has found, via DCA — see below). **0/11
+near-misses survive either required check — closed, the most decisive
+rejection of a near-miss cohort in this programme's 20-run history.**
+Full per-config train/test numbers and rationale for all 42 configs are
+in `research/decisions.jsonl` (11 logged `noise`, 31 `reject`).
+
+**Verdict:** REJECT — no code or param change. `research/decisions.jsonl`
+carries all 42 configs. Both cross-symbol data-axis constructions this
+programme has now tried (rs_rotation's momentum-chase, pairs_mean_
+reversion's convergence-chase) are closed for the same structural reason:
+this engine is spot/long-only, so a cross-symbol "edge" can only ever be a
+directional proxy on one leg, and an 8-name universe is too small to
+separate real cross-sectional signal from single-name noise either way.
+DISTILLED LEARNINGS refreshed above with the full finding and updated
+programme-status paragraph.
+
+**Commit:** (recorded after this run's commit — see git log for hash.)
 
 ## 2026-08-19 — Run 19
 
