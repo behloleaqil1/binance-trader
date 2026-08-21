@@ -10,8 +10,10 @@ noise, not signal. Honesty over optimism — a null result is a valid result.
 Universe: BTC, ETH, SOL, BNB, XRP, LINK, DOGE, ADA vs USDT. Fees 7.5bps,
 slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
-position caps) held at repo defaults throughout — never tuned as part of
-this research.
+position caps) held at repo defaults through Run 21. Run 22 opened the exit-
+mechanism axis (a time-based forced exit, and SL/TP tightened — never
+loosened — vs the shipped default); still no adopted change to shipped risk
+defaults.
 
 ---
 
@@ -259,6 +261,44 @@ conclusions and why, not the blow-by-blow.**
   which regime the next window happens to be in. This closes the
   position-sizing axis flagged as Run 20's next step (b).
 
+- **EXIT-mechanism axis (Run 22, first-ever test of a lever that is neither
+  entry signal nor position size)**: two sub-experiments on trend_momentum@1h
+  and mean_reversion@1h at shipped-default entry params, SL/TP/daily-loss/
+  drawdown controls untouched or only tightened (never loosened). **(A) Time-
+  based forced exit**: force-close any position still open after N candles,
+  checked *after* SL/TP each bar (SL/TP still get first crack, so this only
+  bounds worst-case holding time, it does not loosen anything). N chosen from
+  each base's own no-cap train holding-duration distribution, not blind
+  guessing: trend_momentum {8,16,33,52} bars (~P25/median/P75/P90 of a 24.7h-
+  mean/113h-max distribution), mean_reversion {6,11,17,24} bars (~P25/median/
+  P75/just-above-P90 of an 11.1h-mean/39h-max distribution). **(B) Tighter
+  SL/TP** (never wider, per the hard limit): {1.5/3.0, 1.0/2.0, 1.5/4.0} vs
+  shipped 2.0/4.0, run through *unmodified production* `run_candle_backtest`
+  directly (RiskConfig is already parameterized — no new simulator code
+  needed for this half). The new capped-exit simulator copy
+  (`run_candle_backtest_capped`) was verified trade-for-trade identical to
+  production at max_hold_bars=None before any deltas were trusted. **Decisive
+  reject on trend_momentum, 8/8 configs**: test pf 0.379–0.686 at every N and
+  every SL/TP tried, train pf never exceeds 0.65 — neither capping holding
+  time nor tightening stops helps or reveals any train-side edge. **mean_
+  reversion, 8/8 configs reproduce Run 21's regime-luck signature exactly, on
+  two entirely different levers**: every variant clears the OOS screen (test
+  pf 1.447–2.174, inherited from the base's own untouched control at test pf
+  2.174) but train pf never exceeds 0.573 anywhere in the 8-config sweep, and
+  every single variant fails the 3rd non-overlapping window decisively
+  (older-window pf 0.387–0.510, real 63–113-trade samples), with 2–3 of 8
+  symbols contributing zero trades in every per-symbol breakdown. **Closed —
+  do not re-tune max_hold_bars or SL/TP magnitude on these two bases.** The
+  sharpest reading yet: unlike Run 21's sizing experiment (train/test PF moved
+  in *opposite* directions — an anti-correlated tell), here train pf simply
+  never crosses 1 anywhere, in either sub-experiment, for either base — the
+  exit mechanism has nothing to reveal in a signal with no underlying edge.
+  Confirms Run 21's generalization from a new angle: it isn't specific to
+  sizing — no additional mechanism layered on a PF<1 entry signal can
+  manufacture edge, whether it changes size, exit timing, or exit price.
+  **Closes the exit-mechanism axis** (self-correction check: no strategy/risk
+  code has changed since Run 21, nothing to revalidate or revert).
+
 **Untested, low priority (not expected to change the verdict):** 1d for
 all three families — even fewer candles per window than 4h, likely to hit
 the same starvation issues `trend_ema=200` already showed at 4h.
@@ -302,85 +342,179 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 21):** the search has now
-been exhausted along *two orthogonal axes*, not one. On the **signal** axis:
-all three original candle-strategy families are closed across the full TF
-sweep, a fourth (Donchian breakout) was decisively rejected, all three
+**Where this research programme stands (as of Run 22):** the search has now
+been exhausted along *three orthogonal axes*. On the **signal** axis: all
+three original candle-strategy families are closed across the full TF sweep,
+a fourth (Donchian breakout) was decisively rejected, all three
+confirmation-gate mechanisms (ADX, relative volume, MTF direction) failed
+identically, and both cross-symbol constructions (momentum rotation, pairs
+convergence) closed the same way. On the **position-sizing** axis (Run 21):
+scaling size by volatility regime cannot rescue any of them, with train/test
+PF moving in opposite directions in 6/6 tested pairs — the signature of a
+window artifact, not a persistent relationship. On the **exit-mechanism**
+axis (Run 22, opened and closed in the same run): neither a time-based
+forced exit (bounding worst-case holding time) nor tighter SL/TP (never
+loosened) rescues either base signal — trend_momentum rejects decisively at
+every setting (8/8 configs, test pf 0.379–0.686, train pf never above 0.65),
+and mean_reversion reproduces Run 21's exact regime-luck signature on two
+entirely new levers (8/8 configs clear the OOS screen only because the base
+control already does, train pf never above 0.573 anywhere, and all 8 fail
+the 3rd-window check decisively). Three mechanistically distinct levers now
+tested — *which trades are taken* (signal), *how big they are* (sizing), and
+*when/how they exit* (this run) — and all three land on the same conclusion:
+nothing here can manufacture edge from entry signals that don't have any.
+**The honest recommendation remains that 22 runs and ~238 configs spanning
+per-symbol signals, cross-symbol signals, confirmation gates, position
+sizing, and exit mechanisms, with zero surviving candidates, is itself the
+finding.** Further search should be directed at the programme's scope
+assumptions (fee level, the 8-symbol majors universe, the 1h-4h TF range,
+long-only/no-shorting) rather than at new constructions inside them; the
+remaining untested items (1d timeframes; DCA multiplier magnitude 2.0x) are
+low-priority and not expected to change the verdict. Nothing here is
+deploy-worthy; the shipped DCA dip-buy remains the only positive result and
+needs no change.
+
+**Prior status (as of Run 21, retained for continuity):** the search had
+been exhausted along two orthogonal axes, not three. On the **signal** axis:
+all three original candle-strategy families closed across the full TF
+sweep, a fourth (Donchian breakout) decisively rejected, all three
 confirmation-gate mechanisms (ADX, relative volume, MTF direction) failed
 identically, and both cross-symbol constructions (momentum rotation, pairs
 convergence) closed the same way. On the **position-sizing** axis, opened
 and closed in Run 21: scaling size by volatility regime cannot rescue any of
-them, and produced the sharpest evidence yet that these apparent regime
-effects are window artifacts (train and test PF moved in opposite directions
-in 6 out of 6 tested pairs). Since sizing can only amplify existing edge and
-every signal tested sits at PF<1, **this is the strongest form the null
-result has taken: there is nothing here to amplify.** The remaining
-untested items are low-priority param variants (1d timeframes; DCA
-multiplier magnitude 2.0x between the shipped 1.5x and the rejected 2.5x),
-neither of which is expected to change the verdict. **The honest
-recommendation is no longer "try the next mechanism" — it is that 21 runs
-and ~222 configs spanning per-symbol signals, cross-symbol signals,
-confirmation gates, and position sizing, with zero surviving candidates, is
-itself the finding, and further search should be directed at the programme's
-scope assumptions (fee level, the 8-symbol majors universe, the 1h-4h TF
-range, long-only/no-shorting) rather than at new constructions inside
-them.** Nothing here is deploy-worthy; the shipped DCA dip-buy remains the
-only positive result and needs no change.
-
-**Prior status (as of Run 20, retained for continuity):** all three
-original candle-strategy families are exhausted across the full TF sweep,
-every confirmation-gate mechanism tried (same-candle: ADX, relative-volume;
-cross-TF: MTF direction x 2 base strategies) has failed, a fourth,
-mechanically distinct strategy family — Donchian breakout, the mirror
-image of mean-reversion — has been decisively rejected (Run 18), and both
-cross-symbol data-axis constructions tried so far — momentum rotation
-(rs_rotation, Run 19: buy the cross-sectional leader) and relative-value
-convergence (pairs_mean_reversion, Run 20: buy the pair laggard) — have
-also closed, each failing the same "near-miss -> 3rd-window/per-symbol
-check kills it" pattern. Run 20 is the cleanest version of that pattern
-yet: 11/42 configs cleared the OOS screen but *zero* survived the follow-up
-checks, and unlike Run 19's rotation (which had some train-side signal),
-Run 20 had no train-side support anywhere in the 42-config sweep — the
-test-window "edge" was regime luck from the first screen, confirmed by the
-3rd window. The DCA dip-rebuy cap idea is closed too (reject — capping
-never helps). The one DCA variant still open per Run 4's original list is
-multiplier *magnitude* between the shipped 1.5x and the already-rejected
-2.5x (e.g. 2.0x) — untested, low priority given the cap result suggests
-this family's edge is already close to its natural shape. **"More
-TF/param sweeps of the four closed strategy families", "more confirmation
-gates on existing base signals", "range-relative signals in either
-direction (fade or follow)", and "cross-symbol signals on this 8-symbol
-long-only universe (rank-based rotation or pair-relative convergence)"
-should all be treated as dead ends absent a new idea.** Both directions of
-a price-range-relative signal (fade the band touch = mean_reversion,
-follow the break = Donchian) fail the same way, and now both directions of
-a cross-symbol signal (chase the leader = rs_rotation, buy the laggard =
-pairs_mean_reversion) fail the same way too — for a specific structural
-reason confirmed twice now: this engine is spot/long-only, so any
-cross-symbol construction can only ever be a directional proxy bet on one
-leg, never a true market-neutral spread trade, and an 8-name universe is
-too small for a rank/pair-based signal to separate real relative strength
-from single-name noise. This strengthens the "ceiling may be structural"
-reading: it isn't just that price-derived per-symbol signals lack edge,
-but that this specific 8-symbol/1h-4h/majors-only/long-only scope may be
-too narrow for *any* signal construction tried so far to clear the noise
-floor. **Next run should consider:** (a) DCA multiplier magnitude 2.0x
-(low priority, per above); (b) a genuinely new construction is needed, not
-another cross-symbol variant on 8 long-only names — e.g. a materially
-different indicator family entirely (something not yet tried: volatility-
-regime-conditioned position sizing rather than entry/exit signals, or a
-multi-day 1d-timeframe DCA-style variant), since both rotation and pairs
-have now closed the cross-symbol axis specifically; (c) increasingly,
-treat this as grounds to question the research programme's own
-scope/assumptions (fee level, 8-symbol universe, 1h-4h TF range,
-long-only) rather than continuing to search for a signal within them — 20
-runs and ~207 configs with zero surviving candidates, now spanning
-per-symbol, cross-symbol-momentum, and cross-symbol-mean-reversion signal
-constructions, is itself a strong, well-evidenced result.
+them, and produced the sharpest evidence yet (at the time) that apparent
+regime effects are window artifacts (train and test PF moved in opposite
+directions in 6 out of 6 tested pairs). Since sizing can only amplify
+existing edge and every signal tested sits at PF<1, that was "the strongest
+form the null result has taken: there is nothing here to amplify" — Run 22
+then tested the remaining major lever (exit mechanism) and found the same
+thing again, from a still-cleaner angle (train pf never crosses 1 anywhere
+in that sweep, not even an anti-correlated tell — just no signal at all).
 
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-21 — Run 22
+
+**Self-correction check:** `git log a2a45bc..HEAD -- backend/` (a2a45bc =
+Run 21's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 21. Nothing to re-validate or revert.
+This programme has never shipped a strategy-code change (DCA dip-buy
+predates it) — still true after 22 runs.
+
+**Region tested (NEW axis, neither signal nor sizing):** the EXIT
+mechanism. All 21 prior runs varied *which trades are taken* (signal axis)
+or *how big they are* (Run 21, sizing axis); risk config (SL 2%, TP 4%,
+daily-loss halt, drawdown kill switch, position caps) had been held at repo
+defaults throughout, untouched. Run 22 opens that axis with two
+sub-experiments, both layered onto trend_momentum@1h and mean_reversion@1h
+at shipped-default entry params (both deeply characterized already, giving
+known train/test baselines to compare against) — isolating the exit change,
+not reopening a closed entry question.
+
+**(A) Time-based forced exit.** If a position is still open N candles after
+entry, force-close it at market on the next candle's open (same no-lookahead
+fill convention the simulator already uses for every other signal exit).
+SL/TP are checked intra-candle *first*, every bar, unchanged from
+production — so they can still fire before the cap ever gets a chance to.
+This only bounds worst-case holding time; it loosens nothing. Implemented as
+`run_candle_backtest_capped` in `research/experiments/exit_mechanism.py`, a
+standalone copy of `run_candle_backtest` with exactly one addition (the
+forced-exit check after the strategy's own decision). The `max_hold_bars=
+None` control was verified trade-for-trade identical to unmodified
+production `run_candle_backtest` on BTCUSDT/1h for both base strategies
+before any deltas were trusted (18 vs 18 trades, 20 vs 20 trades, identical
+final equity to the cent).
+
+N was chosen from each base's own no-cap train holding-duration
+distribution, not blind 12h/24h/48h/96h guessing — the two strategies hold
+trades for very different lengths of time:
+- trend_momentum@1h no-cap TRAIN durations (n=94): mean 24.7h, median 16.5h,
+  P25 8h, P75 33.8h, P90 52h, max 113h → swept **{8, 16, 33, 52}** (≈P25/
+  median/P75/P90).
+- mean_reversion@1h no-cap TRAIN durations (n=141): mean 11.1h, median 11h,
+  P25 6h, P75 17h, P90 20h, max 39h → swept **{6, 11, 17, 24}** (≈P25/
+  median/P75/just-above-P90).
+
+**(B) Tighter SL/TP (secondary).** Hard limit respected strictly: only
+SL<=2.0%/TP<=4.0% combinations were tested, never wider. Swept **{1.5/3.0,
+1.0/2.0, 1.5/4.0}** vs the shipped 2.0/4.0 control. RiskConfig is already a
+parameter of production `run_candle_backtest`, so (B) needed no new
+simulator code at all — every (B) row is unmodified production code, a
+custom `RiskConfig` only.
+
+**Results (train PF → test PF, test n):**
+
+| base | mechanism | value | train pf | test pf | test n |
+|---|---|---|---|---|---|
+| trend_momentum@1h | control (no cap, SL/TP 2.0/4.0) | — | 0.586 | 0.484 | 83 |
+| trend_momentum@1h | max_hold_bars | 8 | 0.650 | 0.417 | 83 |
+| trend_momentum@1h | max_hold_bars | 16 | 0.584 | 0.522 | 91 |
+| trend_momentum@1h | max_hold_bars | 33 | 0.464 | 0.686 | 92 |
+| trend_momentum@1h | max_hold_bars | 52 | 0.535 | 0.615 | 83 |
+| trend_momentum@1h | SL/TP | 1.5/3.0 | 0.524 | 0.487 | 72 |
+| trend_momentum@1h | SL/TP | 1.0/2.0 | 0.512 | 0.379 | 71 |
+| trend_momentum@1h | SL/TP | 1.5/4.0 | 0.518 | 0.405 | 72 |
+| mean_reversion@1h | control (no cap, SL/TP 2.0/4.0) | — | 0.573 | 2.174 | 97 |
+| mean_reversion@1h | max_hold_bars | 6 | 0.495 | 1.749 | 98 |
+| mean_reversion@1h | max_hold_bars | 11 | 0.476 | 1.673 | 98 |
+| mean_reversion@1h | max_hold_bars | 17 | 0.544 | 1.976 | 97 |
+| mean_reversion@1h | max_hold_bars | 24 | 0.569 | 2.158 | 97 |
+| mean_reversion@1h | SL/TP | 1.5/3.0 | 0.493 | 1.569 | 76 |
+| mean_reversion@1h | SL/TP | 1.0/2.0 | 0.488 | 1.447 | 98 |
+| mean_reversion@1h | SL/TP | 1.5/4.0 | 0.488 | 1.626 | 62 |
+
+**$ on $100 / $1000 (test window, avg per-symbol return):** every
+trend_momentum row loses money, −$0.07 to −$0.10 per $100 (−$0.67 to −$0.99
+per $1000) at every N/SL-TP setting, no better than its own control.
+mean_reversion@1h rows show +$0.05 to +$0.12 per $100 (+$0.51 to +$1.25 per
+$1000) — but see below, this is inherited regime luck that fails the 3rd
+window on every config.
+
+**Verdict: reject (8 configs, both trend_momentum sub-experiments) / noise
+(8 configs, both mean_reversion sub-experiments). No candidate, no code
+change.**
+
+**trend_momentum — decisive reject, no 3rd-window check warranted:** test pf
+never exceeds 0.686 at any N or any SL/TP tried (control 0.484), and train
+pf never exceeds 0.650 anywhere in the 8-config sweep. Neither bounding
+holding time nor tightening stops helps or reveals train-side edge — there
+is no edge to protect or extract in the underlying EMA-cross signal.
+
+**mean_reversion — all 8 configs clear the OOS screen (test pf 1.447–2.174,
+n 62–98) but inherit it from the base's own untouched control**, which
+already scores test pf 2.174 with train pf only 0.573 (the long-documented
+mean_reversion@1h regime luck first flagged in earlier runs and confirmed
+again in Run 21). Checked all 8 against the OLDER non-overlapping window
+(2025-12-19..2026-03-19): **8/8 fail decisively**, older-window pf 0.387–
+0.510 on real 63–113-trade samples. Per-symbol TEST breakdown for every one
+of the 8 shows 2–3 of 8 symbols contributing **zero** trades (ETH and ADA in
+every (A) config; BTC joined by SOL/ETH/ADA at various (B) settings) — the
+aggregate rests on a shrinking handful of symbols in one favorable window,
+the same small-sample signature as every prior mean_reversion@1h near-miss.
+
+**Why this is the cleanest version of the null yet:** Run 21's sizing
+experiment found train and test PF moving in *opposite* directions — an
+anti-correlated tell that at least proved something was happening (just not
+something real). Here, train pf simply **never crosses 1 anywhere**, in
+either sub-experiment, for either base, regardless of how the exit is
+changed. There is no tell to explain because there is nothing to explain —
+the exit mechanism has no lever to pull on a signal with no underlying edge.
+This confirms Run 21's generalization from a third angle: it was never
+specific to sizing. No mechanism layered on top of a PF<1 entry signal —
+changing size, changing exit timing, or changing exit price — can
+manufacture edge that was never there. **Closed — do not re-tune
+max_hold_bars or SL/TP magnitude on trend_momentum@1h or mean_reversion@1h.**
+This closes the exit-mechanism axis; DISTILLED LEARNINGS refreshed above
+with the full finding and updated programme-status paragraph.
+
+**Files:** `research/experiments/exit_mechanism.py` (new). 16 entries
+appended to `research/decisions.jsonl` (187 total, still under the 250
+rotation trigger — `research/rotate_archive.py` run, no rotation needed
+this time).
+
+**Commit:** (recorded after this run's commit — see git log for hash.)
 
 ## 2026-08-20 — Run 21
 
@@ -514,78 +648,7 @@ appended to `research/decisions.jsonl`. Log rotated: Run 10-13 ->
 over the 40KB threshold; now 39KB with all conclusions preserved in DISTILLED
 LEARNINGS).
 
-## 2026-08-20 — Run 20
-
-**Self-correction check:** reviewed commits since Run 19 — only Run 19's
-own log commit landed. No strategy/risk/backtest code touched since Run
-19; nothing to re-validate or revert. This programme has never adopted a
-code/param change across all 20 runs — a well-recorded string of null
-results.
-
-**Region chosen:** per Run 19's flagged next step (b), the mirror-image
-cross-symbol construction to rs_rotation — pairs / relative-value mean
-reversion. rs_rotation bets on momentum (buy the cross-sectional leader,
-ranked across all 8 symbols); this bets on convergence within a single
-pair (buy whichever leg has lagged its partner, expecting the gap to
-close). Mechanically distinct from every prior signal: not a same-symbol
-range/oscillator fade (mean_reversion, grid), not a momentum/breakout
-signal (trend_momentum, Donchian, rs_rotation), but a bet on the
-relationship between two specific symbols reverting.
-
-**Method:** standalone `PairsMeanReversionStrategy` in
-`research/experiments/pairs_mean_reversion.py`. For each of 7 alt/BTC
-pairs (every alt in the universe paired against BTC as the natural crypto
-market anchor — chosen up front, not by searching for the highest
-in-sample correlation), compute the causal rolling z-score of
-spread = log(close_alt) - log(close_anchor) over `lookback` bars. BUY
-whichever leg has underperformed its partner by more than `entry_z` std
-devs (positive "underperformance" score, symmetric across both legs of the
-pair); exit once the gap closes back below `exit_z=0.3`. Confirmed this
-engine has no shorting anywhere (`app/core/types.py`,
-`app/backtest/simulator.py`, `app/risk/models.py`) — so this is a
-directional proxy for the relative-value thesis (long the laggard leg
-outright), not a market-neutral spread trade, same simplification
-rs_rotation already made buying the leader outright. Unchanged exchange-
-side 2%/4% SL/TP, same fee/slippage assumptions and train/test/older-
-window methodology as every prior run. Swept @ 1h (finer than rs_rotation's
-4h — pair divergences are shorter-lived than universe-wide momentum
-regimes, and 1h gives enough bars per lookback window): lookback in
-{20, 50, 100} x entry_z in {1.5, 2.0} x 7 pairs = 42 configs.
-
-**Results:** 31/42 configs fail the OOS screen (test PF<=1.1 or <30
-trades) outright. The other 11 clear it (test PF 1.10-1.98, 30-45 trades)
-but **every one of the 11 has train PF < 1** (range 0.162-0.991 — the
-42-config sweep has zero train-side support anywhere, bar one n=8 fluke at
-train PF 1.046) — the same train-fails/test-looks-great shape this
-programme has flagged as regime luck every time it's appeared before, and
-here it appears across a majority of pairs simultaneously (a window-level
-effect, not a per-pair one). Checked all 11 against the OLDER
-non-overlapping window (2025-12-23 to 2026-03-23, same as every prior
-3rd-window check): 10/11 fail decisively (PF 0.444-0.856), 1 more
-(LINK/BTC lb=20/entry=1.5) numerically clears PF (1.466) but on only 10
-trades — noise by sample size. The lone survivor of the PF screen,
-ETH/BTC lb=50/entry=2.0 (OLDER PF 1.25/34 trades), fails the per-symbol
-consistency check instead: BTC leg PF 1.731 (+19.5% return) is carrying
-the whole result while the ETH leg itself is negative (PF 0.707, -6.9%) —
-buying BTC-the-anchor on relative dips, not a genuine pair-relative
-signal (and directionally consistent with BTC dip-buying being the one
-proven edge this programme has found, via DCA — see below). **0/11
-near-misses survive either required check — closed, the most decisive
-rejection of a near-miss cohort in this programme's 20-run history.**
-Full per-config train/test numbers and rationale for all 42 configs are
-in `research/decisions.jsonl` (11 logged `noise`, 31 `reject`).
-
-**Verdict:** REJECT — no code or param change. `research/decisions.jsonl`
-carries all 42 configs. Both cross-symbol data-axis constructions this
-programme has now tried (rs_rotation's momentum-chase, pairs_mean_
-reversion's convergence-chase) are closed for the same structural reason:
-this engine is spot/long-only, so a cross-symbol "edge" can only ever be a
-directional proxy on one leg, and an 8-name universe is too small to
-separate real cross-sectional signal from single-name noise either way.
-DISTILLED LEARNINGS refreshed above with the full finding and updated
-programme-status paragraph.
-
-**Commit:** (recorded after this run's commit — see git log for hash.)
+_Run 20 (2026-08-20) is archived in `research/archive/log-2026-08-20_to_2026-08-20.md.gz`; its conclusions are folded into DISTILLED LEARNINGS above._
 
 _Run 17-19 (2026-08-18 to 2026-08-19) are archived in `research/archive/log-2026-08-18_to_2026-08-19.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
 
