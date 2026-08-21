@@ -12,15 +12,16 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults through Run 21. Run 22 opened the exit-
 mechanism axis (a time-based forced exit, and SL/TP tightened — never
-loosened — vs the shipped default); still no adopted change to shipped risk
-defaults.
+loosened — vs the shipped default); Run 23 opened the fee/cost-level axis
+(fee_bps/slippage_bps swept down to a theoretical zero); still no adopted
+change to shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 21 sessions and ~222 configs.** trend_momentum,
+families, across 23 sessions and ~250 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Honest baseline: simple
@@ -299,6 +300,40 @@ conclusions and why, not the blow-by-blow.**
   **Closes the exit-mechanism axis** (self-correction check: no strategy/risk
   code has changed since Run 21, nothing to revalidate or revert).
 
+- **Fee/cost-level sensitivity (Run 23, first test of a scope assumption
+  rather than a new construction)**: DISTILLED LEARNINGS had asserted "fees
+  turn near-breakeven setups negative" without ever quantifying it. Swept
+  `SimConfig.fee_bps`/`slippage_bps` down from the shipped 7.5/4.0 through a
+  realistic BNB-discount tier (4.0/2.0), a near-zero tier (1.0/0.5), to a
+  theoretical zero (0/0) — no strategy code or param changes, shipped-default
+  entry params throughout, unmodified production `run_candle_backtest`.
+  Tested trend_momentum@15m and @1h (its two best-performing TFs) plus
+  mean_reversion@1h (contrast: a base whose train PF has never once exceeded
+  ~0.6 under any prior lever) x 4 cost tiers = 12 configs. **Decisive: 0/12
+  configs clear train PF>1.1 AND test PF>1.1 with n>=30 at ANY cost tier,
+  including theoretical zero — directly refutes the "fees are the
+  bottleneck" hypothesis.** Three distinct patterns, each informative:
+  (1) **trend_momentum@1h** — train and test PF move the *same* direction as
+  cost drops (train 0.586->0.792, test 0.484->0.755), i.e. real, measurable
+  cost drag exists — but even at zero cost neither crosses 1.0. There is
+  real edge-adjacent behavior here, just not enough of it.
+  (2) **trend_momentum@15m** — a new failure signature not seen in 22 prior
+  runs: TRAIN pf clears 1.1 at *every* tier (1.226 shipped -> 1.516 at zero
+  cost, n=125-142) but TEST pf stays decisively stuck at 0.67-0.78 and
+  moves the *wrong* direction as cost drops (down, not up) — a clean
+  overfit-to-train-window signature, the mirror image of mean_reversion's
+  "test looks good, train doesn't" regime luck. Removing all cost cannot
+  rescue a signal that was never real out-of-sample to begin with.
+  (3) **mean_reversion@1h** — reproduces the long-documented regime-luck
+  pattern on a *third* orthogonal lever (after sizing in Run 21 and exit
+  mechanism in Run 22): test pf clears the screen at every tier and rises
+  further as cost drops (2.174->2.838), but train pf never crosses 1.0
+  anywhere (0.573->0.774) — cost reduction amplifies the inherited luck, it
+  doesn't create train-side support. **Closes the fee-level scope-assumption
+  question — do not re-sweep cost tiers; the null here is not fee-driven,
+  it is an absence of underlying edge (trend_momentum) or a window-specific
+  artifact (mean_reversion), and lower fees change neither.**
+
 **Untested, low priority (not expected to change the verdict):** 1d for
 all three families — even fewer candles per window than 4h, likely to hit
 the same starvation issues `trend_ema=200` already showed at 4h.
@@ -342,35 +377,43 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 22):** the search has now
-been exhausted along *three orthogonal axes*. On the **signal** axis: all
-three original candle-strategy families are closed across the full TF sweep,
-a fourth (Donchian breakout) was decisively rejected, all three
-confirmation-gate mechanisms (ADX, relative volume, MTF direction) failed
-identically, and both cross-symbol constructions (momentum rotation, pairs
-convergence) closed the same way. On the **position-sizing** axis (Run 21):
-scaling size by volatility regime cannot rescue any of them, with train/test
-PF moving in opposite directions in 6/6 tested pairs — the signature of a
-window artifact, not a persistent relationship. On the **exit-mechanism**
-axis (Run 22, opened and closed in the same run): neither a time-based
-forced exit (bounding worst-case holding time) nor tighter SL/TP (never
-loosened) rescues either base signal — trend_momentum rejects decisively at
-every setting (8/8 configs, test pf 0.379–0.686, train pf never above 0.65),
-and mean_reversion reproduces Run 21's exact regime-luck signature on two
-entirely new levers (8/8 configs clear the OOS screen only because the base
-control already does, train pf never above 0.573 anywhere, and all 8 fail
-the 3rd-window check decisively). Three mechanistically distinct levers now
-tested — *which trades are taken* (signal), *how big they are* (sizing), and
-*when/how they exit* (this run) — and all three land on the same conclusion:
-nothing here can manufacture edge from entry signals that don't have any.
-**The honest recommendation remains that 22 runs and ~238 configs spanning
-per-symbol signals, cross-symbol signals, confirmation gates, position
-sizing, and exit mechanisms, with zero surviving candidates, is itself the
-finding.** Further search should be directed at the programme's scope
-assumptions (fee level, the 8-symbol majors universe, the 1h-4h TF range,
-long-only/no-shorting) rather than at new constructions inside them; the
-remaining untested items (1d timeframes; DCA multiplier magnitude 2.0x) are
-low-priority and not expected to change the verdict. Nothing here is
+**Where this research programme stands (as of Run 23):** the search has now
+been exhausted along *four orthogonal axes* — three levers plus one scope
+assumption. On the **signal** axis: all three original candle-strategy
+families are closed across the full TF sweep, a fourth (Donchian breakout)
+was decisively rejected, all three confirmation-gate mechanisms (ADX,
+relative volume, MTF direction) failed identically, and both cross-symbol
+constructions (momentum rotation, pairs convergence) closed the same way. On
+the **position-sizing** axis (Run 21): scaling size by volatility regime
+cannot rescue any of them, with train/test PF moving in opposite directions
+in 6/6 tested pairs — the signature of a window artifact, not a persistent
+relationship. On the **exit-mechanism** axis (Run 22): neither a time-based
+forced exit nor tighter SL/TP rescues either base signal — trend_momentum
+rejects decisively (8/8 configs), mean_reversion reproduces the regime-luck
+signature on two new levers (8/8 configs). On the **fee/cost-level** axis
+(Run 23, the programme's first test of a scope assumption rather than a new
+construction): swept fee_bps/slippage_bps from shipped 7.5/4.0 down to a
+theoretical zero on trend_momentum (15m, 1h) and mean_reversion@1h — 0/12
+configs cleared both train and test PF>1.1 at ANY cost tier including zero,
+directly refuting the informal "fees are eating a near-breakeven edge"
+narrative. trend_momentum@1h shows genuine (same-direction) cost
+sensitivity but tops out at PF 0.79 train / 0.76 test even cost-free;
+trend_momentum@15m revealed a new failure mode never seen in 22 prior runs
+(train PF clears 1.1 at every tier, test never does — overfit-to-train, the
+mirror of mean_reversion's usual pattern); mean_reversion@1h's regime luck
+persists unchanged by cost. **The honest recommendation remains that 23 runs
+and ~250 configs spanning per-symbol signals, cross-symbol signals,
+confirmation gates, position sizing, exit mechanisms, and now trading-cost
+level, with zero surviving candidates, is itself the finding — and the
+zero-cost floor test means this is no longer explainable as "the edge is
+real but fees eat it," full stop, for either family tested.** Remaining
+scope assumptions not yet tested: the 8-symbol majors universe (would need a
+larger cross-section, flagged as out of reach in Run 19/20 for the
+cross-symbol constructions specifically, but not yet tried for the
+per-symbol families) and the 1h-4h TF range / long-only constraint (shorting
+is a larger architecture change, out of scope per the hard limits). The
+remaining low-priority untested items (1d timeframes; DCA multiplier
+magnitude 2.0x) are not expected to change the verdict. Nothing here is
 deploy-worthy; the shipped DCA dip-buy remains the only positive result and
 needs no change.
 
@@ -394,6 +437,134 @@ in that sweep, not even an anti-correlated tell — just no signal at all).
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-21 — Run 23
+
+**Self-correction check:** `git log f992508..HEAD -- backend/` (f992508 =
+Run 22's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 22. Nothing to re-validate or revert.
+Also caught and fixed unrelated repo-hygiene issue at the start of this run:
+the working tree was on a detached HEAD 7 commits ahead of local `main` and
+`origin/main` (Runs 16-22 had been committed but never merged/pushed by a
+prior session) — fast-forwarded `main` to that HEAD and pushed, so no
+research history was at risk of being lost, but flagging it in case a future
+session needs to know why the commit count here doesn't match a prior
+session's expectation.
+
+**Region tested (scope assumption, not a new construction):** trading
+cost level. All 22 prior runs held `SimConfig.fee_bps=7.5`/`slippage_bps=4.0`
+fixed and varied signal, sizing, or exit mechanism instead. DISTILLED
+LEARNINGS asserted "fees turn near-breakeven setups negative" without ever
+quantifying it — this run tests that claim directly by sweeping cost down
+to a theoretical zero, isolating whether the 22-run null result is a
+trading-cost artifact or a genuine absence of edge. No strategy code or
+param search — shipped-default entry params throughout (all already
+exhaustively characterized), unmodified production `run_candle_backtest`,
+only `SimConfig.fee_bps`/`slippage_bps` vary. Implemented in
+`research/experiments/fee_sensitivity.py`.
+
+**Design:** 4 cost tiers — shipped (7.5/4.0), bnb_discount (4.0/2.0, a
+realistic reduced-fee tier), near_zero (1.0/0.5), theoretical_zero (0/0) — x
+3 bases: trend_momentum@15m and @1h (its two best-performing/most
+fee-adjacent TFs; @15m's shipped-default train PF of 1.226 is the closest
+to breakeven-and-above of any config in the whole programme's history) plus
+mean_reversion@1h (contrast base: train PF has never exceeded ~0.6 under
+sizing or exit-mechanism levers, to see whether cost reduction can create
+train-side support where those levers couldn't) = 12 configs. Same
+train/test windows as Run 21/22 for direct comparability: train
+2026-03-19..2026-06-18, test 2026-06-18..2026-08-18, older
+2025-12-19..2026-03-19 (3rd window, reserved for anything clearing the
+screen).
+
+**Results (train PF → test PF, test n):**
+
+| base | tier | fee/slip bps | train pf | test pf | test n |
+|---|---|---|---|---|---|
+| trend_momentum@15m | shipped | 7.5/4.0 | 1.226 | 0.780 | 25 |
+| trend_momentum@15m | bnb_discount | 4.0/2.0 | 1.376 | 0.683 | 36 |
+| trend_momentum@15m | near_zero | 1.0/0.5 | 1.437 | 0.679 | 40 |
+| trend_momentum@15m | theoretical_zero | 0/0 | 1.516 | 0.666 | 43 |
+| trend_momentum@1h | shipped | 7.5/4.0 | 0.586 | 0.484 | 83 |
+| trend_momentum@1h | bnb_discount | 4.0/2.0 | 0.662 | 0.649 | 91 |
+| trend_momentum@1h | near_zero | 1.0/0.5 | 0.713 | 0.732 | 91 |
+| trend_momentum@1h | theoretical_zero | 0/0 | 0.792 | 0.755 | 91 |
+| mean_reversion@1h | shipped | 7.5/4.0 | 0.573 | 2.174 | 97 |
+| mean_reversion@1h | bnb_discount | 4.0/2.0 | 0.676 | 2.468 | 97 |
+| mean_reversion@1h | near_zero | 1.0/0.5 | 0.768 | 2.741 | 97 |
+| mean_reversion@1h | theoretical_zero | 0/0 | 0.774 | 2.838 | 97 |
+
+**$ on $100 / $1000 (test window, avg per-symbol return):**
+trend_momentum@15m loses money at every tier, −$0.01 to −$0.02 per $100
+(worst at zero cost, −$0.19 per $1000 — see below, this is the overfit
+signature, not a real cost effect). trend_momentum@1h loses at every tier
+too but the loss shrinks as cost drops, −$0.04 to −$0.10 per $100 (−$0.44 to
+−$0.99 per $1000). mean_reversion@1h gains at every tier and gains more as
+cost drops, +$0.13 to +$0.18 per $100 (+$1.25 to +$1.75 per $1000) — but see
+below, this is inherited regime luck, not a cost effect either.
+
+**Verdict: reject (8 configs, both trend_momentum TFs) / noise (4 configs,
+mean_reversion@1h). No candidate, no code change. 0/12 configs clear train
+PF>1.1 AND test PF>1.1 with n>=30 at any cost tier — no 3rd-window check was
+triggered by the screen, but all three patterns below were still checked
+against known priors for consistency.**
+
+**trend_momentum@1h — real, quantified cost sensitivity, still short of
+breakeven at zero cost:** train and test PF move the *same* direction as
+cost drops (train 0.586→0.792, +35%; test 0.484→0.755, +56%) — unlike every
+sizing/exit lever tested on this base, which never showed a consistent
+cost-like relationship. This is the first evidence in the whole programme
+that trading cost measurably suppresses this signal. But the theoretical
+zero-cost ceiling is PF 0.792 train / 0.755 test — both still decisively
+below 1.0. Quantifies the "fees hurt" claim precisely: yes, but not enough
+edge exists underneath to matter even with the drag fully removed.
+
+**trend_momentum@15m — a new failure signature, not seen in Runs 1-22:**
+train PF clears the 1.1 screen at *every* single cost tier (1.226 shipped,
+rising to 1.516 at zero cost, n=125-142, a real sample) — the first time any
+config in this programme has shown train-side PF>1.1 outside of tiny/starved
+samples. But test PF stays stuck at 0.666-0.780 throughout, and moves the
+*wrong* direction as cost drops (down, from 0.780 to 0.666) while train
+moves up. This is the mirror image of mean_reversion@1h's familiar pattern
+(there, test looks good and train doesn't; here, train looks good and test
+doesn't) — a clean overfit-to-the-train-window signature. Removing cost
+cannot rescue a signal whose apparent train edge was never real
+out-of-sample to begin with; if anything, zero cost makes the divergence
+from test *worse*, which is further evidence the train-side PF>1.1 here is
+noise/regime-specific rather than a suppressed real edge.
+
+**mean_reversion@1h — regime luck reproduced on a third orthogonal lever:**
+same shape as Run 21 (sizing) and Run 22 (exit mechanism) — test PF clears
+the screen at every tier and climbs further as cost drops (2.174→2.838), but
+train PF never crosses 1.0 anywhere in the sweep (0.573→0.774). Cost
+reduction amplifies whatever is driving the test-window number; it creates
+no train-side support, so it cannot be distinguishing signal from noise
+here. Same conclusion as always: this base's test-window outperformance is a
+window artifact, and no lever tested across three separate runs (sizing,
+exit, now cost) has ever produced train-side confirmation for it.
+
+**Why this closes the fee-level scope assumption:** DISTILLED LEARNINGS
+previously treated "fees eat a near-breakeven edge" as background context,
+not a tested claim. This run tested it to its logical floor (zero cost) on
+the two most fee-adjacent bases in the programme and found: (a) for
+trend_momentum, cost matters but isn't the binding constraint — the ceiling
+without any cost at all is still unprofitable; (b) the one config that *did*
+look promising pre-cost (15m train PF 1.226-1.516) fails on generalization,
+not cost; (c) mean_reversion's known regime luck is completely orthogonal to
+cost. None of the three outcomes leaves fee level as an open question worth
+re-testing.
+
+**Files:** `research/experiments/fee_sensitivity.py` (new). 12 entries
+appended to `research/decisions.jsonl` (199 total, still under the 250
+rotation trigger — `research/rotate_archive.py` run, no rotation needed
+this time). Active log is now ~53KB, over the ~40KB advisory threshold, but
+only 3 full run-sections remain (21-23, well under the "keep last ~15"
+floor) — the excess is entirely inside the DISTILLED LEARNINGS block itself
+(lines 21-437), which the archiving mechanism doesn't touch. Flagging for a
+future run: a compression pass over DISTILLED LEARNINGS' older/more verbose
+bullets (the original per-family closure writeups) could tighten this
+without losing conclusions, if it keeps growing.
+
+**Commit:** (recorded after this run's commit — see git log for hash.)
 
 ## 2026-08-21 — Run 22
 
