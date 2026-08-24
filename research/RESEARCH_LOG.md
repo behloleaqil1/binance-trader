@@ -13,7 +13,8 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 position caps) held at repo defaults through Run 21. Run 22 opened the exit-
 mechanism axis (a time-based forced exit, and SL/TP tightened — never
 loosened — vs the shipped default); Run 23 opened the fee/cost-level axis
-(fee_bps/slippage_bps swept down to a theoretical zero); still no adopted
+(fee_bps/slippage_bps swept down to a theoretical zero); Run 24 added a 5th
+strategy family (Supertrend, ATR-adaptive trailing bands); still no adopted
 change to shipped risk defaults.
 
 ---
@@ -21,17 +22,19 @@ change to shipped risk defaults.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 23 sessions and ~250 configs.** trend_momentum,
+families, across 24 sessions and ~258 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
-clears the OOS bar by luck/small-sample noise. Honest baseline: simple
-RSI/BB/EMA/grid signals on these 8 majors appear over-arbitraged; fees turn
-near-breakeven setups negative. The one asymmetric, mechanically-explicable
-(not curve-fit) positive finding so far is DCA's dip-buy feature — already
-shipped as the default, not a new change. **Full evidence for every closed
-TF/param combo lives in `research/decisions.jsonl` and archived run
-sections below/in `research/archive/`; this section states only the
-conclusions and why, not the blow-by-blow.**
+clears the OOS bar by luck/small-sample noise. Donchian breakout and
+Supertrend (2 mechanically distinct trend/breakout families) are also
+closed at 1h/4h. Honest baseline: simple RSI/BB/EMA/grid/ATR-band signals
+on these 8 majors appear over-arbitraged; fees turn near-breakeven setups
+negative. The one asymmetric, mechanically-explicable (not curve-fit)
+positive finding so far is DCA's dip-buy feature — already shipped as the
+default, not a new change. **Full evidence for every closed TF/param combo
+lives in `research/decisions.jsonl` and archived run sections below/in
+`research/archive/`; this section states only the conclusions and why, not
+the blow-by-blow.**
 
 **Do not re-test, without a materially new signal/indicator:**
 - **trend_momentum** (EMA-cross + RSI + MACD): every TF 5m–4h, best train PF
@@ -154,6 +157,28 @@ conclusions and why, not the blow-by-blow.**
   touch) on this 8-symbol majors universe at 1h/4h — the absence of edge
   looks like a property of the instruments/regime/fee level, not of
   which side of the signal you pick.
+
+- **Supertrend (Run 24, 5th strategy family, first ATR-adaptive-band
+  construction)**: ATR-scaled trailing bands with a stateful ratchet (band
+  only ever tightens toward price within a trend — mechanically distinct
+  from EMA-cross's two independent lagging lines and from Donchian's fixed
+  N-period channel, which doesn't adapt to volatility at all). BUY on
+  flip-to-uptrend, SELL on flip-to-downtrend, long-only, unchanged exchange
+  SL/TP. Swept atr_period {10,14} x multiplier {2.0,3.0} @ 1h/4h = 8
+  configs. **Decisive reject, no 3rd-window check warranted**: best test PF
+  across all 8 is 0.769 (4h, atr=14, mult=3.0 — but train PF only 0.325,
+  no support either side). The tightest-band 1h configs (mult=2.0) reach
+  the closest-to-1.0 train PF of the sweep (1.02–1.03) but test PF
+  collapses to 0.67–0.68 on those same rows — train near-breakeven that
+  doesn't generalize, the same shape as every other closed family. Win
+  rates are low throughout (15–34%), the signature of a trend-following
+  flip signal getting whipsawed between real trend legs — the same failure
+  mode Donchian breakout (Run 18) showed, now confirmed via a second,
+  mechanically different (ATR-band-flip vs fixed-channel) trend-following
+  construction. **Closed — do not re-tune atr_period/multiplier on this
+  construction.** Together with Donchian, this now rules out both a fixed-
+  lookback and a volatility-adaptive trend-following breakout on this
+  8-symbol universe at 1h/4h.
 
 - **Cross-symbol relative-strength / rotation (Run 19, first non-price-
   derived-per-symbol data axis)**: rank the 8 symbols cross-sectionally by
@@ -377,39 +402,39 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 23):** the search has now
+**Where this research programme stands (as of Run 24):** the search has now
 been exhausted along *four orthogonal axes* — three levers plus one scope
-assumption. On the **signal** axis: all three original candle-strategy
-families are closed across the full TF sweep, a fourth (Donchian breakout)
-was decisively rejected, all three confirmation-gate mechanisms (ADX,
-relative volume, MTF direction) failed identically, and both cross-symbol
-constructions (momentum rotation, pairs convergence) closed the same way. On
-the **position-sizing** axis (Run 21): scaling size by volatility regime
-cannot rescue any of them, with train/test PF moving in opposite directions
-in 6/6 tested pairs — the signature of a window artifact, not a persistent
-relationship. On the **exit-mechanism** axis (Run 22): neither a time-based
-forced exit nor tighter SL/TP rescues either base signal — trend_momentum
-rejects decisively (8/8 configs), mean_reversion reproduces the regime-luck
-signature on two new levers (8/8 configs). On the **fee/cost-level** axis
-(Run 23, the programme's first test of a scope assumption rather than a new
-construction): swept fee_bps/slippage_bps from shipped 7.5/4.0 down to a
-theoretical zero on trend_momentum (15m, 1h) and mean_reversion@1h — 0/12
-configs cleared both train and test PF>1.1 at ANY cost tier including zero,
-directly refuting the informal "fees are eating a near-breakeven edge"
-narrative. trend_momentum@1h shows genuine (same-direction) cost
-sensitivity but tops out at PF 0.79 train / 0.76 test even cost-free;
-trend_momentum@15m revealed a new failure mode never seen in 22 prior runs
-(train PF clears 1.1 at every tier, test never does — overfit-to-train, the
-mirror of mean_reversion's usual pattern); mean_reversion@1h's regime luck
-persists unchanged by cost. **The honest recommendation remains that 23 runs
-and ~250 configs spanning per-symbol signals, cross-symbol signals,
-confirmation gates, position sizing, exit mechanisms, and now trading-cost
-level, with zero surviving candidates, is itself the finding — and the
-zero-cost floor test means this is no longer explainable as "the edge is
-real but fees eat it," full stop, for either family tested.** Remaining
-scope assumptions not yet tested: the 8-symbol majors universe (would need a
-larger cross-section, flagged as out of reach in Run 19/20 for the
-cross-symbol constructions specifically, but not yet tried for the
+assumption — and the **signal** axis now spans five mechanically distinct
+strategy families, not four. All three original candle-strategy families
+are closed across the full TF sweep; Donchian breakout (fixed-lookback
+channel) and Supertrend (ATR-adaptive trailing band, Run 24) are both
+decisively rejected as trend-following breakout constructions; all three
+confirmation-gate mechanisms (ADX, relative volume, MTF direction) failed
+identically; and both cross-symbol constructions (momentum rotation, pairs
+convergence) closed the same way. On the **position-sizing** axis (Run 21):
+scaling size by volatility regime cannot rescue any of them, with train/test
+PF moving in opposite directions in 6/6 tested pairs — the signature of a
+window artifact, not a persistent relationship. On the **exit-mechanism**
+axis (Run 22): neither a time-based forced exit nor tighter SL/TP rescues
+either base signal — trend_momentum rejects decisively (8/8 configs),
+mean_reversion reproduces the regime-luck signature on two new levers (8/8
+configs). On the **fee/cost-level** axis (Run 23): swept fee_bps/
+slippage_bps from shipped 7.5/4.0 down to a theoretical zero on
+trend_momentum (15m, 1h) and mean_reversion@1h — 0/12 configs cleared both
+train and test PF>1.1 at ANY cost tier including zero, directly refuting the
+informal "fees are eating a near-breakeven edge" narrative. **Run 24 adds no
+new axis but closes the second of two possible trend-following breakout
+mechanisms (fixed-lookback vs volatility-adaptive)** — both fail for the
+same underlying reason (low win-rate, whipsawed by chop between the rare
+real trend legs), which strengthens the read that the absence of edge is a
+property of these 8 majors/this fee level/this TF range, not of which
+breakout construction is used. **The honest recommendation remains that 24
+runs and ~258 configs spanning per-symbol signals (5 families), cross-symbol
+signals, confirmation gates, position sizing, exit mechanisms, and
+trading-cost level, with zero surviving candidates, is itself the finding.**
+Remaining scope assumptions not yet tested: the 8-symbol majors universe
+(would need a larger cross-section, flagged as out of reach in Run 19/20 for
+the cross-symbol constructions specifically, but not yet tried for the
 per-symbol families) and the 1h-4h TF range / long-only constraint (shorting
 is a larger architecture change, out of scope per the hard limits). The
 remaining low-priority untested items (1d timeframes; DCA multiplier
@@ -437,6 +462,70 @@ in that sweep, not even an anti-correlated tell — just no signal at all).
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-24 — Run 24
+
+**Self-correction check:** `git log ae5ded7..HEAD -- backend/` (ae5ded7 =
+Run 23's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 23. Nothing to re-validate or revert.
+
+**Region tested:** signal axis, 5th strategy family. Prior runs closed 4
+mechanically distinct families (trend_momentum EMA-cross, mean_reversion
+BB/RSI, grid range-ladder, Donchian fixed-lookback breakout) plus 3
+confirmation-gate mechanisms and 2 cross-symbol constructions. This run adds
+**Supertrend**: ATR-scaled trailing bands with a stateful ratchet (the band
+only ever tightens toward price within a trend; flips when close crosses
+the opposite band) — the first *volatility-adaptive* trend-following
+construction tested, versus Donchian's fixed N-period channel. BUY on
+flip-to-uptrend, SELL on flip-to-downtrend, long-only, unchanged exchange-
+side 2%/4% SL/TP. Implemented in `research/experiments/supertrend.py`,
+standalone (not registered in `app/strategies/registry.py`, no production
+file touched).
+
+**Design:** atr_period {10, 14} x multiplier {2.0, 3.0} @ 1h and 4h = 8
+configs. Same train/test windows as Runs 21-23: train 2026-03-21..2026-06-19,
+test 2026-06-19..2026-08-19, older 2025-12-21..2026-03-21 (3rd window,
+reserved for anything clearing the screen).
+
+**Results (train PF → test PF, test n):**
+
+| tf | atr_period | multiplier | train pf | test pf | test n |
+|---|---|---|---|---|---|
+| 1h | 10 | 2.0 | 1.027 | 0.673 | 71 |
+| 1h | 10 | 3.0 | 0.668 | 0.598 | 96 |
+| 1h | 14 | 2.0 | 1.020 | 0.676 | 54 |
+| 1h | 14 | 3.0 | 0.734 | 0.633 | 91 |
+| 4h | 10 | 2.0 | 0.596 | 0.468 | 41 |
+| 4h | 10 | 3.0 | 0.488 | 0.654 | 31 |
+| 4h | 14 | 2.0 | 0.699 | 0.372 | 40 |
+| 4h | 14 | 3.0 | 0.325 | 0.769 | 33 |
+
+**$ on $100 / $1000 (test window, avg per-symbol return):** every config
+loses money, from −$0.02/−$0.23 (4h atr=14 mult=3.0, the best row) to
+−$0.13/−$1.27 (4h atr=10 mult=2.0, the worst row).
+
+**Verdict: decisive reject, 8/8 configs. No candidate, no code change. No
+3rd-window check triggered** — the best test PF in the whole sweep (0.769,
+4h atr=14 mult=3.0) comes with the worst train PF in the sweep (0.325), so
+there's no near-miss to check further. The two tightest-band 1h configs
+(mult=2.0) reach the closest-to-1.0 train PF anywhere in the sweep
+(1.020–1.027) but test PF on those same rows collapses to 0.673–0.676 — a
+train-side near-breakeven reading that does not generalize, the same
+train/test disconnect shape seen in every other closed family. Win rates
+are low throughout (15–34%), the signature of a trend-following flip
+getting whipsawed by chop between the (rare) real trend legs — mechanically
+the same failure mode Donchian breakout (Run 18) showed, now reproduced via
+a second, structurally different (ATR-adaptive band-flip vs fixed-lookback
+channel) trend-following construction. **Closed — do not re-tune
+atr_period/multiplier on this construction.** Combined with Donchian, this
+rules out both a fixed-lookback and a volatility-adaptive breakout signal on
+this 8-symbol universe at 1h/4h; the absence of edge looks structural to the
+instruments/fee level/TF range rather than to either channel construction.
+
+**Files:** `research/experiments/supertrend.py` (new). 8 entries appended to
+`research/decisions.jsonl` (199 → 207 lines pre-rotation).
+
+---
 
 ## 2026-08-21 — Run 23
 
