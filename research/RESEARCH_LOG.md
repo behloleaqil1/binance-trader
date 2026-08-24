@@ -14,7 +14,8 @@ position caps) held at repo defaults through Run 21. Run 22 opened the exit-
 mechanism axis (a time-based forced exit, and SL/TP tightened — never
 loosened — vs the shipped default); Run 23 opened the fee/cost-level axis
 (fee_bps/slippage_bps swept down to a theoretical zero); Run 24 added a 5th
-strategy family (Supertrend, ATR-adaptive trailing bands); still no adopted
+strategy family (Supertrend, ATR-adaptive trailing bands); Run 25 opened and
+closed the symbol-universe axis (disjoint 8-symbol test); still no adopted
 change to shipped risk defaults.
 
 ---
@@ -402,45 +403,49 @@ the same starvation issues `trend_ema=200` already showed at 4h.
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 24):** the search has now
-been exhausted along *four orthogonal axes* — three levers plus one scope
-assumption — and the **signal** axis now spans five mechanically distinct
-strategy families, not four. All three original candle-strategy families
-are closed across the full TF sweep; Donchian breakout (fixed-lookback
-channel) and Supertrend (ATR-adaptive trailing band, Run 24) are both
-decisively rejected as trend-following breakout constructions; all three
-confirmation-gate mechanisms (ADX, relative volume, MTF direction) failed
-identically; and both cross-symbol constructions (momentum rotation, pairs
-convergence) closed the same way. On the **position-sizing** axis (Run 21):
-scaling size by volatility regime cannot rescue any of them, with train/test
-PF moving in opposite directions in 6/6 tested pairs — the signature of a
-window artifact, not a persistent relationship. On the **exit-mechanism**
-axis (Run 22): neither a time-based forced exit nor tighter SL/TP rescues
-either base signal — trend_momentum rejects decisively (8/8 configs),
-mean_reversion reproduces the regime-luck signature on two new levers (8/8
-configs). On the **fee/cost-level** axis (Run 23): swept fee_bps/
-slippage_bps from shipped 7.5/4.0 down to a theoretical zero on
-trend_momentum (15m, 1h) and mean_reversion@1h — 0/12 configs cleared both
-train and test PF>1.1 at ANY cost tier including zero, directly refuting the
-informal "fees are eating a near-breakeven edge" narrative. **Run 24 adds no
-new axis but closes the second of two possible trend-following breakout
-mechanisms (fixed-lookback vs volatility-adaptive)** — both fail for the
-same underlying reason (low win-rate, whipsawed by chop between the rare
-real trend legs), which strengthens the read that the absence of edge is a
-property of these 8 majors/this fee level/this TF range, not of which
-breakout construction is used. **The honest recommendation remains that 24
-runs and ~258 configs spanning per-symbol signals (5 families), cross-symbol
-signals, confirmation gates, position sizing, exit mechanisms, and
-trading-cost level, with zero surviving candidates, is itself the finding.**
-Remaining scope assumptions not yet tested: the 8-symbol majors universe
-(would need a larger cross-section, flagged as out of reach in Run 19/20 for
-the cross-symbol constructions specifically, but not yet tried for the
-per-symbol families) and the 1h-4h TF range / long-only constraint (shorting
-is a larger architecture change, out of scope per the hard limits). The
-remaining low-priority untested items (1d timeframes; DCA multiplier
-magnitude 2.0x) are not expected to change the verdict. Nothing here is
-deploy-worthy; the shipped DCA dip-buy remains the only positive result and
-needs no change.
+**Where this research programme stands (as of Run 25):** the search has now
+been exhausted along *five orthogonal axes* — three levers plus two scope
+assumptions — and the **signal** axis spans five mechanically distinct
+strategy families. All three original candle-strategy families are closed
+across the full TF sweep; Donchian breakout (fixed-lookback channel) and
+Supertrend (ATR-adaptive trailing band, Run 24) are both decisively rejected
+as trend-following breakout constructions; all three confirmation-gate
+mechanisms (ADX, relative volume, MTF direction) failed identically; and both
+cross-symbol constructions (momentum rotation, pairs convergence) closed the
+same way. On the **position-sizing** axis (Run 21): scaling size by
+volatility regime cannot rescue any of them, with train/test PF moving in
+opposite directions in 6/6 tested pairs. On the **exit-mechanism** axis
+(Run 22): neither a time-based forced exit nor tighter SL/TP rescues either
+base signal. On the **fee/cost-level** axis (Run 23): 0/12 configs cleared
+both train and test PF>1.1 at ANY cost tier including a theoretical zero,
+directly refuting the "fees are eating a near-breakeven edge" narrative. Run
+24 closed the second of two trend-following breakout mechanisms
+(fixed-lookback vs volatility-adaptive). **Run 25 opens and closes a second
+scope assumption: the 8-symbol majors universe itself**, previously tested
+only for the (out-of-reach) cross-symbol constructions. Re-ran
+trend_momentum@1h/4h and mean_reversion@1h, shipped-default params, on a
+disjoint 8-symbol universe (AVAX, DOT, LTC, ATOM, NEAR, UNI, TRX, ETC) — 0/3
+configs cleared both sides of the OOS bar. trend_momentum fails decisively on
+the new universe just as on the original (1h test PF 0.537 vs the original
+universe's 0.484 at shipped fees); mean_reversion@1h reproduces its own
+signature regime-luck shape (test PF 1.207 clears the screen, train PF 1.015
+falls just short — the closest-to-breakeven train reading this family has
+ever produced, on any lever, but still not a pass). **The verdict does not
+depend on which 8 liquid Binance USDT majors are chosen** — this rules out
+"wrong coins" as an explanation for the null result, leaving only the
+TF-range/long-only scope assumptions and pure absence-of-edge as remaining
+explanations. **The honest recommendation remains that 25 runs and ~261
+configs spanning per-symbol signals (5 families) on two disjoint 8-symbol
+universes, cross-symbol signals, confirmation gates, position sizing, exit
+mechanisms, and trading-cost level, with zero surviving candidates, is itself
+the finding.** Remaining scope assumptions not yet tested: the 1h-4h TF range
+(1d flagged low-priority, likely to starve on sample size) and the long-only
+constraint (shorting is a larger architecture change, out of scope per the
+hard limits — cannot be tested without expanding scope beyond params/code
+tuning). The remaining low-priority untested items (1d timeframes; DCA
+multiplier magnitude 2.0x) are not expected to change the verdict. Nothing
+here is deploy-worthy; the shipped DCA dip-buy remains the only positive
+result and needs no change.
 
 **Prior status (as of Run 21, retained for continuity):** the search had
 been exhausted along two orthogonal axes, not three. On the **signal** axis:
@@ -462,6 +467,76 @@ in that sweep, not even an anti-correlated tell — just no signal at all).
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-24 — Run 25
+
+**Self-correction check:** `git log d25275f..HEAD -- backend/` (d25275f =
+Run 24's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 24. Nothing to re-validate or revert.
+
+**Region tested:** a scope assumption, not a new construction — the 8-symbol
+majors universe itself. DISTILLED LEARNINGS had flagged this as untested for
+the per-symbol strategy families (only tested, and found out of reach, for
+the cross-symbol constructions in Run 19/20). Re-ran the two best-
+characterized closed families — trend_momentum (EMA-cross) and mean_reversion
+(BB/RSI) — at shipped-default params on a **disjoint** 8-symbol universe:
+AVAX, DOT, LTC, ATOM, NEAR, UNI, TRX, ETC (zero overlap with BTC, ETH, SOL,
+BNB, XRP, LINK, DOGE, ADA; all long-listed, liquid Binance USDT pairs to
+avoid a short-history/illiquidity confound). No strategy code changes, no
+param search, unmodified production `run_candle_backtest`, shipped fees
+(7.5/4.0 bps). Same train/test/older windows as Runs 21-24. Implemented in
+`research/experiments/expanded_universe.py`, standalone (no production file
+touched).
+
+**Design:** trend_momentum@1h, trend_momentum@4h, mean_reversion@1h x new8
+universe = 3 configs.
+
+**Results (train PF → test PF, test n):**
+
+| family | tf | train pf | test pf | test n |
+|---|---|---|---|---|
+| trend_momentum | 1h | 0.941 | 0.537 | 87 |
+| trend_momentum | 4h | 0.823 | 0.236 | 29 |
+| mean_reversion | 1h | 1.015 | 1.207 | 121 |
+
+**$ on $100 / $1000 (test window, avg per-symbol return):** trend_momentum@1h
+−$0.11/−$1.11; trend_momentum@4h −$0.09/−$0.87; mean_reversion@1h (the only
+row with a positive test return) +$0.05/+$0.45 — but see verdict below, this
+is the familiar regime-luck shape, not adopted.
+
+**Verdict: decisive reject/noise, 0/3 configs cleared both sides of the OOS
+bar. No candidate, no code change. No 3rd-window check triggered** (the
+strict train>1.1 AND test>1.1 AND n>=30 condition was never met). Two
+findings:
+(1) **trend_momentum fails just as decisively on the new universe as the
+original**: 1h test PF 0.537 (vs the original universe's 0.484 at shipped
+fees, Run 23) and 4h test PF 0.236 — if anything slightly worse, not better.
+No universe-specific rescue.
+(2) **mean_reversion@1h reproduces its own long-documented regime-luck
+signature on a third universe-level check**: test PF 1.207 clears the OOS
+screen but train PF 1.015 falls just short of 1.1 — notably, this is the
+*closest to clearing* mean_reversion@1h's train side has ever come, across
+24 prior runs and every lever tested (sizing, exit mechanism, fee level, and
+now universe) — but "closest yet" is still a fail, and the test-clears/
+train-doesn't shape is identical to every prior instance of this family's
+regime luck. Not treated as a near-miss requiring further checks; the AND
+condition on both sides of the bar is a bright line, not a judgment call.
+**Closed — the "no edge" verdict for trend_momentum and mean_reversion at
+1h/4h does not depend on the specific choice of 8 liquid Binance USDT
+majors.** This rules out "these particular 8 coins happen to be
+over-arbitraged" as an explanation and strengthens the read that the absence
+of edge is a property of the fee level/TF range/instrument class (liquid
+majors generally) rather than any specific symbol selection. Do not
+re-run this exact universe-swap check again without a new hypothesis for why
+a *third* universe would differ — a genuinely different test would need
+either far more symbols (institutional-scale cross-section, likely still out
+of reach per the compute/time budget) or a structurally different asset
+class (not available via this exchange's spot USDT pairs).
+
+**Files:** `research/experiments/expanded_universe.py` (new). 3 entries
+appended to `research/decisions.jsonl` (207 → 210 lines).
+
+---
 
 ## 2026-08-24 — Run 24
 
