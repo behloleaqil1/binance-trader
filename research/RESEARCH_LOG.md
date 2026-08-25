@@ -16,27 +16,30 @@ loosened — vs the shipped default); Run 23 opened the fee/cost-level axis
 (fee_bps/slippage_bps swept down to a theoretical zero); Run 24 added a 5th
 strategy family (Supertrend, ATR-adaptive trailing bands); Run 25 opened and
 closed the symbol-universe axis (disjoint 8-symbol test); Run 26 closed the
-1d-timeframe scope question for all 3 original families; still no adopted
-change to shipped risk defaults.
+1d-timeframe scope question for all 3 original families; Run 27 added and
+closed a 6th strategy family (Capitulation Wick Reversal, first
+candlestick-shape signal) and closed the last flagged-open DCA variant
+(dip_multiplier magnitude); still no adopted change to shipped risk
+defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 24 sessions and ~258 configs.** trend_momentum,
+families, across 27 sessions and ~273 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
-clears the OOS bar by luck/small-sample noise. Donchian breakout and
-Supertrend (2 mechanically distinct trend/breakout families) are also
-closed at 1h/4h. Honest baseline: simple RSI/BB/EMA/grid/ATR-band signals
-on these 8 majors appear over-arbitraged; fees turn near-breakeven setups
-negative. The one asymmetric, mechanically-explicable (not curve-fit)
-positive finding so far is DCA's dip-buy feature — already shipped as the
-default, not a new change. **Full evidence for every closed TF/param combo
-lives in `research/decisions.jsonl` and archived run sections below/in
-`research/archive/`; this section states only the conclusions and why, not
-the blow-by-blow.**
+clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
+and Capitulation Wick Reversal (3 mechanically distinct trend/breakout/
+pattern families) are also closed. Honest baseline: simple RSI/BB/EMA/grid/
+ATR-band/candlestick-shape signals on these 8 majors appear over-arbitraged;
+fees turn near-breakeven setups negative. The one asymmetric,
+mechanically-explicable (not curve-fit) positive finding so far is DCA's
+dip-buy feature — already shipped as the default, not a new change. **Full
+evidence for every closed TF/param combo lives in `research/decisions.jsonl`
+and archived run sections below/in `research/archive/`; this section states
+only the conclusions and why, not the blow-by-blow.**
 
 **Do not re-test, without a materially new signal/indicator:**
 - **trend_momentum** (EMA-cross + RSI + MACD): every TF 5m–4h, best train PF
@@ -181,6 +184,44 @@ the blow-by-blow.**
   construction.** Together with Donchian, this now rules out both a fixed-
   lookback and a volatility-adaptive trend-following breakout on this
   8-symbol universe at 1h/4h.
+
+- **Capitulation Wick Reversal (Run 27, 6th strategy family, first
+  candlestick-SHAPE-derived signal)**: BUY on a single candle with a long
+  lower wick (>= wick_ratio of its own high-low range), a bullish (green)
+  close, and volume >= vol_mult x its own 20-period rolling mean — sold off
+  hard intra-candle, bought back before close, on real participation.
+  Mechanically distinct from every other closed family/gate: the first
+  signal here that reads one candle's own OHLC shape rather than a
+  multi-bar indicator series, a band/threshold touch, or a fixed channel.
+  Exit on reversion to SMA(10) of close, unchanged exchange SL/TP. Swept
+  wick_ratio {0.5,0.6,0.7} x vol_mult {1.5,2.0} @ 1h/4h = 12 configs.
+  **Decisive reject, 12/12, no 3rd-window check warranted**: train PF never
+  exceeds 0.668 anywhere in the sweep. 3 of 6 1h configs (all vol_mult=2.0)
+  clear test PF>1.1 (1.098–1.482) but every one pairs with train PF 0.47–
+  0.66 — the identical test-clears/train-doesn't regime-luck shape seen in
+  mean_reversion since before Run 16, now reproduced by an unrelated
+  candlestick-shape construction. 4h is a clean reject at every config
+  (train PF 0.089–0.336, test PF 0.038–0.861) — tighter wick_ratio at 4h
+  makes both sides worse, not better, while collapsing the sample to n=4–14,
+  the opposite of what filtering toward "purer" capitulation candles should
+  do if the pattern had real signal. **Closed — do not re-tune
+  wick_ratio/vol_mult/exit_period.** With this, all four broad signal-source
+  categories tried in this programme (price level/band, price shape,
+  volume/cross-symbol) are now exhausted for the 8-symbol/1h-4h scope; a 7th
+  family would need a genuinely different signal source entirely.
+
+- **DCA dip_multiplier magnitude (Run 27, closes the last flagged-open DCA
+  variant)**: dip_multiplier in {1.5 (shipped), 1.75, 2.0, 2.5} at the
+  shipped dip_threshold_pct=5.0, isolated from the threshold change Run 4
+  bundled it with and the buy-count cap Run 14 tested separately. Effect is
+  real but trivial (<0.35pp even at 2.5x) and flips sign with the regime:
+  +0.06 to +0.35pp in both declining windows tested (7/8 symbols benefit —
+  a bigger multiplier lowers cost basis further when dips are frequent) but
+  −0.03 to −0.11pp in a strongly-rising window (only 1/8 symbols benefit —
+  more capital deployed at a locally-worse price when dips are rare and the
+  flat schedule already wins big on its own). Same anti-correlated-across-
+  regimes signature as every non-signal lever since Run 21/22. **Keep
+  shipped dip_multiplier=1.5x — closed, no DCA variants remain flagged.**
 
 - **Cross-symbol relative-strength / rotation (Run 19, first non-price-
   derived-per-symbol data axis)**: rank the 8 symbols cross-sectionally by
@@ -408,18 +449,24 @@ rejection at every faster TF. **Closes the TF-range scope question for all
   2.5x/3% variant was rejected in Run 4) — the data says more dip-buying
   in a decline is a benefit, not a risk, at the shipped 1.5x/5%
   magnitude. No code change; production `dca.py` untouched.
+- **DCA dip_multiplier magnitude** (Run 27): {1.5 shipped, 1.75, 2.0, 2.5} at
+  the shipped 5% threshold — closed as noise (see bullet above in the
+  signal-axis list). Effect real but trivial (<0.35pp) and regime-dependent
+  (helps in declines, hurts in a strong uptrend). Keep shipped 1.5x.
 
 **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss was
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 26):** the search has now
+**Where this research programme stands (as of Run 27):** the search has now
 been exhausted along *six orthogonal axes* — three levers plus three scope
-assumptions — and the **signal** axis spans five mechanically distinct
-strategy families. All three original candle-strategy families are closed
-across the full TF sweep; Donchian breakout (fixed-lookback channel) and
-Supertrend (ATR-adaptive trailing band, Run 24) are both decisively rejected
-as trend-following breakout constructions; all three confirmation-gate
+assumptions — and the **signal** axis spans six mechanically distinct
+strategy families across four broad signal-source categories (price-level/
+band, moving-average relationship, price *shape*, and cross-symbol/volume).
+All three original candle-strategy families are closed across the full TF
+sweep; Donchian breakout (fixed-lookback channel), Supertrend (ATR-adaptive
+trailing band, Run 24), and Capitulation Wick Reversal (candlestick shape +
+volume, Run 27) are all decisively rejected; all three confirmation-gate
 mechanisms (ADX, relative volume, MTF direction) failed identically; and both
 cross-symbol constructions (momentum rotation, pairs convergence) closed the
 same way. On the **position-sizing** axis (Run 21): scaling size by
@@ -428,38 +475,35 @@ opposite directions in 6/6 tested pairs. On the **exit-mechanism** axis
 (Run 22): neither a time-based forced exit nor tighter SL/TP rescues either
 base signal. On the **fee/cost-level** axis (Run 23): 0/12 configs cleared
 both train and test PF>1.1 at ANY cost tier including a theoretical zero,
-directly refuting the "fees are eating a near-breakeven edge" narrative. Run
-24 closed the second of two trend-following breakout mechanisms
-(fixed-lookback vs volatility-adaptive). **Run 25 opens and closes a second
-scope assumption: the 8-symbol majors universe itself**, previously tested
-only for the (out-of-reach) cross-symbol constructions. Re-ran
-trend_momentum@1h/4h and mean_reversion@1h, shipped-default params, on a
-disjoint 8-symbol universe (AVAX, DOT, LTC, ATOM, NEAR, UNI, TRX, ETC) — 0/3
-configs cleared both sides of the OOS bar. trend_momentum fails decisively on
-the new universe just as on the original (1h test PF 0.537 vs the original
-universe's 0.484 at shipped fees); mean_reversion@1h reproduces its own
-signature regime-luck shape (test PF 1.207 clears the screen, train PF 1.015
-falls just short — the closest-to-breakeven train reading this family has
-ever produced, on any lever, but still not a pass). **The verdict does not
-depend on which 8 liquid Binance USDT majors are chosen** — this rules out
-"wrong coins" as an explanation for the null result. **Run 26 closes the
-third scope assumption, the TF range**: 1d starves trend_momentum/
-mean_reversion on trade count (test n=4 and n=0) before PF can even be
-judged, and grid@1d — not starved (112 test trades) — has no economically
-meaningful account-level return (+0.32% test on $10k, flat). Combined with
-1m's earlier catastrophic close (Run 6/7), the entire originally-in-scope
-TF range (1m-1d) is now exhausted. **The only scope assumption left
-untested is long-only** (shorting is a larger architecture change, out of
-scope per the hard limits — cannot be tested without expanding scope
-beyond params/code tuning, not a param tune). **The honest recommendation
-remains that 26 runs and ~264 configs spanning per-symbol signals (5
-families) across the full viable TF range on two disjoint 8-symbol
+directly refuting the "fees are eating a near-breakeven edge" narrative. **Run
+25 opened and closed a second scope assumption: the 8-symbol majors universe
+itself** — re-ran trend_momentum@1h/4h and mean_reversion@1h on a disjoint
+8-symbol universe, 0/3 configs cleared both sides of the OOS bar, ruling out
+"wrong coins" as an explanation. **Run 26 closed the third scope assumption,
+the TF range**: 1d starves trend_momentum/mean_reversion on trade count
+before PF can even be judged, and grid@1d has no economically meaningful
+account-level return; combined with 1m's earlier catastrophic close, the
+entire originally-in-scope TF range (1m-1d) is exhausted. **Run 27 closed
+the last two open items**: the 6th strategy family (wick reversal, decisive
+12/12 reject, train PF never exceeds 0.668) and the last flagged DCA
+variant (dip_multiplier magnitude — real but trivial and regime-dependent
+effect, keep shipped 1.5x). **The only scope assumption left untested is
+long-only** (shorting is a larger architecture change, out of scope per the
+hard limits — cannot be tested without expanding scope beyond params/code
+tuning, not a param tune). **The honest recommendation remains that 27 runs
+and ~279 configs spanning per-symbol signals (6 families across 4 signal-
+source categories) across the full viable TF range on two disjoint 8-symbol
 universes, cross-symbol signals, confirmation gates, position sizing, exit
-mechanisms, and trading-cost level, with zero surviving candidates, is
-itself the finding.** The one remaining low-priority untested item (DCA
-multiplier magnitude 2.0x) is not expected to change the verdict. Nothing
-here is deploy-worthy; the shipped DCA dip-buy remains the only positive
-result and needs no change.
+mechanisms, trading-cost level, and DCA parameter magnitude, with zero
+surviving candidates, is itself the finding.** No item remains flagged as
+open in this section — the next run should pick a genuinely new axis not
+listed above (the signal-source categories tried are price-level/band,
+moving-average, price-shape, and cross-symbol/volume; a candidate 5th
+category would need a data source this codebase doesn't currently fetch,
+e.g. order-book/funding-rate data, which may be out of reach via
+`data-api.binance.vision`'s public kline endpoints — check what's fetchable
+before committing to a design). Nothing here is deploy-worthy; the shipped
+DCA dip-buy remains the only positive result and needs no change.
 
 ---
 
@@ -531,139 +575,112 @@ budget, next run should archive Run 24-25 as well).
 
 ---
 
-## 2026-08-24 — Run 25
+_Run 21-23 (2026-08-20 to 2026-08-21) are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 (2026-08-24) are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
 
-**Self-correction check:** `git log d25275f..HEAD -- backend/` (d25275f =
-Run 24's commit, current HEAD before this run's own commit) is empty — no
-commits touched `backend/` since Run 24. Nothing to re-validate or revert.
+## 2026-08-25 — Run 27
 
-**Region tested:** a scope assumption, not a new construction — the 8-symbol
-majors universe itself. DISTILLED LEARNINGS had flagged this as untested for
-the per-symbol strategy families (only tested, and found out of reach, for
-the cross-symbol constructions in Run 19/20). Re-ran the two best-
-characterized closed families — trend_momentum (EMA-cross) and mean_reversion
-(BB/RSI) — at shipped-default params on a **disjoint** 8-symbol universe:
-AVAX, DOT, LTC, ATOM, NEAR, UNI, TRX, ETC (zero overlap with BTC, ETH, SOL,
-BNB, XRP, LINK, DOGE, ADA; all long-listed, liquid Binance USDT pairs to
-avoid a short-history/illiquidity confound). No strategy code changes, no
-param search, unmodified production `run_candle_backtest`, shipped fees
-(7.5/4.0 bps). Same train/test/older windows as Runs 21-24. Implemented in
-`research/experiments/expanded_universe.py`, standalone (no production file
-touched).
+**Self-correction check:** `git log 2066c9c..HEAD -- backend/` (2066c9c = Run
+26's commit, current HEAD before this run's own commit) is empty — no commits
+touched `backend/` since Run 26. Nothing to re-validate or revert.
 
-**Design:** trend_momentum@1h, trend_momentum@4h, mean_reversion@1h x new8
-universe = 3 configs.
+**Region tested:** two items. (1) The last explicitly-flagged-but-untested
+item in DISTILLED LEARNINGS: DCA `dip_multiplier` magnitude alone (isolated
+from the threshold change Run 4 bundled it with, and the buy-count cap Run 14
+tested separately). (2) A genuinely new signal construction — the first
+candlestick-SHAPE-derived entry this programme has tried, since the
+26-run/258-config signal axis was otherwise fully exhausted (5 strategy
+families, 3 confirmation gates, 2 cross-symbol constructions, all closed).
 
-**Results (train PF → test PF, test n):**
+**(1) DCA dip_multiplier magnitude sweep** (`research/experiments/dca_multiplier_sweep.py`):
+`dip_multiplier` in {1.5 (shipped), 1.75, 2.0, 2.5} at the shipped
+`dip_threshold_pct=5.0`, same capital-normalized ROI methodology as Run
+4/5/14 (ROI = unrealized_pnl/invested%, 3 non-overlapping windows x 8
+symbols, production `dca.py` untouched). Delta vs the 1.5x baseline, by
+window:
 
-| family | tf | train pf | test pf | test n |
+| window | regime | mult=1.75 | mult=2.0 | mult=2.5 |
 |---|---|---|---|---|
-| trend_momentum | 1h | 0.941 | 0.537 | 87 |
-| trend_momentum | 4h | 0.823 | 0.236 | 29 |
-| mean_reversion | 1h | 1.015 | 1.207 | 121 |
+| older (2025-12-28..2026-03-28) | declining | +0.092pp | +0.180pp | +0.345pp |
+| train (2026-03-28..2026-06-27) | declining | +0.064pp | +0.126pp | +0.246pp |
+| test (2026-06-27..2026-08-25) | strongly rising | −0.029pp | −0.057pp | −0.112pp |
 
-**$ on $100 / $1000 (test window, avg per-symbol return):** trend_momentum@1h
-−$0.11/−$1.11; trend_momentum@4h −$0.09/−$0.87; mean_reversion@1h (the only
-row with a positive test return) +$0.05/+$0.45 — but see verdict below, this
-is the familiar regime-luck shape, not adopted.
+Symbol win-rate vs the 1.5x baseline: 7/8 symbols benefit in both declining
+windows at every multiplier tested, but only 1/8 in the rising test window.
+**Verdict: reject/noise.** The effect is real but trivial (<0.35pp even at
+the most aggressive 2.5x, on windows where the DCA baseline itself moved
+15-29pp) and flips sign with the regime: a bigger multiplier lowers the
+average cost basis further in a decline (mechanically sound — more capital
+lands at the dip) but deploys more capital at a locally-worse price in a
+sustained uptrend where dips are rare and the flat schedule already wins big
+on its own. This is the same anti-correlated-across-regimes signature
+documented for every non-signal lever tested since Run 21 (sizing) and Run
+22 (exit mechanism): amplifying a knob doesn't create a persistent edge, it
+just leans harder into whichever regime the window happens to be. **Keep
+shipped `dip_multiplier=1.5x`** — closes the last flagged-open DCA variant.
 
-**Verdict: decisive reject/noise, 0/3 configs cleared both sides of the OOS
-bar. No candidate, no code change. No 3rd-window check triggered** (the
-strict train>1.1 AND test>1.1 AND n>=30 condition was never met). Two
-findings:
-(1) **trend_momentum fails just as decisively on the new universe as the
-original**: 1h test PF 0.537 (vs the original universe's 0.484 at shipped
-fees, Run 23) and 4h test PF 0.236 — if anything slightly worse, not better.
-No universe-specific rescue.
-(2) **mean_reversion@1h reproduces its own long-documented regime-luck
-signature on a third universe-level check**: test PF 1.207 clears the OOS
-screen but train PF 1.015 falls just short of 1.1 — notably, this is the
-*closest to clearing* mean_reversion@1h's train side has ever come, across
-24 prior runs and every lever tested (sizing, exit mechanism, fee level, and
-now universe) — but "closest yet" is still a fail, and the test-clears/
-train-doesn't shape is identical to every prior instance of this family's
-regime luck. Not treated as a near-miss requiring further checks; the AND
-condition on both sides of the bar is a bright line, not a judgment call.
-**Closed — the "no edge" verdict for trend_momentum and mean_reversion at
-1h/4h does not depend on the specific choice of 8 liquid Binance USDT
-majors.** This rules out "these particular 8 coins happen to be
-over-arbitraged" as an explanation and strengthens the read that the absence
-of edge is a property of the fee level/TF range/instrument class (liquid
-majors generally) rather than any specific symbol selection. Do not
-re-run this exact universe-swap check again without a new hypothesis for why
-a *third* universe would differ — a genuinely different test would need
-either far more symbols (institutional-scale cross-section, likely still out
-of reach per the compute/time budget) or a structurally different asset
-class (not available via this exchange's spot USDT pairs).
-
-**Files:** `research/experiments/expanded_universe.py` (new). 3 entries
-appended to `research/decisions.jsonl` (207 → 210 lines).
-
----
-
-## 2026-08-24 — Run 24
-
-**Self-correction check:** `git log ae5ded7..HEAD -- backend/` (ae5ded7 =
-Run 23's commit, current HEAD before this run's own commit) is empty — no
-commits touched `backend/` since Run 23. Nothing to re-validate or revert.
-
-**Region tested:** signal axis, 5th strategy family. Prior runs closed 4
-mechanically distinct families (trend_momentum EMA-cross, mean_reversion
-BB/RSI, grid range-ladder, Donchian fixed-lookback breakout) plus 3
-confirmation-gate mechanisms and 2 cross-symbol constructions. This run adds
-**Supertrend**: ATR-scaled trailing bands with a stateful ratchet (the band
-only ever tightens toward price within a trend; flips when close crosses
-the opposite band) — the first *volatility-adaptive* trend-following
-construction tested, versus Donchian's fixed N-period channel. BUY on
-flip-to-uptrend, SELL on flip-to-downtrend, long-only, unchanged exchange-
-side 2%/4% SL/TP. Implemented in `research/experiments/supertrend.py`,
-standalone (not registered in `app/strategies/registry.py`, no production
-file touched).
-
-**Design:** atr_period {10, 14} x multiplier {2.0, 3.0} @ 1h and 4h = 8
-configs. Same train/test windows as Runs 21-23: train 2026-03-21..2026-06-19,
-test 2026-06-19..2026-08-19, older 2025-12-21..2026-03-21 (3rd window,
-reserved for anything clearing the screen).
+**(2) Capitulation Wick Reversal, 6th strategy family** (`research/experiments/wick_reversal.py`):
+BUY on a single candle with `lower_wick_ratio = (min(open,close)-low)/(high-low)
+>= wick_ratio`, a bullish (green) close, and volume >= `vol_mult` x its own
+20-period rolling mean — a capitulation-and-bounce pattern (long lower wick =
+sold off hard intra-candle then bought back before close, on real volume, not
+a thin wick). Exit on reversion to SMA(10) of close, unchanged exchange-side
+2%/4% SL/TP. Mechanically distinct from all 5 prior families and all 3
+confirmation gates: this is the first signal in the programme that reads a
+single candle's own OHLC *shape* rather than a derived multi-bar series or a
+band/threshold touch. Standalone research strategy class, not registered in
+`app/strategies/registry.py`, no production file touched. Swept `wick_ratio`
+{0.5, 0.6, 0.7} x `vol_mult` {1.5, 2.0} @ 1h/4h = 12 configs, standard
+150d-60d/60d-0d train/test windows, unmodified production
+`run_candle_backtest`/`RiskConfig`.
 
 **Results (train PF → test PF, test n):**
 
-| tf | atr_period | multiplier | train pf | test pf | test n |
+| tf | wick_ratio | vol_mult | train pf | test pf | test n |
 |---|---|---|---|---|---|
-| 1h | 10 | 2.0 | 1.027 | 0.673 | 71 |
-| 1h | 10 | 3.0 | 0.668 | 0.598 | 96 |
-| 1h | 14 | 2.0 | 1.020 | 0.676 | 54 |
-| 1h | 14 | 3.0 | 0.734 | 0.633 | 91 |
-| 4h | 10 | 2.0 | 0.596 | 0.468 | 41 |
-| 4h | 10 | 3.0 | 0.488 | 0.654 | 31 |
-| 4h | 14 | 2.0 | 0.699 | 0.372 | 40 |
-| 4h | 14 | 3.0 | 0.325 | 0.769 | 33 |
+| 1h | 0.5 | 1.5 | 0.532 | 0.861 | 117 |
+| 1h | 0.5 | 2.0 | 0.473 | 1.098 | 52 |
+| 1h | 0.6 | 1.5 | 0.523 | 0.997 | 78 |
+| 1h | 0.6 | 2.0 | 0.658 | 1.482 | 35 |
+| 1h | 0.7 | 1.5 | 0.543 | 0.693 | 38 |
+| 1h | 0.7 | 2.0 | 0.668 | 1.149 | 18 |
+| 4h | 0.5 | 1.5 | 0.336 | 0.859 | 36 |
+| 4h | 0.5 | 2.0 | 0.281 | 0.861 | 14 |
+| 4h | 0.6 | 1.5 | 0.332 | 0.144 | 18 |
+| 4h | 0.6 | 2.0 | 0.184 | 0.038 | 7 |
+| 4h | 0.7 | 1.5 | 0.264 | 0.085 | 10 |
+| 4h | 0.7 | 2.0 | 0.089 | 0.083 | 4 |
 
-**$ on $100 / $1000 (test window, avg per-symbol return):** every config
-loses money, from −$0.02/−$0.23 (4h atr=14 mult=3.0, the best row) to
-−$0.13/−$1.27 (4h atr=10 mult=2.0, the worst row).
+**Verdict: decisive reject, 12/12 configs. No candidate, no code change. No
+3rd-window check triggered** — train pf never exceeds 0.668 anywhere in the
+sweep, so nothing clears the strict train>1.1 AND test>1.1 AND n>=30 AND
+condition. Two findings: (a) **3 of the 6 1h configs (all `vol_mult=2.0`
+rows) clear test pf>1.1** (1.098/1.482/1.149) **but every one pairs with a
+train pf of 0.47-0.66** — the identical test-clears/train-doesn't
+regime-luck shape documented for mean_reversion since before Run 16, now
+reproduced by a mechanically unrelated, candlestick-shape-based
+construction, one more data point that this shape is a property of the
+8-symbol/150d-60d/0d window structure rather than of any one signal family.
+(b) **4h is a clean, unambiguous reject at every config** (train pf
+0.089-0.336, test pf 0.038-0.861) — tightening `wick_ratio` at 4h collapses
+the sample below any usable size (n=4-14) while making both train and test
+pf *worse*, the opposite of what filtering toward "purer" capitulation
+candles should do if the pattern had real signal. **Closed — do not re-tune
+wick_ratio/vol_mult/exit_period on this construction; a 7th family would
+need a genuinely different signal source (not price shape, not price level,
+not volume, not cross-symbol — all four now tried).**
 
-**Verdict: decisive reject, 8/8 configs. No candidate, no code change. No
-3rd-window check triggered** — the best test PF in the whole sweep (0.769,
-4h atr=14 mult=3.0) comes with the worst train PF in the sweep (0.325), so
-there's no near-miss to check further. The two tightest-band 1h configs
-(mult=2.0) reach the closest-to-1.0 train PF anywhere in the sweep
-(1.020–1.027) but test PF on those same rows collapses to 0.673–0.676 — a
-train-side near-breakeven reading that does not generalize, the same
-train/test disconnect shape seen in every other closed family. Win rates
-are low throughout (15–34%), the signature of a trend-following flip
-getting whipsawed by chop between the (rare) real trend legs — mechanically
-the same failure mode Donchian breakout (Run 18) showed, now reproduced via
-a second, structurally different (ATR-adaptive band-flip vs fixed-lookback
-channel) trend-following construction. **Closed — do not re-tune
-atr_period/multiplier on this construction.** Combined with Donchian, this
-rules out both a fixed-lookback and a volatility-adaptive breakout signal on
-this 8-symbol universe at 1h/4h; the absence of edge looks structural to the
-instruments/fee level/TF range rather than to either channel construction.
+**Files:** `research/experiments/wick_reversal.py` (new),
+`research/experiments/dca_multiplier_sweep.py` (new). 15 entries appended to
+`research/decisions.jsonl` (213 → 228 lines). Log archived: Run 24-25 →
+`research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz` (active log
+was 43KB pre-archive; still ~45KB post-archive/post-this-run since two new
+DISTILLED LEARNINGS bullets were added — the accumulated-knowledge section
+now dominates the file's size, not the 2 run-sections it currently holds
+(Run 26, Run 27). Next run should consider archiving Run 26 as well if
+DISTILLED LEARNINGS keeps growing, even though that's fewer than the ~15-run
+guideline — the guideline assumes shorter per-run sections than this
+programme's have turned out to need).
 
-**Files:** `research/experiments/supertrend.py` (new). 8 entries appended to
-`research/decisions.jsonl` (199 → 207 lines pre-rotation).
-
----
-
-
-_Run 21-23 (2026-08-20 to 2026-08-21) are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+**No code change** — pure research, no auto-improve threshold was met. Both
+tests (DCA multiplier magnitude, wick reversal) closed as reject/noise; no
+deploy-worthy candidate found.
