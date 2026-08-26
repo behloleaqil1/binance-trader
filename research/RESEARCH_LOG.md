@@ -21,15 +21,16 @@ closed a 6th strategy family (Capitulation Wick Reversal, first
 candlestick-shape signal) and closed the last flagged-open DCA variant
 (dip_multiplier magnitude); Run 28 opened and closed a 5th signal-source
 category (UTC session-hour BUY gate — calendar-derived, not OHLCV-derived)
-on trend_momentum@1h and mean_reversion@1h; still no adopted change to
-shipped risk defaults.
+on trend_momentum@1h and mean_reversion@1h; Run 29 closed the day-of-week
+granularity within that same calendar/session-time category; still no
+adopted change to shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 28 sessions and ~283 configs.** trend_momentum,
+families, across 29 sessions and ~293 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
@@ -251,6 +252,42 @@ only the conclusions and why, not the blow-by-blow.**
   whichever regime the test window happens to be, it doesn't create edge.
   The mean_reversion EU-session near-miss is notable only as the closest a
   train-side signal has ever come for this base — still not real.
+
+- **Day-of-week BUY gate (Run 29, coarser granularity within the same
+  calendar/session-time category Run 28 opened)**: veto BUY unless the
+  candle's own UTC day-of-week is in an allowed set — weekdays Mon-Fri,
+  weekend Sat-Sun, early-week Mon-Wed, late-week Thu-Sun — swept on
+  trend_momentum@1h and mean_reversion@1h (+ baseline) = 10 configs, same
+  thin decide()-wrapping veto pattern as every prior gate, same standard
+  windows. **Decisive reject, 10/10, the same "looks good until the 3rd
+  window" shape one more time.** trend_momentum: 4/4 gated configs fail
+  outright or on undersized test samples (weekend Sat-Sun test n=30 exactly
+  at the floor and still PF 0.568; late-week Thu-Sun reaches the highest
+  train PF trend_momentum@1h has ever shown at this TF, 0.912, but test PF
+  collapses to 0.46 — train-improves/test-doesn't, the Run 15-style overfit
+  shape). mean_reversion produced this programme's **strongest-looking
+  double-clear yet**: late-week Thu-Sun cleared both sides on first look
+  (train PF 1.4/n=97, test PF 1.857/n=41, both comfortably over the bar with
+  adequate samples) — stronger on paper than Run 28's EU-session near-miss.
+  It still failed the 3rd non-overlapping OLDER window decisively (PF
+  0.255/n=104, every one of 8 symbols losing in that market-wide decline).
+  Two more mean_reversion configs (weekdays Mon-Fri, early-week Mon-Wed)
+  test-cleared/train-didn't and also failed their OLDER checks (PF 0.351 and
+  0.947). A fifth mean_reversion cell (weekend Sat-Sun) set a new
+  programme-wide record train PF of 4.18 (n=48, 83% win rate) but test n=17
+  is under the 30-trade floor — disqualified by sample size before any
+  cross-check was warranted. **Closed — do not re-tune weekday boundaries on
+  this mechanism.** Now even a genuine double-clear (train AND test both
+  comfortably over 1.1 with adequate samples, not just a near-miss) has
+  failed the 3rd-window check as decisively as every prior near-miss — the
+  strongest evidence yet that this programme's train/test window pair can
+  independently share a regime while a 3rd window doesn't, regardless of how
+  convincing the train+test agreement looks, for any construction tried so
+  far. The calendar/session-time category is now closed at both
+  granularities tried (hour-of-day, day-of-week); a materially different
+  calendar hypothesis (e.g. proximity to a known macro/crypto calendar
+  event) would be a new category, not a re-run of this one, and is likely
+  out of reach of `data-api.binance.vision`'s kline-only public data anyway.
 
 - **Cross-symbol relative-strength / rotation (Run 19, first non-price-
   derived-per-symbol data axis)**: rank the 8 symbols cross-sectionally by
@@ -487,12 +524,13 @@ rejection at every faster TF. **Closes the TF-range scope question for all
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 28):** the search has now
+**Where this research programme stands (as of Run 29):** the search has now
 been exhausted along *six orthogonal axes* — three levers plus three scope
 assumptions — and the **signal** axis spans six mechanically distinct
 strategy families across five broad signal-source categories (price-level/
 band, moving-average relationship, price *shape*, cross-symbol/volume, and
-now calendar/session-time).
+now calendar/session-time, itself now tested at both hour-of-day and
+day-of-week granularity).
 All three original candle-strategy families are closed across the full TF
 sweep; Donchian breakout (fixed-lookback channel), Supertrend (ATR-adaptive
 trailing band, Run 24), and Capitulation Wick Reversal (candlestick shape +
@@ -524,12 +562,22 @@ trend_momentum@1h and mean_reversion@1h, 10 configs — decisive reject, same
 mean_reversion session windows appeared to double-clear train+test, one
 even setting a new high-water mark for mean_reversion@1h train PF at 1.088,
 but both failed the OLDER non-overlapping window decisively with every
-symbol losing). **The only scope assumption left untested is long-only**
-(shorting is a larger architecture change, out of scope per the hard limits
-— cannot be tested without expanding scope beyond params/code tuning, not a
-param tune). **The honest recommendation remains that 28 runs and ~283
-configs spanning per-symbol signals (6 strategy families across 5 signal-
-source categories) across the full viable TF range on two disjoint 8-symbol
+symbol losing). **Run 29 closed the day-of-week granularity within the same
+calendar/session-time category**: 10 configs (weekdays/weekend/early-week/
+late-week x 2 bases + baseline) — decisive reject, 10/10, and this run
+produced the programme's **strongest-looking double-clear yet**
+(mean_reversion@1h late-week Thu-Sun: train PF 1.4/n=97, test PF 1.857/n=41,
+both comfortably over the bar on adequate samples) which still failed the
+3rd-window check as decisively as every prior near-miss (OLDER PF 0.255,
+every symbol losing) — the strongest evidence to date that a convincing
+train+test agreement in this methodology can still be two overlapping
+favorable regimes rather than real edge. **The only scope assumption left
+untested is long-only** (shorting is a larger architecture change, out of
+scope per the hard limits — cannot be tested without expanding scope beyond
+params/code tuning, not a param tune). **The honest recommendation remains
+that 29 runs and ~293 configs spanning per-symbol signals (6 strategy
+families across 5 signal-source categories, the calendar one now at 2
+granularities) across the full viable TF range on two disjoint 8-symbol
 universes, cross-symbol signals, confirmation gates, position sizing, exit
 mechanisms, trading-cost level, DCA parameter magnitude, and calendar/
 session-time gating, with zero surviving candidates, is itself the
@@ -538,10 +586,10 @@ should pick a genuinely new axis not listed above. Candidates: a 6th
 signal-source category would need a data source this codebase doesn't
 currently fetch (e.g. order-book/funding-rate data, likely out of reach via
 `data-api.binance.vision`'s public kline endpoints — check what's fetchable
-before committing to a design); alternatively, a day-of-week calendar
-variant (distinct from hour-of-day, same category but untested granularity)
-or combining two previously-closed single-axis levers (e.g. session-hour
-gate + relative-volume gate together) remain unexplored combinations.
+before committing to a design); combining two previously-closed single-axis
+levers (e.g. session-hour gate + relative-volume gate together) remains an
+unexplored combination, though the pattern strongly suggests it would
+inherit the same regime-luck failure mode rather than create new edge.
 Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
 positive result and needs no change.
 
@@ -761,3 +809,102 @@ own flagged next step (active log was 45KB pre-archive, over the 40KB
 threshold, with the accumulated DISTILLED LEARNINGS section now dominating
 size rather than the run-sections themselves — only Run 27 and this Run 28
 section remain in full).
+
+---
+
+## 2026-08-26 — Run 29
+
+**Self-correction check:** `git log a8df0ce..HEAD -- backend/` (a8df0ce = Run
+28's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 28. Nothing to re-validate or revert.
+
+**Region tested: day-of-week BUY gating — the coarser calendar granularity
+Run 28 explicitly flagged as untested.** Run 28 closed hour-of-day
+session gating (calendar/session-time, the 5th signal-source category);
+its closing note named day-of-week as a distinct, untested granularity
+within that same category rather than a new category. Implemented as a
+thin decide()-wrapping subclass of production `TrendMomentumStrategy` /
+`MeanReversionStrategy` (same "defer to parent, add one veto" pattern used
+for every prior gate) — BUY vetoed unless the entry candle's own UTC
+`open_time.dayofweek` (Mon=0..Sun=6) is inside a configured allowed set. No
+lookahead, no production code touched. Standard 150d-60d/60d-0d train/test
+windows, unmodified production `run_candle_backtest`, shipped-default entry
+params for both bases, 8-symbol universe, fees 7.5bps/slippage 4bps.
+
+**Implementation:** `research/experiments/day_of_week_gate.py` (new).
+
+**Swept 4 day-of-week windows + baseline (off) x 2 bases = 10 configs:**
+
+| base | window (UTC weekday) | train pf | train n | test pf | test n |
+|---|---|---|---|---|---|
+| trend_momentum@1h | baseline | 0.588 | 84 | 0.624 | 85 |
+| trend_momentum@1h | weekdays Mon-Fri | 0.512 | 64 | 0.856 | 64 |
+| trend_momentum@1h | weekend Sat-Sun | 0.511 | 39 | 0.568 | 30 |
+| trend_momentum@1h | early-week Mon-Wed | 0.623 | 59 | 1.180 | 46 |
+| trend_momentum@1h | late-week Thu-Sun | 0.912 | 72 | 0.460 | 49 |
+| mean_reversion@1h | baseline | 0.644 | 127 | 1.865 | 80 |
+| mean_reversion@1h | weekdays Mon-Fri | 0.483 | 117 | 1.400 | 65 |
+| mean_reversion@1h | weekend Sat-Sun | 4.180 | 48 | inf (0 losers) | 17 |
+| mean_reversion@1h | early-week Mon-Wed | 0.498 | 83 | 1.689 | 40 |
+| mean_reversion@1h | late-week Thu-Sun | 1.400 | 97 | 1.857 | 41 |
+
+**trend_momentum@1h: decisive reject, 4/4 gated configs.** weekend Sat-Sun
+sits exactly at the 30-trade floor (n=30) and still fails PF outright
+(0.568). late-week Thu-Sun reaches the highest train PF trend_momentum@1h
+has ever shown at this TF under any lever (0.912) but test PF collapses to
+0.46 — train-improves/test-collapses, the Run 15 volume-gate overfit shape,
+not the mean_reversion-style regime-luck shape. early-week Mon-Wed is a
+near-miss (test PF 1.18/n=46, train PF only 0.623) — checked below.
+
+**mean_reversion@1h: 3 of 4 gated windows appeared to clear or near-clear
+the OOS screen**, including this programme's **strongest double-clear to
+date** — late-week Thu-Sun (train PF 1.4/n=97 AND test PF 1.857/n=41, both
+comfortably over 1.1 on samples well above the floor, not a hedge-your-bets
+near-miss like every prior close call). Per the standing 3rd-window
+protocol for any config that clears or nearly clears both sides, all 4
+non-baseline mean_reversion configs plus trend_momentum's early-week
+near-miss were checked against the OLDER non-overlapping window
+(2025-12-29..2026-03-29):
+
+| base | window | OLDER pf | OLDER n |
+|---|---|---|---|
+| trend_momentum@1h | early-week Mon-Wed | 0.821 | 68 |
+| mean_reversion@1h | weekdays Mon-Fri | 0.351 | 110 |
+| mean_reversion@1h | early-week Mon-Wed | 0.947 | 84 |
+| mean_reversion@1h | late-week Thu-Sun | 0.255 | 104 |
+
+**All 4 fail decisively** (weekend Sat-Sun's own train PF 4.18/test n=17 was
+disqualified by the test sample size before any check was warranted — well
+under the 30-trade floor). The late-week Thu-Sun double-clear's OLDER
+per-symbol breakdown shows every one of the 8 symbols losing (PF 0.12-0.44,
+return -18% to -46%) — the same broad market-wide decline documented for
+Run 28's EU/US session OLDER checks, not a day-of-week mechanism. The
+weekdays and early-week near-misses show the identical pattern.
+
+**Verdict: decisive reject, 10/10 configs — closes the day-of-week
+granularity within the calendar/session-time axis.** The notable finding
+this run isn't a new axis, it's a sharper read on an old one: a genuine
+double-clear (both train and test comfortably over the bar on adequate
+samples, the strongest form of apparent evidence this methodology can
+produce short of a 3rd-window check) failed exactly as decisively as every
+prior near-miss once checked. That raises the bar for what "looks
+promising" should mean going forward — a double-clear alone, without the
+3rd-window check, would not have been distinguishable from real edge in
+this run's own results table.
+
+**Self-correction check (repeated for clarity):** no strategy/risk code
+changed since Run 28 — nothing to revalidate or revert.
+
+**No code change** — pure research, no auto-improve threshold was met.
+
+**Files:** `research/experiments/day_of_week_gate.py` (new). 10 entries
+appended to `research/decisions.jsonl` (238 → 248 lines, still under the
+250-entry rotation trigger). Log: active file is ~59KB post-this-run,
+further over the 40KB guideline, but per Run 27's precedent the bulk is the
+DISTILLED LEARNINGS section itself (which must stay, per the memory-
+management instructions) rather than run-sections — only 3 run-sections
+(27, 28, 29) currently sit in the active log, well under the ~15-run
+archival floor, so nothing was moved to `research/archive/` this run;
+revisit archiving once there are materially more than 15 open run-sections
+or DISTILLED LEARNINGS itself needs trimming (not yet — it is still purely
+additive, dense, decision-relevant content).
