@@ -19,15 +19,17 @@ closed the symbol-universe axis (disjoint 8-symbol test); Run 26 closed the
 1d-timeframe scope question for all 3 original families; Run 27 added and
 closed a 6th strategy family (Capitulation Wick Reversal, first
 candlestick-shape signal) and closed the last flagged-open DCA variant
-(dip_multiplier magnitude); still no adopted change to shipped risk
-defaults.
+(dip_multiplier magnitude); Run 28 opened and closed a 5th signal-source
+category (UTC session-hour BUY gate — calendar-derived, not OHLCV-derived)
+on trend_momentum@1h and mean_reversion@1h; still no adopted change to
+shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 27 sessions and ~273 configs.** trend_momentum,
+families, across 28 sessions and ~283 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
@@ -222,6 +224,33 @@ only the conclusions and why, not the blow-by-blow.**
   flat schedule already wins big on its own). Same anti-correlated-across-
   regimes signature as every non-signal lever since Run 21/22. **Keep
   shipped dip_multiplier=1.5x — closed, no DCA variants remain flagged.**
+
+- **UTC session-hour BUY gate (Run 28, 5th signal-source category)**: veto
+  BUY unless the candle's own UTC open_time falls inside a configured
+  session window — the first signal in this programme derived purely from
+  calendar time, not from OHLCV at all (distinct from price-level/band,
+  moving-average, price-shape, and cross-symbol/volume, the 4 categories
+  Run 27 closed out). Applied as a thin decide()-wrapping veto (same pattern
+  as the ADX/volume/MTF gates) to trend_momentum@1h and mean_reversion@1h,
+  swept 4 windows {Asia 00-08 UTC, EU 07-15 UTC, US 13-21 UTC, EU/US overlap
+  13-16 UTC} + baseline (off) x 2 bases = 10 configs. **Decisive reject,
+  same "looks good until the 3rd window" shape documented since Run 16**:
+  on trend_momentum@1h every gated window is flat-to-worse (best: US session
+  train PF 0.889/test PF 0.804, still <1.1) or a small-sample fluke (EU/US
+  overlap test PF 1.221 on n=9, an order of magnitude under the 30-trade
+  floor). On mean_reversion@1h, 2 of 4 windows (EU 07-15, US 13-21) appeared
+  to clear the OOS screen — EU session even paired it with train PF 1.088,
+  the **highest train-side PF ever recorded for mean_reversion@1h in this
+  programme** — but both failed the 3rd non-overlapping OLDER window
+  decisively (PF 0.157/n=75 and PF 0.313/n=113, both real samples), with
+  every one of 8 symbols losing in that window (a market-wide decline, not a
+  per-symbol session mechanism). **Closed — do not re-tune session
+  boundaries on this mechanism.** With this, the calendar/session-time axis
+  is exhausted the same way the 4 OHLCV-derived categories already were: a
+  new lever applied to a signal with no train-side edge just inherits
+  whichever regime the test window happens to be, it doesn't create edge.
+  The mean_reversion EU-session near-miss is notable only as the closest a
+  train-side signal has ever come for this base — still not real.
 
 - **Cross-symbol relative-strength / rotation (Run 19, first non-price-
   derived-per-symbol data axis)**: rank the 8 symbols cross-sectionally by
@@ -458,11 +487,12 @@ rejection at every faster TF. **Closes the TF-range scope question for all
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 27):** the search has now
+**Where this research programme stands (as of Run 28):** the search has now
 been exhausted along *six orthogonal axes* — three levers plus three scope
 assumptions — and the **signal** axis spans six mechanically distinct
-strategy families across four broad signal-source categories (price-level/
-band, moving-average relationship, price *shape*, and cross-symbol/volume).
+strategy families across five broad signal-source categories (price-level/
+band, moving-average relationship, price *shape*, cross-symbol/volume, and
+now calendar/session-time).
 All three original candle-strategy families are closed across the full TF
 sweep; Donchian breakout (fixed-lookback channel), Supertrend (ATR-adaptive
 trailing band, Run 24), and Capitulation Wick Reversal (candlestick shape +
@@ -487,95 +517,37 @@ entire originally-in-scope TF range (1m-1d) is exhausted. **Run 27 closed
 the last two open items**: the 6th strategy family (wick reversal, decisive
 12/12 reject, train PF never exceeds 0.668) and the last flagged DCA
 variant (dip_multiplier magnitude — real but trivial and regime-dependent
-effect, keep shipped 1.5x). **The only scope assumption left untested is
-long-only** (shorting is a larger architecture change, out of scope per the
-hard limits — cannot be tested without expanding scope beyond params/code
-tuning, not a param tune). **The honest recommendation remains that 27 runs
-and ~279 configs spanning per-symbol signals (6 families across 4 signal-
+effect, keep shipped 1.5x). **Run 28 opened and closed a 5th signal-source
+category, calendar/session-time**: a UTC session-hour BUY gate on
+trend_momentum@1h and mean_reversion@1h, 10 configs — decisive reject, same
+"looks good until the 3rd window" shape as every prior near-miss (2
+mean_reversion session windows appeared to double-clear train+test, one
+even setting a new high-water mark for mean_reversion@1h train PF at 1.088,
+but both failed the OLDER non-overlapping window decisively with every
+symbol losing). **The only scope assumption left untested is long-only**
+(shorting is a larger architecture change, out of scope per the hard limits
+— cannot be tested without expanding scope beyond params/code tuning, not a
+param tune). **The honest recommendation remains that 28 runs and ~283
+configs spanning per-symbol signals (6 strategy families across 5 signal-
 source categories) across the full viable TF range on two disjoint 8-symbol
 universes, cross-symbol signals, confirmation gates, position sizing, exit
-mechanisms, trading-cost level, and DCA parameter magnitude, with zero
-surviving candidates, is itself the finding.** No item remains flagged as
-open in this section — the next run should pick a genuinely new axis not
-listed above (the signal-source categories tried are price-level/band,
-moving-average, price-shape, and cross-symbol/volume; a candidate 5th
-category would need a data source this codebase doesn't currently fetch,
-e.g. order-book/funding-rate data, which may be out of reach via
+mechanisms, trading-cost level, DCA parameter magnitude, and calendar/
+session-time gating, with zero surviving candidates, is itself the
+finding.** No item remains flagged as open in this section — the next run
+should pick a genuinely new axis not listed above. Candidates: a 6th
+signal-source category would need a data source this codebase doesn't
+currently fetch (e.g. order-book/funding-rate data, likely out of reach via
 `data-api.binance.vision`'s public kline endpoints — check what's fetchable
-before committing to a design). Nothing here is deploy-worthy; the shipped
-DCA dip-buy remains the only positive result and needs no change.
+before committing to a design); alternatively, a day-of-week calendar
+variant (distinct from hour-of-day, same category but untested granularity)
+or combining two previously-closed single-axis levers (e.g. session-hour
+gate + relative-volume gate together) remain unexplored combinations.
+Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
+positive result and needs no change.
 
 ---
 
-_Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
-
-## 2026-08-25 — Run 26
-
-**Region: the 1d timeframe, all 3 original strategy families — the last
-item DISTILLED LEARNINGS had carried as explicitly flagged-but-untested
-since Run 12 closed the 5m-4h sweep.** Rather than leave the "likely to
-starve" prediction as an assumption, this run tested it directly: shipped-
-default params, standard 150d-60d/60d-0d train/test windows (+210d buffer
-for trend_momentum/mean_reversion indicator warmup; grid fetched unbuffered
-since it needs no indicator history), original 8-symbol universe,
-unmodified production `run_candle_backtest`/`run_grid_backtest`. No param
-search, no strategy code changes.
-
-**trend_momentum@1d**: train n=8, test n=4 — both catastrophically below
-the 30-trade anti-noise floor (only ~90/60 daily candles per symbol in each
-window, and an EMA20/50 cross is rare at daily granularity). Train PF 1.074
-looks near-breakeven but is meaningless at n=8 (per-symbol cells mostly 0-1
-trades, several inf/0.0 PFs from single-trade symbols); test PF 0.597
-equally meaningless at n=4. No 3rd-window check warranted — sample size
-alone disqualifies the read, not a PF verdict either way.
-
-**mean_reversion@1d**: even more starved — train n=9 (all 9 losing, PF
-0.0), **test n=0**: zero qualifying BB-touch+RSI-oversold entries across
-all 8 symbols in the entire 60-day held-out window. A strategy that
-generates no out-of-sample trades at all cannot be evaluated, let alone
-adopted.
-
-**grid@1d**: the one family NOT starved on trade count (205 train / 112
-test, comfortably above the 30-trade floor) — grid fires on price-level
-fills, not indicator events, so daily bars don't cost it entries the way
-they cost the other two. PF reads as `null`/100% win, the known
-`flatten_on_stop=True` accounting artifact documented since Run 8/13
-(always read account-level return in this mode, never trade-PF). That
-honest read: train avg return +0.571%, test avg return +0.3206% over
-~90/60 calendar days on $10k notional — both close to flat. This is a
-*different* failure mode than the faster-TF "bag-holds through trend"
-mechanism that rejected grid at 5m/15m/1h/4h: at 1d, the fixed 10%-range
-ladder just doesn't get enough oscillation within a handful of daily
-candles to either profit meaningfully or get run over decisively. Not a
-candidate either way.
-
-**Verdict: 0/3 configs clear the OOS bar, closing the TF-range scope
-question for all 3 original strategy families.** The starvation prediction
-made at Run 12 is now measured, not assumed: daily bars starve
-indicator-driven signals (trend_momentum, mean_reversion) on trade count
-before their PF can even be judged, while grid — a price-level-driven
-signal — survives the sample-size cut but has no economically meaningful
-account-level return at this granularity either. Combined with the earlier
-close of 1m (Run 6/7, catastrophic on the opposite end), the entire
-originally-in-scope TF range (1m through 1d) is now closed for all 3
-original families; only 5m-4h ever showed any near-misses, all of which
-were separately closed by Runs 1-20's per-TF sweeps.
-
-**Self-correction check**: no strategy/risk code has changed since Run 25
-— nothing to revalidate or revert.
-
-**No code change** — pure research, no auto-improve threshold was met.
-
-**Files:** `research/experiments/daily_timeframe.py` (new). 3 entries
-appended to `research/decisions.jsonl`. Log rotated: Run 21-23 →
-`research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz` (active log
-was 62KB, over the 40KB threshold; now ~43KB with all conclusions
-preserved in DISTILLED LEARNINGS below and in this run section — close to
-budget, next run should archive Run 24-25 as well).
-
----
-
-_Run 21-23 (2026-08-20 to 2026-08-21) are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 (2026-08-24) are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+_Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; Run 21-23 are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; Run 26 (1d-timeframe closure, folded into the intro paragraph and this note) is archived in `research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
 
 ## 2026-08-25 — Run 27
 
@@ -684,3 +656,108 @@ programme's have turned out to need).
 **No code change** — pure research, no auto-improve threshold was met. Both
 tests (DCA multiplier magnitude, wick reversal) closed as reject/noise; no
 deploy-worthy candidate found.
+
+---
+
+_Run 21-23 (2026-08-20 to 2026-08-21) are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 (2026-08-24) are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; Run 26 (2026-08-25) is archived in `research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
+
+## 2026-08-26 — Run 28
+
+**Self-correction check:** `git log 1f2c518..HEAD -- backend/` (1f2c518 =
+Run 27's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 27. Nothing to re-validate or revert.
+
+**Region tested: a genuinely new signal-source category — UTC session-hour
+BUY gating.** Per Run 27's explicit close-out note, all four previously
+tried signal-source categories (price-level/band, moving-average, price
+shape, cross-symbol/volume) are exhausted; a public-kline data source has
+no order-book/funding-rate fields to build a data-source-level 5th category
+from (confirmed by reading `app/backtest/data.py` — `fetch_klines` only
+ever calls `/api/v3/klines`, no other Binance public endpoint is wired up).
+The one axis genuinely untested and available from data already in hand:
+the candle's own UTC timestamp. Crypto trades 24/7, but liquidity and
+participation are known to cluster by session (Asia/EU/US); gating entries
+to a session window is mechanically distinct from every closed same-candle
+gate (ADX = trend strength, relative volume = participation magnitude, MTF
+direction = a coarser TF's own trend) because it reads no price or volume
+data at all.
+
+**Implementation** (`research/experiments/session_hour_gate.py`): thin
+decide()-wrapping subclasses of production `TrendMomentumStrategy` and
+`MeanReversionStrategy` (same "defer to parent, add one veto" pattern as
+Runs 11/15/16/17's gates) — BUY vetoed unless the entry candle's own
+`open_time` (UTC) falls inside a configured `[start_hour, end_hour)` half-
+open window. No lookahead (uses only the current candle's own timestamp),
+no production code touched. Standard 150d-60d/60d-0d train/test windows
+(2026-03-29..2026-06-27 / 2026-06-27..2026-08-26), unmodified production
+`run_candle_backtest`, shipped-default entry params for both bases, 8-symbol
+universe, fees 7.5bps/slippage 4bps.
+
+**Swept 4 session windows + baseline (off) x 2 bases = 10 configs:**
+
+| base | window (UTC) | train pf | train n | test pf | test n |
+|---|---|---|---|---|---|
+| trend_momentum@1h | baseline | 0.588 | 84 | 0.624 | 85 |
+| trend_momentum@1h | Asia 00-08 | 0.458 | 38 | 0.956 | 23 |
+| trend_momentum@1h | EU 07-15 | 0.592 | 48 | 0.595 | 29 |
+| trend_momentum@1h | US 13-21 | 0.889 | 51 | 0.804 | 46 |
+| trend_momentum@1h | EU/US 13-16 | 0.482 | 21 | 1.221 | 9 |
+| mean_reversion@1h | baseline | 0.644 | 127 | 1.865 | 80 |
+| mean_reversion@1h | Asia 00-08 | 0.528 | 69 | 0.797 | 24 |
+| mean_reversion@1h | EU 07-15 | 1.088 | 73 | 2.708 | 32 |
+| mean_reversion@1h | US 13-21 | 0.909 | 86 | 2.533 | 38 |
+| mean_reversion@1h | EU/US 13-16 | 0.724 | 65 | 0.938 | 21 |
+
+**trend_momentum@1h: decisive reject, 4/4 gated configs.** US session
+(13-21 UTC) reaches the highest train PF of the sweep (0.889, n=51 —
+notably better than the ungated baseline's 0.588) but test PF stays at
+0.804, still under the 1.1 bar; every other window either stays flat
+(EU 07-15) or clears test PF only on a starved sample (Asia n=23, EU/US
+overlap n=9, both below the 30-trade floor). No config crosses both bars
+with an adequate sample.
+
+**mean_reversion@1h: 2 of 4 gated windows (EU 07-15, US 13-21) appeared to
+clear the OOS screen on first look**, and EU 07-15 is notable — train PF
+1.088 (n=73) is the **highest train-side PF ever recorded for
+mean_reversion@1h anywhere in this programme's 28-run history** (every
+prior lever on this base topped out at ~0.925), paired with test PF 2.708
+(n=32). US 13-21 clears test PF 2.533 (n=38) but train PF stays at 0.909
+(a near-miss, not a double-clear). Per the standing 3rd-window protocol for
+any config that clears (or nearly clears) both sides, both were checked
+against the OLDER non-overlapping window (2025-12-29..2026-03-29):
+
+- **EU 07-15 OLDER: PF 0.157, n=75** (real sample) — decisive failure.
+  Per-symbol breakdown: all 8 symbols lose (PF 0.0-0.469, return -15% to
+  -30%) — that older window was a sharp market-wide decline, so "buy EU-
+  session dips" lost across the board regardless of session; it is not a
+  per-symbol session mechanism, it inherited a favorable regime in
+  train+test and an unfavorable one in the 3rd window, same as every prior
+  near-miss since Run 16.
+- **US 13-21 OLDER: PF 0.313, n=113** (real sample) — decisive failure,
+  same pattern: all 8 symbols lose (PF 0.012-0.599, return -12% to -43%).
+
+**Verdict: decisive reject, 10/10 configs — closes the calendar/session-time
+axis for this mechanism.** Both apparent mean_reversion near-misses
+(including the strongest train-side signal this base has ever produced)
+failed the 3rd-window check the same way every prior near-miss has since
+Run 16 — the "looks good until you check the window that wasn't cherry-
+picked by having also picked the entry signal" pattern is now reproduced by
+a 5th, mechanically unrelated construction (after MTF direction, rotation,
+and now session-time). Do not re-tune session boundaries on this base/
+gate combination; a materially different session hypothesis (e.g.
+day-of-week rather than hour-of-day) would be a new, untested granularity
+within the same category, not a re-run of this one.
+
+**Self-correction check (repeated for clarity):** no strategy/risk code
+changed since Run 27 — nothing to revalidate or revert.
+
+**No code change** — pure research, no auto-improve threshold was met.
+
+**Files:** `research/experiments/session_hour_gate.py` (new). 10 entries
+appended to `research/decisions.jsonl` (228 → 238 lines, still under the
+250-entry rotation trigger). Log: archived Run 26 into
+`research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz` per Run 27's
+own flagged next step (active log was 45KB pre-archive, over the 40KB
+threshold, with the accumulated DISTILLED LEARNINGS section now dominating
+size rather than the run-sections themselves — only Run 27 and this Run 28
+section remain in full).
