@@ -24,15 +24,23 @@ category (UTC session-hour BUY gate — calendar-derived, not OHLCV-derived)
 on trend_momentum@1h and mean_reversion@1h; Run 29 closed the day-of-week
 granularity within that same calendar/session-time category; Run 30 tested
 and closed the one remaining flagged combination — stacking two previously-
-closed single-axis gates (session-hour + relative-volume) together; still no
-adopted change to shipped risk defaults.
+closed single-axis gates (session-hour + relative-volume) together; Run 31
+confirmed Binance futures data (fapi.binance.com, needed for a funding-rate
+signal — the only other concretely-scoped new-signal candidate) is
+geo-restricted from this environment, closing that avenue definitively, then
+opened and closed a genuinely new axis — historical **era**, not just TF/
+param/gate — re-running the 3 original shipped-default strategies @1h on a
+fully disjoint 2023 window (every prior run used only the recent ~240-day
+2025-2026 span); still no adopted change to shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 30 sessions and ~305 configs.** trend_momentum,
+families, across 31 sessions and ~308 configs — now confirmed across two
+materially different historical eras (2025-2026 and, as of Run 31, a
+disjoint 2023 window), not just one regime.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
@@ -526,7 +534,7 @@ rejection at every faster TF. **Closes the TF-range scope question for all
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
 
-**Where this research programme stands (as of Run 29):** the search has now
+**Where this research programme stands (as of Run 31):** the search has now
 been exhausted along *six orthogonal axes* — three levers plus three scope
 assumptions — and the **signal** axis spans six mechanically distinct
 strategy families across five broad signal-source categories (price-level/
@@ -576,11 +584,14 @@ train+test agreement in this methodology can still be two overlapping
 favorable regimes rather than real edge. **The only scope assumption left
 untested is long-only** (shorting is a larger architecture change, out of
 scope per the hard limits — cannot be tested without expanding scope beyond
-params/code tuning, not a param tune). **The honest recommendation remains
-that 30 runs and ~305 configs spanning per-symbol signals (6 strategy
-families across 5 signal-source categories, the calendar one now at 2
-granularities) across the full viable TF range on two disjoint 8-symbol
-universes, cross-symbol signals, confirmation gates, position sizing, exit
+params/code tuning, not a param tune). Futures/funding-rate data (the one
+concretely-scoped new-signal-source candidate) is confirmed geo-restricted
+from this environment (Run 31) — not just untested but unreachable. **The
+honest recommendation remains that 31 runs and ~308 configs spanning
+per-symbol signals (6 strategy families across 5 signal-source categories,
+the calendar one now at 2 granularities) across the full viable TF range on
+two disjoint 8-symbol universes and now two disjoint historical eras (Run
+31), cross-symbol signals, confirmation gates, position sizing, exit
 mechanisms, trading-cost level, DCA parameter magnitude, calendar/
 session-time gating, and now a stacked combination of two closed gates,
 with zero surviving candidates, is itself the finding.**
@@ -624,6 +635,54 @@ with zero surviving candidates, is itself the finding.**
   concretely-scoped candidate remaining; absent that, the honest read is
   that this programme has exhausted what OHLCV-only signals on 8 major
   spot pairs can support.
+  Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
+  positive result and needs no change.
+
+- **Futures/funding-rate data feasibility check + historical-ERA axis (Run
+  31)**: Run 30 left exactly one concretely-scoped candidate open — a 6th
+  signal-source category would need order-book/funding-rate data, "likely
+  out of reach via `data-api.binance.vision`'s public kline endpoints —
+  check what's fetchable before committing to a design." This run checked:
+  `fapi.binance.com` (Binance's futures host, which serves funding-rate
+  history publicly with no API key) returns `"Service unavailable from a
+  restricted location"` from this execution environment for every futures
+  endpoint tried (`fundingRate`, `premiumIndex`); `data-api.binance.vision`
+  (the spot host this programme already uses) has no `/fapi` path at all
+  (404). **Confirmed infeasible, not a code issue — closes the 6th-category
+  question definitively; do not re-attempt fetching futures/funding data
+  from this environment.**
+  With no new signal source testable, this run opened a genuinely different
+  axis instead of re-tuning a closed one: **historical era**. Every one of
+  the prior 30 runs' train/test/OLDER windows was drawn from the same
+  recent ~240-day span (roughly Dec 2025 - Aug 2026) — the "no edge" verdict
+  has never been checked against a *different macro regime*. Re-ran the 3
+  original shipped-default strategies (trend_momentum, mean_reversion, grid)
+  @1h, unmodified production `run_candle_backtest`, on a fully disjoint 2023
+  window (train 2023-02-01..2023-07-01 150d, test 2023-07-01..2023-08-30
+  60d — post-2022-crash recovery/chop, a materially different volatility/
+  trend character than 2025-2026) = 3 configs. **Decisive reject, 3/3, no
+  near-misses so no 3rd-window check was warranted**: trend_momentum train
+  pf 0.879/test pf 0.756 (n=144/80); mean_reversion train pf 0.771/test pf
+  0.703 (n=222/119); grid train pf 0.738/test pf 0.986 (n=365/204, the
+  closest-to-bar result but still a decisive real-sample fail, not a
+  small-sample near-miss). Two things stand out: (1) **grid's 82-86% win
+  rate reproduces the exact "many small in-range wins, funded by a few huge
+  directional losses" accounting signature** documented since Run 8/13, with
+  BTC alone losing -111.8% notional-adjusted while several small-caps show
+  `inf` pf on win-only samples — the same failure mode, just different
+  symbols playing each role than in 2025-2026, confirming grid's
+  "directional bet in disguise" finding is regime-independent, not an
+  artifact of which coins happened to trend in the tested window. (2)
+  **mean_reversion@1h failed on *both* sides together for the first time
+  ever in this programme** (every prior 2025-2026 result showed the
+  regime-luck signature: test clears, train doesn't) — in 2023 neither side
+  clears, a structurally different failure shape but the same "no real
+  edge" conclusion. **Closed — do not re-test the 2023 window on these 3
+  families.** The generalization: the 30-run null is not an artifact of the
+  one recent market regime every prior run happened to sample from — it
+  reproduces cleanly in a materially different historical era too, which is
+  stronger evidence for "no exploitable edge in these simple OHLCV signals
+  on these 8 majors" than any single-era result could provide on its own.
   Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
   positive result and needs no change.
 
@@ -1044,3 +1103,79 @@ ran (260 → 120 active entries; 140 oldest archived to
 `research/archive/decisions-2026-08-10_to_2026-08-20.jsonl.gz`). Active
 `RESEARCH_LOG.md` run-section count is now 4 (27-30), still well under the
 ~15-run archival floor — no log archiving this run.
+
+---
+
+## 2026-08-27 — Run 31
+
+**Question:** Run 30 left exactly one concretely-scoped open item — check
+whether futures/funding-rate data is fetchable (the only remaining
+new-signal-source candidate) before designing around it — plus, absent that,
+find a genuinely new axis rather than re-tuning any of the 30 closed ones.
+
+**Part A — feasibility check.** `fapi.binance.com` (Binance's public futures
+host, needed for funding-rate history, no API key required in principle)
+returns `"Service unavailable from a restricted location according to 'b.
+Eligibility'..."` for every endpoint tried (`/fapi/v1/fundingRate`,
+`/fapi/v1/premiumIndex`) from this execution environment. `data-api.binance.
+vision` (the spot host this programme already uses) has no `/fapi` path
+(404). **Confirmed infeasible — not a code or design issue, a network/geo
+restriction on this environment. Closes the 6th-category question
+definitively; do not re-attempt.**
+
+**Part B — historical-era axis (new).** Every one of the 30 prior runs' train/
+test/OLDER windows came from the same ~240-day span (roughly Dec 2025-Aug
+2026). Re-ran the 3 original shipped-default strategies @1h — unmodified
+production `run_candle_backtest`, same 8-symbol universe, same 7.5bps/4bps
+fees — on a fully disjoint 2023 window (train 2023-02-01..2023-07-01, 150d;
+test 2023-07-01..2023-08-30, 60d) to check whether the "no edge" verdict is
+regime-specific or generalizes.
+
+| family | train pf | train n | test pf | test n |
+|---|---|---|---|---|
+| trend_momentum | 0.879 | 144 | 0.756 | 80 |
+| mean_reversion | 0.771 | 222 | 0.703 | 119 |
+| grid | 0.738 | 365 | 0.986 | 204 |
+
+**Decisive reject, 3/3** — nothing clears train AND test PF>1.1 together;
+grid's test pf=0.986 is the closest but on n=204 (well above the trade
+floor) it's a real near-flat result, not a small-sample near-miss, so no
+3rd-window cross-check was warranted for any row. Notable: grid reproduces
+its documented "many small in-range wins, funded by a few huge directional
+losses" signature (82-86% win rate, BTC alone -111.8% notional-adjusted)
+with *different* symbols playing each role than in 2025-2026 — same
+mechanism, different era, confirming it's regime-independent. mean_reversion
+failed on *both* sides together for the first time ever in this programme
+(every 2025-2026 result showed test-clears/train-doesn't regime luck
+instead) — a different failure shape, same "no edge" conclusion.
+
+**$ impact (test window, both null):** trend_momentum ret -0.0413% ($100 →
+-$0.04, $1000 → -$0.41); mean_reversion ret -0.0842% ($100 → -$0.08, $1000 →
+-$0.84); grid ret -0.0071% ($100 → -$0.01, $1000 → -$0.07). All economically
+negligible-to-negative, consistent with every prior null.
+
+**Self-correction check:** no strategy/risk code changed since Run 30 —
+nothing to revalidate or revert.
+
+**No code change** — pure research; feasibility findings and a new external-
+validity axis, no auto-improve threshold was met (nothing cleared the bar in
+either era).
+
+**Verdict:** the 30-run null is not an artifact of the one recent market
+regime every prior run sampled — it reproduces cleanly in a materially
+different historical era too. Combined with the confirmed infeasibility of
+futures/funding data, this programme has now exhausted every concretely-
+scoped axis: signal source (6 families/5 categories), TF (1m-1d), symbol
+universe (2 disjoint 8-symbol sets), historical era (2 disjoint multi-month
+windows), position sizing, exit mechanism, cost level, and gate combinations.
+The one remaining untested scope item (long-only vs. shorting) requires an
+architecture change, not a param tune, and is out of scope. Honest read:
+absent a new data source this environment can actually reach, further runs
+should default to periodic self-correction (revalidating the shipped DCA
+dip-buy against rolling-forward windows as real time passes) rather than
+inventing further recombinations of already-closed axes.
+
+**Files:** `research/experiments/historical_era_2023.py` (new). 3 entries
+appended to `research/decisions.jsonl` (123 active, no rotation triggered).
+Active `RESEARCH_LOG.md` run-section count is now 5 (27-31), still well
+under the ~15-run archival floor — no log archiving this run.
