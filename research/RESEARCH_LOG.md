@@ -22,7 +22,9 @@ candlestick-shape signal) and closed the last flagged-open DCA variant
 (dip_multiplier magnitude); Run 28 opened and closed a 5th signal-source
 category (UTC session-hour BUY gate — calendar-derived, not OHLCV-derived)
 on trend_momentum@1h and mean_reversion@1h; Run 29 closed the day-of-week
-granularity within that same calendar/session-time category; still no
+granularity within that same calendar/session-time category; Run 30 tested
+and closed the one remaining flagged combination — stacking two previously-
+closed single-axis gates (session-hour + relative-volume) together; still no
 adopted change to shipped risk defaults.
 
 ---
@@ -30,7 +32,7 @@ adopted change to shipped risk defaults.
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 29 sessions and ~293 configs.** trend_momentum,
+families, across 30 sessions and ~305 configs.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
@@ -575,23 +577,55 @@ favorable regimes rather than real edge. **The only scope assumption left
 untested is long-only** (shorting is a larger architecture change, out of
 scope per the hard limits — cannot be tested without expanding scope beyond
 params/code tuning, not a param tune). **The honest recommendation remains
-that 29 runs and ~293 configs spanning per-symbol signals (6 strategy
+that 30 runs and ~305 configs spanning per-symbol signals (6 strategy
 families across 5 signal-source categories, the calendar one now at 2
 granularities) across the full viable TF range on two disjoint 8-symbol
 universes, cross-symbol signals, confirmation gates, position sizing, exit
-mechanisms, trading-cost level, DCA parameter magnitude, and calendar/
-session-time gating, with zero surviving candidates, is itself the
-finding.** No item remains flagged as open in this section — the next run
-should pick a genuinely new axis not listed above. Candidates: a 6th
-signal-source category would need a data source this codebase doesn't
-currently fetch (e.g. order-book/funding-rate data, likely out of reach via
-`data-api.binance.vision`'s public kline endpoints — check what's fetchable
-before committing to a design); combining two previously-closed single-axis
-levers (e.g. session-hour gate + relative-volume gate together) remains an
-unexplored combination, though the pattern strongly suggests it would
-inherit the same regime-luck failure mode rather than create new edge.
-Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
-positive result and needs no change.
+mechanisms, trading-cost level, DCA parameter magnitude, calendar/
+session-time gating, and now a stacked combination of two closed gates,
+with zero surviving candidates, is itself the finding.**
+
+- **Session-hour + relative-volume combo gate (Run 30, tests the one
+  remaining flagged combination)**: stacks Run 28's UTC session-hour BUY
+  veto and Run 15's relative-volume BUY veto as two independent conditions
+  (both must pass) on the same trend_momentum@1h/mean_reversion@1h bases,
+  using each base's own best single-gate session window (trend_momentum:
+  US 13-21 UTC; mean_reversion: EU 07-15 UTC, Run 28's highest-ever
+  train-PF window for this base) x 2 volume thresholds {1.2, 1.5} = 6
+  configs per base. **Decisive reject, 12/12 — confirms the prediction
+  flagged at the end of Run 29 rather than overturning it.** On
+  trend_momentum@1h, stacking the two vetoes only shrinks the sample
+  (n=26/17 and n=16/15 vs 53/44 and 39/29 for the single-axis gates,
+  both combos far under the 30-trade floor) without any PF improvement —
+  the combo's test PF (0.711, 0.753) is worse than either single-axis
+  gate on its own. On mean_reversion@1h, both combo configs produced this
+  programme's **strongest-looking double-clears yet on paper**
+  (EU+vol=1.2: train PF 1.177/n=67, test PF 3.403/n=33; EU+vol=1.2's train
+  PF is the highest ever recorded for this base+construction) — but the
+  standard 3rd-window check (2025-12-30..2026-03-30) shows both **fail
+  more decisively than either single-axis component alone**: combo OLDER
+  PF 0.117 and 0.088, both *worse* than the EU-session-alone OLDER PF
+  (0.157) or the volume-alone OLDER PF (0.365-0.374). Per-symbol
+  breakdowns in the OLDER window show 6 of 8 symbols at PF 0.0-0.28 in
+  every combo cell, the same market-wide-decline signature documented
+  since Run 16. **The mechanism-level generalization: stacking two gates
+  that each individually inherit regime luck compounds the luck rather
+  than filtering toward real edge** — a double-veto only survives the
+  train+test pair if both vetoes happen to agree on which trades belong to
+  the favorable regime, which is exactly what a 3rd non-overlapping window
+  cannot confirm. **Closed — do not test further combinations of any two
+  gates already individually closed in this programme**; a materially new
+  single signal source (not a re-combination of existing ones) is needed
+  to reopen this line. No item remains flagged as open. A 6th signal-source
+  category would need a data source this codebase doesn't currently fetch
+  (e.g. order-book/funding-rate data, likely out of reach via
+  `data-api.binance.vision`'s public kline endpoints — check what's
+  fetchable before committing to a design) — this is now the only
+  concretely-scoped candidate remaining; absent that, the honest read is
+  that this programme has exhausted what OHLCV-only signals on 8 major
+  spot pairs can support.
+  Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
+  positive result and needs no change.
 
 ---
 
@@ -908,3 +942,105 @@ archival floor, so nothing was moved to `research/archive/` this run;
 revisit archiving once there are materially more than 15 open run-sections
 or DISTILLED LEARNINGS itself needs trimming (not yet — it is still purely
 additive, dense, decision-relevant content).
+
+## 2026-08-27 — Run 30
+
+**Self-correction check:** `git log e9881c8..HEAD -- backend/` (e9881c8 =
+Run 29's commit, current HEAD before this run's own commit) is empty — no
+commits touched `backend/` since Run 29. Nothing to re-validate or revert.
+
+**Region tested: the one remaining flagged combination — stacking two
+previously-closed single-axis BUY gates together.** DISTILLED LEARNINGS'
+own closing note on Run 29 named this as the one unexplored combination
+(alongside a 6th signal-source category needing data this codebase can't
+fetch), while predicting it likely inherits the same regime-luck failure
+rather than creating new edge. This run tests that prediction directly:
+does requiring BOTH real participation (Run 15's relative-volume gate) AND
+a favorable session window (Run 28's session-hour gate, each base's own
+best single-gate window) survive where neither did alone?
+
+**Implementation:** `research/experiments/session_volume_combo_gate.py`
+(new) — thin subclasses of production `TrendMomentumStrategy` /
+`MeanReversionStrategy`, `decide()` defers entirely to the parent and adds
+up to two vetoes on BUY (session window, then relative volume — both must
+pass), the same "defer to parent, add vetoes" pattern as every prior gate.
+No production code touched. Standard 150d-60d/60d-0d train/test windows
+(anchored to today, 2026-08-27), unmodified production
+`run_candle_backtest`, shipped-default entry params for both bases,
+8-symbol universe, fees 7.5bps/slippage 4bps.
+
+**Swept baseline + 2 single-axis references + 2 combo thresholds, x 2
+bases = 12 configs:**
+
+| base | variant | train pf | train n | test pf | test n |
+|---|---|---|---|---|---|
+| trend_momentum@1h | baseline | 0.579 | 86 | 0.705 | 81 |
+| trend_momentum@1h | session-only US 13-21 | 0.859 | 53 | 0.853 | 44 |
+| trend_momentum@1h | volume-only vol=1.2 | 0.936 | 62 | 1.045 | 34 |
+| trend_momentum@1h | volume-only vol=1.5 | 1.100 | 39 | 1.122 | 29 |
+| trend_momentum@1h | combo US+vol=1.2 | 0.579 | 26 | 0.711 | 17 |
+| trend_momentum@1h | combo US+vol=1.5 | 0.525 | 16 | 0.753 | 15 |
+| mean_reversion@1h | baseline | 0.622 | 123 | 1.944 | 82 |
+| mean_reversion@1h | session-only EU 07-15 | 1.112 | 72 | 3.101 | 33 |
+| mean_reversion@1h | volume-only vol=1.2 | 0.526 | 121 | 2.174 | 75 |
+| mean_reversion@1h | volume-only vol=1.5 | 0.679 | 127 | 2.058 | 68 |
+| mean_reversion@1h | combo EU+vol=1.2 | 1.177 | 67 | 3.403 | 33 |
+| mean_reversion@1h | combo EU+vol=1.5 | 1.267 | 67 | 2.758 | 30 |
+
+**trend_momentum@1h: decisive reject, both combo configs.** Stacking the
+two vetoes only shrinks the sample (combo n=26/17 and n=16/15, both far
+under the 30-trade floor, vs 53/44 and 39/29 for the single-axis gates
+alone) while making test PF *worse* than either single-axis gate on its
+own (0.711/0.753 vs session-alone's 0.853 and volume-alone's 1.045/1.122).
+No ambiguity — the two filters remove different, apparently uncorrelated
+subsets of trades, and intersecting them just starves the sample.
+
+**mean_reversion@1h: both combo configs produced this programme's
+strongest-looking double-clears yet on paper.** EU session + vol=1.2:
+train PF 1.177/n=67 (the highest train PF ever recorded for this
+base+construction) AND test PF 3.403/n=33, both comfortably over 1.1 on
+adequate samples. EU session + vol=1.5: train PF 1.267/n=67, test PF
+2.758/n=30 (exactly at the floor). Per the standing 3rd-window protocol
+for any double-clear, both combo configs plus their 2 single-axis
+components (volume-only, first time tested on this base) were checked
+against the OLDER non-overlapping window (2025-12-30..2026-03-30):
+
+| base | variant | OLDER pf | OLDER n |
+|---|---|---|---|
+| mean_reversion@1h | baseline | 0.340 | 125 |
+| mean_reversion@1h | session-only EU 07-15 | 0.157 | 75 |
+| mean_reversion@1h | volume-only vol=1.2 | 0.374 | 129 |
+| mean_reversion@1h | volume-only vol=1.5 | 0.365 | 125 |
+| mean_reversion@1h | combo EU+vol=1.2 | 0.117 | 71 |
+| mean_reversion@1h | combo EU+vol=1.5 | 0.088 | 66 |
+
+**All 6 fail decisively, and — the notable new finding — both combo
+configs fail *more* decisively than either single-axis component alone**
+(combo OLDER PF 0.117/0.088 vs session-alone's 0.157 and volume-alone's
+0.365-0.374). Per-symbol OLDER breakdown for both combo cells shows 6 of 8
+symbols at PF 0.0-0.28 (BTC/ETH/SOL/XRP/DOGE/ADA), the same market-wide-
+decline signature documented since Run 16 — not a per-symbol mechanism.
+
+**Verdict: decisive reject, 12/12 configs — closes the gate-combination
+axis.** The mechanism-level generalization: stacking two gates that each
+individually inherit regime luck compounds the luck rather than filtering
+toward real edge — a double-veto only looks like it "confirms" edge in
+train+test if both vetoes happen to agree on which trades belong to that
+pair's shared favorable regime, which a 3rd non-overlapping window
+reliably exposes as coincidence, not signal. This directly confirms (does
+not overturn) the prediction flagged at the end of Run 29. **Closed — do
+not test further two-gate combinations from the existing closed set** (a
+materially new single signal source, not a re-combination of existing
+ones, would be needed to reopen this line).
+
+**Self-correction check (repeated for clarity):** no strategy/risk code
+changed since Run 29 — nothing to revalidate or revert.
+
+**No code change** — pure research, no auto-improve threshold was met.
+
+**Files:** `research/experiments/session_volume_combo_gate.py` (new). 12
+entries appended to `research/decisions.jsonl`, then `rotate_archive.py`
+ran (260 → 120 active entries; 140 oldest archived to
+`research/archive/decisions-2026-08-10_to_2026-08-20.jsonl.gz`). Active
+`RESEARCH_LOG.md` run-section count is now 4 (27-30), still well under the
+~15-run archival floor — no log archiving this run.
