@@ -35,22 +35,28 @@ fully disjoint 2023 window (every prior run used only the recent ~240-day
 switched to the self-correction protocol Run 31 recommended, re-validating
 the shipped DCA dip-buy default against today's rolling-forward windows and
 reproducing the same small, regime-dependent effect on record since Run 4;
-still no adopted change to shipped risk defaults.
+Run 33 added a 7th strategy family (BB-width volatility-squeeze breakout —
+compression-then-expansion, mechanically distinct from every prior family)
+and closed it, the first case of both TEST and a 3rd non-overlapping window
+clearing the numeric bar together while TRAIN decisively failed, resolved as
+noise via per-symbol breakdown; still no adopted change to shipped risk
+defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 31 sessions and ~308 configs — now confirmed across two
+families, across 33 sessions and ~320 configs — now confirmed across two
 materially different historical eras (2025-2026 and, as of Run 31, a
 disjoint 2023 window), not just one regime.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
-and Capitulation Wick Reversal (3 mechanically distinct trend/breakout/
-pattern families) are also closed. Honest baseline: simple RSI/BB/EMA/grid/
-ATR-band/candlestick-shape signals on these 8 majors appear over-arbitraged;
+Capitulation Wick Reversal, and BB-width squeeze breakout (4 mechanically
+distinct trend/breakout/pattern/volatility-regime families) are also closed.
+Honest baseline: simple RSI/BB/EMA/grid/ATR-band/candlestick-shape/
+volatility-compression signals on these 8 majors appear over-arbitraged;
 fees turn near-breakeven setups negative. The one asymmetric,
 mechanically-explicable (not curve-fit) positive finding so far is DCA's
 dip-buy feature — already shipped as the default, not a new change. **Full
@@ -226,6 +232,42 @@ only the conclusions and why, not the blow-by-blow.**
   categories tried in this programme (price level/band, price shape,
   volume/cross-symbol) are now exhausted for the 8-symbol/1h-4h scope; a 7th
   family would need a genuinely different signal source entirely.
+
+- **BB-width volatility-squeeze breakout (Run 33, 7th strategy family, first
+  volatility-CONTRACTION-as-precondition construction)**: BB width
+  ((upper-lower)/middle) tracked in its own rolling percentile; require a
+  "squeeze" (width in its own bottom squeeze_pct%) within the last 3 candles
+  before taking a close-above-upper-band breakout — mechanically distinct
+  from Donchian's fixed-channel breakout (no volatility precondition at all)
+  and from Supertrend's ATR-band flip (adapts band width to volatility but
+  never requires *contraction* specifically). Exit on close back below the
+  middle band. Swept squeeze_pct {10,20,30} x require_squeeze {True,False} @
+  1h/4h = 12 configs. **1h: decisive reject, no 3rd-window check warranted**
+  (train PF 0.47-0.69, test PF 0.65-0.99, nothing near the bar). **4h:
+  produced this programme's first case of TEST and a 3rd non-overlapping
+  OLDER window BOTH clearing the numeric bar together** (squeeze_pct=20:
+  test PF 1.144/n=40, OLDER PF 1.442/n=63; squeeze_pct=30: test PF 1.376/
+  n=48, OLDER PF 1.246/n=68) **while TRAIN — chronologically BETWEEN
+  the two passing windows — decisively failed** (PF 0.32-0.50, 7-8 of 8
+  symbols losing, several 0.0-PF all-losing symbol samples: a real,
+  broad-based failure, not noise itself). Resolved as **noise, not
+  adopted**, by per-symbol breakdown: each symbol contributes only 3-18
+  trades per window in TEST/OLDER, with roughly half the symbols losing and
+  a handful of high-PF winners (SOL, XRP, DOGE) driving the aggregate in
+  both windows — the same single-symbol/small-per-symbol-sample pattern
+  disqualifying since Run 16/19, just spread across 2 lucky windows instead
+  of 1. The require_squeeze=False control (plain BB upper-band breakout, no
+  squeeze precondition — isolates the squeeze's marginal value) fails the
+  OLDER check outright (1.078, just under 1.1), showing the squeeze
+  precondition adds nothing measurable either way. Same underlying read as
+  Donchian/Supertrend: a trend-following breakout construction that does
+  well when a window happens to contain real trend legs and gets whipsawed
+  when it doesn't — which window is favorable is regime luck, not a
+  property of the squeeze mechanism. **Closed — do not re-tune
+  squeeze_pct/squeeze_lookback/squeeze_recency/bb_std on this construction.**
+  With this, 4 mechanically distinct trend/breakout constructions (EMA-cross,
+  Donchian, Supertrend, BB-squeeze) have now all failed the same way at
+  1h/4h on these 8 majors.
 
 - **DCA dip_multiplier magnitude (Run 27, closes the last flagged-open DCA
   variant)**: dip_multiplier in {1.5 (shipped), 1.75, 2.0, 2.5} at the
@@ -1274,3 +1316,100 @@ entry appended to `research/decisions.jsonl` (124 active, no rotation
 triggered — `rotate_archive.py` run, threshold is 250). Active
 `RESEARCH_LOG.md` run-section count is now 6 (27-32), still well under the
 ~15-run archival floor — no log archiving this run.
+
+---
+
+## 2026-08-28 — Run 33
+
+**Question:** Runs 31/32 concluded every concretely-scoped axis (signal
+source: 6 families/5 categories; TF 1m-1d; symbol universe; historical era;
+position sizing; exit mechanism; cost level; gate combinations) was
+exhausted and defaulted to periodic DCA self-correction. Run 32's self-
+correction check landed on today's date (2026-08-28) as its test-window
+anchor, so re-running it this session would add <12h of new data — not a
+materially new region. Instead this run opens a genuinely new strategy
+construction not covered by any prior family: BB-width volatility-squeeze
+breakout (see `research/experiments/bb_squeeze_breakout.py`) — require a
+recent volatility contraction (BB width in its own low percentile) before
+taking a close-above-upper-band breakout. Mechanically distinct from
+Donchian (fixed channel, no volatility precondition) and Supertrend
+(ATR-adaptive band, no contraction requirement) — the first construction in
+this programme where the entry signal is conditioned on the *shape of the
+volatility regime itself*, not just price/volume/calendar.
+
+**Method.** Same 8-symbol universe, same train/test/older window anchors as
+Run 32 (train 2026-03-31..2026-06-29, test 2026-06-29..2026-08-28, older
+2025-12-31..2026-03-31), 7.5bps fees/4bps slippage, unchanged exchange SL/TP.
+Swept squeeze_pct {10,20,30} (percentile threshold defining a "squeeze") x
+require_squeeze {True, False — the latter a plain-breakout control isolating
+the squeeze precondition's marginal value} @ 1h and 4h = 12 configs.
+
+**Result — 1h: decisive reject, no 3rd-window check warranted.** Every 1h
+config fails outright: train PF 0.472-0.691, test PF 0.650-0.986, nothing
+within reach of the 1.1 bar on either side.
+
+**Result — 4h: the programme's first "TEST + OLDER both clear, TRAIN
+decisively fails" shape.** squeeze_pct=20 (require_squeeze=True): test PF
+1.144/n=40, train PF 0.501/n=53. squeeze_pct=30: test PF 1.376-1.438/n=48,
+train PF 0.323/n=50. squeeze_pct=10 nominally clears (test PF 1.381) but
+n=27 is under the 30-trade floor — disqualified by sample size alone.
+Checked the two adequate-sample near-misses (squeeze_pct=20, 30) against the
+OLDER non-overlapping window: **both ALSO clear** (OLDER PF 1.442/n=63 and
+1.246/n=68) — every prior near-miss in this programme's history has failed
+its 3rd-window check; this is the first to pass it on the aggregate numbers.
+The require_squeeze=False control (plain BB breakout, no squeeze
+precondition) does NOT pass: OLDER PF 1.078/n=113, just under 1.1.
+
+Per-symbol breakdown resolves the squeeze_pct=20/30 near-misses as noise
+despite passing the aggregate bars twice: TRAIN's failure is broad and real
+(7-8 of 8 symbols losing, several 0.0-PF all-losing symbol samples — not a
+small-sample artifact), while TEST and OLDER's passes are each built from
+only 3-18 trades per symbol, with roughly half the symbols losing in both
+windows and a handful of high-PF winners (SOL, XRP, DOGE) driving the
+aggregate. This is the same single-symbol/small-per-symbol-sample
+disqualifier documented since Run 16 (MTF gate) and Run 19 (rotation) — it
+just happened to land in both flanking windows simultaneously here instead
+of one, which is why it cleared the "3rd window" check that was designed to
+catch single-window luck. **Read:** BB-squeeze breakout is still a
+trend-following breakout construction (same family as Donchian/Supertrend)
+— it profits when a window happens to contain real trend legs (TEST, OLDER
+here) and gets whipsawed in choppier stretches (TRAIN here, decisively);
+which window is favorable is regime luck, not evidence the squeeze
+precondition adds real signal.
+
+**Decision: closed, noise — not adopted.** Do not re-tune
+squeeze_pct/squeeze_lookback/squeeze_recency/bb_std on this construction.
+
+**$ impact (test window, all noise/reject):** 1h configs range -0.077% to
+-0.003% ret ($100 → -$0.08 to -$0.00, $1000 → -$0.77 to -$0.03). 4h
+near-miss configs (squeeze_pct=20/30, before being resolved as noise) showed
+test ret +0.013% to +0.044% ($100 → +$0.01 to +$0.04, $1000 → +$0.13 to
++$0.44) — economically negligible even taken at face value, and not adopted
+given the per-symbol resolution above.
+
+**Self-correction check:** no strategy/risk code has changed since Run 32 —
+nothing to revalidate or revert.
+
+**No code change** — pure research; a new signal-source construction tested
+and closed, no auto-improve threshold was met.
+
+**Going forward:** the trend-following-breakout construction (fixed channel
+Donchian, ATR-band Supertrend, volatility-squeeze BB) is now closed across
+3 mechanically distinct implementations — do not add a 4th variant of "buy
+the breakout, whatever gates the entry" without a fundamentally different
+hypothesis for why these 8 majors at 1h/4h would sustain enough clean trend
+legs to pay for the false-breakout rate net of fees. Absent a new
+concretely-scoped axis, future runs should keep defaulting to the Run
+31/32 self-correction protocol (DCA dip-buy re-check on rolling-forward
+windows) once a full day+ of new data has accumulated since the last check,
+or open a new signal-source hypothesis distinct from all 7 families/5
+categories tried so far (candidates not yet tried: order-book/liquidity-
+derived signals — out of reach of kline-only public data; a genuinely new
+oscillator-divergence construction, e.g. price-vs-RSI divergence rather than
+RSI threshold, not yet tested in this programme).
+
+**Files:** `research/experiments/bb_squeeze_breakout.py` (new). 12 entries
+appended to `research/decisions.jsonl` (136 active, no rotation triggered —
+`rotate_archive.py` run, threshold is 250). Active `RESEARCH_LOG.md`
+run-section count is now 7 (27-33), still well under the ~15-run archival
+floor — no log archiving this run.
