@@ -31,7 +31,11 @@ geo-restricted from this environment, closing that avenue definitively, then
 opened and closed a genuinely new axis — historical **era**, not just TF/
 param/gate — re-running the 3 original shipped-default strategies @1h on a
 fully disjoint 2023 window (every prior run used only the recent ~240-day
-2025-2026 span); still no adopted change to shipped risk defaults.
+2025-2026 span); with every concretely-scoped axis now exhausted, Run 32
+switched to the self-correction protocol Run 31 recommended, re-validating
+the shipped DCA dip-buy default against today's rolling-forward windows and
+reproducing the same small, regime-dependent effect on record since Run 4;
+still no adopted change to shipped risk defaults.
 
 ---
 
@@ -686,6 +690,27 @@ with zero surviving candidates, is itself the finding.**
   Nothing here is deploy-worthy; the shipped DCA dip-buy remains the only
   positive result and needs no change.
 
+- **DCA dip-buy self-correction check (Run 32)**: with every concretely-
+  scoped axis exhausted per Run 31's verdict, this run followed Run 31's own
+  recommendation instead of inventing a new recombination — re-validated the
+  shipped DCA dip-buy default (dip_threshold_pct=5.0, dip_multiplier=1.5)
+  against today's rolling windows (older/train/test all shifted one day
+  forward of Run 27's last check), dip-buy ON vs OFF, same capital-
+  normalized ROI methodology as Run 4/14/27. **Reproduces the exact
+  regime-dependent signature on record since Run 4/27, unchanged**: dip-buy
+  ON beats OFF in both declining windows (older delta +0.1665pp, 7/8
+  symbols; train delta +0.1235pp, 6/8 symbols) but trails OFF in the
+  strongly-rising test window (delta -0.0476pp, only 1/8 symbols better,
+  dip mechanism barely fires — 4 dip-buys across 8 symbols in 60 days of a
+  strong uptrend). Effect magnitude stays under 0.2pp either direction, same
+  order of magnitude as every prior check; no degradation, no new evidence
+  for a change. **Keep shipped defaults as-is — no code change.** This
+  establishes the going-forward protocol for future runs absent a new
+  concretely-scoped axis: periodic self-correction on the one standing
+  positive finding (DCA dip-buy) via this same script
+  (`research/experiments/dca_self_correction_run32.py`, or a copy with
+  updated window dates), not re-tuning any of the 30+ closed levers.
+
 ---
 
 _Older run sections (Run 1-5, and the 2026-08-10 prior-session human-seeded notes) are archived in `research/archive/log-2026-08-10_to_2026-08-12.md.gz`; Run 6-9 are archived in `research/archive/log-2026-08-13_to_2026-08-14.md.gz`; Run 21-23 are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; Run 26 (1d-timeframe closure, folded into the intro paragraph and this note) is archived in `research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
@@ -1179,3 +1204,73 @@ inventing further recombinations of already-closed axes.
 appended to `research/decisions.jsonl` (123 active, no rotation triggered).
 Active `RESEARCH_LOG.md` run-section count is now 5 (27-31), still well
 under the ~15-run archival floor — no log archiving this run.
+
+---
+
+## 2026-08-28 — Run 32
+
+**Question:** Run 31 concluded that every concretely-scoped axis in this
+programme is now exhausted (signal source: 6 families/5 categories; TF
+1m-1d; symbol universe: 2 disjoint 8-symbol sets; historical era: 2 disjoint
+multi-month windows; position sizing; exit mechanism; cost level; gate
+combinations) and recommended defaulting to periodic self-correction —
+revalidating the shipped DCA dip-buy default against rolling-forward windows
+as real time passes — rather than inventing further recombinations of
+already-closed axes. This run follows that recommendation.
+
+**Method.** Re-ran the Run 4/27 DCA evaluation methodology (capital-
+normalized ROI = unrealized_pnl / invested; DCA has no round-trip trades so
+PF doesn't apply) with dip-buy ON (shipped: dip_threshold_pct=5.0,
+dip_multiplier=1.5) vs dip-buy OFF, on today's rolling windows — one day
+forward of Run 27's last check: older 2025-12-31..2026-03-31, train
+2026-03-31..2026-06-29 (150d-60d ago), test 2026-06-29..2026-08-28 (60d-0d
+ago). Same 8-symbol universe, 1h timeframe, 7.5bps/4bps fees.
+
+| window | dip ON avg ROI% | dip OFF avg ROI% | delta (pp) | symbols dip-ON wins |
+|---|---|---|---|---|
+| older | -14.4272 | -14.5937 | +0.1665 | 7/8 |
+| train | -19.0648 | -19.1883 | +0.1235 | 6/8 |
+| test | +28.8709 | +28.9185 | -0.0476 | 1/8 |
+
+**Result: reproduces the exact regime-dependent signature on record since
+Run 4/27, unchanged.** Dip-buy ON beats OFF in both declining windows (older
+and train are both large drawdown periods for this universe) but trails OFF
+in the strongly-rising test window, where the dip mechanism barely fires (4
+total dip-buys across all 8 symbols in 60 days of a sustained uptrend, vs 59
+and 28 in the two declining windows). Effect magnitude stays under 0.2pp in
+either direction in every window — same order of magnitude as every prior
+check (Run 27: "+0.06 to +0.35pp in both declining windows... but -0.03 to
+-0.11pp in a strongly-rising window"). No degradation, no new evidence for a
+change in either direction.
+
+**$ impact:** economically negligible either way, consistent with every
+prior DCA check — the dip-buy lever moves ROI by fractions of a percentage
+point, not a material dollar amount on $100 or $1000 (PF/win%/trades don't
+apply to DCA's non-round-trip accounting, so no `usd_pnl_100`/`usd_pnl_1000`
+figures are meaningful here beyond the ROI% above).
+
+**Decision: keep shipped defaults as-is (`dip_threshold_pct=5.0`,
+`dip_multiplier=1.5`) — no code change.** This confirms, rather than
+overturns, the prior conclusion.
+
+**Self-correction check:** no strategy/risk code has changed since Run 31 —
+nothing else to revalidate or revert. This run's own DCA re-check is itself
+the self-correction: result unchanged from Run 4/27, so no revert is
+warranted.
+
+**No code change** — pure research; a scheduled re-confirmation, not a new
+finding, so no auto-improve threshold was met.
+
+**Going forward:** absent a new concretely-scoped axis (e.g. a data source
+this environment can newly reach), future runs should keep defaulting to
+this same self-correction check on a rolling-forward date range, rather than
+re-deriving already-closed axes. If a future check ever shows the dip-buy
+effect degrading or flipping sign in a way that breaks the established
+regime-dependent pattern (rather than just reproducing it), that would be
+the trigger to revisit the shipped default.
+
+**Files:** `research/experiments/dca_self_correction_run32.py` (new). 1
+entry appended to `research/decisions.jsonl` (124 active, no rotation
+triggered — `rotate_archive.py` run, threshold is 250). Active
+`RESEARCH_LOG.md` run-section count is now 6 (27-32), still well under the
+~15-run archival floor — no log archiving this run.
