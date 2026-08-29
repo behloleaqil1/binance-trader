@@ -43,14 +43,20 @@ noise via per-symbol breakdown; Run 34 added an 8th strategy family
 (Price-vs-RSI Bullish Divergence — the first oscillator-divergence
 construction, comparing two series' shapes at confirmed swing lows rather
 than reading one series in isolation) and closed it decisively, 0/8 configs
-clearing both OOS bars; still no adopted change to shipped risk defaults.
+clearing both OOS bars, closing all 8 strategy families and 5 signal-source
+categories concretely scoped in this programme; Run 35 isolated DCA's
+`dip_threshold_pct` on its own (previously only tested bundled with a
+multiplier change), the mirror case of Run 27's multiplier isolation,
+reproducing the same small anti-correlated-across-regimes effect and
+doubling as a self-correction re-check of the shipped default — still no
+adopted change to shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 34 sessions and ~328 configs — now confirmed across two
+families, across 35 sessions and ~333 configs — now confirmed across two
 materially different historical eras (2025-2026 and, as of Run 31, a
 disjoint 2023 window), not just one regime.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
@@ -298,18 +304,31 @@ the blow-by-blow.**
   these 8 majors — divergence does not sidestep the pattern any more than
   the 7 single-series families did.
 
-- **DCA dip_multiplier magnitude (Run 27, closes the last flagged-open DCA
-  variant)**: dip_multiplier in {1.5 (shipped), 1.75, 2.0, 2.5} at the
-  shipped dip_threshold_pct=5.0, isolated from the threshold change Run 4
-  bundled it with and the buy-count cap Run 14 tested separately. Effect is
-  real but trivial (<0.35pp even at 2.5x) and flips sign with the regime:
+- **DCA dip_multiplier magnitude (Run 27) and dip_threshold_pct (Run 35) —
+  both dip-buy parameters now independently isolated and closed.**
+  Run 27: dip_multiplier in {1.5 (shipped), 1.75, 2.0, 2.5} at the shipped
+  dip_threshold_pct=5.0, isolated from the threshold change Run 4 bundled
+  it with and the buy-count cap Run 14 tested separately. Effect is real
+  but trivial (<0.35pp even at 2.5x) and flips sign with the regime:
   +0.06 to +0.35pp in both declining windows tested (7/8 symbols benefit —
   a bigger multiplier lowers cost basis further when dips are frequent) but
   −0.03 to −0.11pp in a strongly-rising window (only 1/8 symbols benefit —
   more capital deployed at a locally-worse price when dips are rare and the
-  flat schedule already wins big on its own). Same anti-correlated-across-
-  regimes signature as every non-signal lever since Run 21/22. **Keep
-  shipped dip_multiplier=1.5x — closed, no DCA variants remain flagged.**
+  flat schedule already wins big on its own). Run 35: dip_threshold_pct in
+  {3.0, 4.0, 5.0 (shipped), 7.0, 10.0} at the shipped dip_multiplier=1.5,
+  the mirror isolation (Run 4 only ever changed threshold bundled with a
+  multiplier change) — same monotonic, mechanically explicable, sign-
+  flipping pattern: a looser (lower) threshold fires more dip-buys, which
+  helps more in both declining windows (up to +0.40pp at 3.0, 7-8/8 symbols
+  benefit) but hurts more in the strongly-rising window (down to -0.10pp at
+  3.0, only 1/8 symbols benefit); a tight threshold (7.0/10.0) nearly
+  disables the feature (2-32 dip-buys fire across 150d vs 28-99 at 5.0),
+  muting both the benefit and the cost toward zero. Shipped 5.0 sits at a
+  reasonable middle point on this tradeoff, not an extreme. Same anti-
+  correlated-across-regimes signature as every non-signal lever since Run
+  21/22, now confirmed for both DCA dip-buy parameters independently.
+  **Keep shipped dip_threshold_pct=5.0 / dip_multiplier=1.5x — closed, no
+  DCA dip-buy parameter axis remains flagged.**
 
 - **UTC session-hour BUY gate (Run 28, 5th signal-source category)**: veto
   BUY unless the candle's own UTC open_time falls inside a configured
@@ -1539,3 +1558,105 @@ appended to `research/decisions.jsonl` (144 active, no rotation triggered —
 `rotate_archive.py` run, threshold is 250). Active `RESEARCH_LOG.md`
 run-section count is now 8 (27-34), still well under the ~15-run archival
 floor — no log archiving this run.
+
+---
+
+## 2026-08-29 — Run 35
+
+**DCA `dip_threshold_pct` isolation — mirrors Run 27's `dip_multiplier`
+isolation, doubles as a self-correction re-check.** Per Run 34's
+close-out note, all 8 strategy families and 5 signal-source categories are
+now closed on the 8-symbol/1h-4h scope, and the standing default is the
+Run 31/32 self-correction protocol (DCA dip-buy re-check on rolling-forward
+windows). Run 32's last DCA check anchored on 2026-08-28 — only 1 day of
+new data has accumulated, too little for a fresh re-check to say anything
+Run 32 didn't already say. Instead this run closes a narrower, genuinely
+untested question: `dip_threshold_pct` has only ever been tested *bundled*
+with a multiplier change (Run 4's 3%/2.5x variant); Run 27 isolated
+`dip_multiplier` alone (holding threshold=5.0 fixed) but the mirror case —
+threshold alone, holding multiplier=1.5 fixed — was never done. The
+baseline row of this sweep (threshold=5.0, the shipped value) also
+re-validates the shipped default on data through today, folding in the
+self-correction requirement as a side effect.
+
+**Method.** Same capital-normalized ROI methodology as Run 4/14/27/32 (DCA
+has no round-trip trades, so PF/win-rate/trade-count don't apply): for each
+symbol, simulate the daily DCA schedule with `dip_enabled` on vs off,
+compare average ROI (unrealized P&L / invested) across the 8-symbol
+universe, 3 non-overlapping windows (older 2026-01-01..2026-04-01, train
+2026-04-01..2026-06-30, test 2026-06-30..2026-08-29 — same anchor as Run
+34), fees 7.5bps/slippage 4bps. Swept `dip_threshold_pct` in {3.0, 4.0, 5.0
+(shipped), 7.0, 10.0} with `dip_multiplier` held at the shipped 1.5x both
+ways.
+
+**Result — same anti-correlated-across-regimes signature as Run 27,
+monotonic across the whole sweep:**
+
+| threshold | older Δpp (decline) | train Δpp (decline) | test Δpp (rise) | dips (older/train/test) |
+|---|---|---|---|---|
+| 3.0 | +0.4037 (8/8) | +0.2058 (7/8) | −0.1032 (1/8) | 118/99/25 |
+| 4.0 | +0.2420 (8/8) | +0.1791 (7/8) | −0.0441 (3/8) | 83/56/14 |
+| 5.0 (shipped) | +0.1564 (7/8) | +0.1216 (6/8) | −0.0422 (1/8) | 59/28/4 |
+| 7.0 | +0.1272 (8/8) | +0.0275 (2/8) | +0.0000 (0/8) | 32/4/0 |
+| 10.0 | +0.0441 (4/8) | +0.0195 (1/8) | +0.0000 (0/8) | 8/2/0 |
+
+(Δpp = avg-ROI delta vs dip-buy OFF; win-fraction = symbols where ON beats
+OFF.) A **looser (lower) threshold fires more dip-buys**, which **helps
+more in both declining windows** (mechanically: more buys land at a locally
+lower price, further lowering cost basis) and **hurts more in the
+sustained-uptrend test window** (more capital deployed at a locally-worse
+relative price when dips are rare and the flat schedule already wins big on
+its own) — the identical mechanism and sign pattern Run 27 found for
+`dip_multiplier`, now confirmed for `dip_threshold_pct` independently. The
+per-symbol win-fraction tracks the aggregate direction cleanly at the tight
+end (7-8/8 symbols agree at threshold 3.0-4.0 in both declining windows,
+i.e. broad-based, not a 1-2-symbol artifact) and degrades toward a coin-flip
+as the threshold loosens toward 10.0 (feature nearly disabled — only 2-8
+dip-buys fire across 150d, most symbols never trigger it at all in a given
+window). Effect size stays economically trivial everywhere (≤0.40pp).
+
+**Self-correction (folded into the 5.0 baseline row):** shipped defaults
+(dip_threshold_pct=5.0, dip_multiplier=1.5) reproduce the same
+regime-dependent pattern on record since Run 4 with no degradation — older
++0.1564pp (7/8), train +0.1216pp (6/8), test −0.0422pp (1/8), all consistent
+in sign and magnitude with Run 32's check one day prior. No git revert
+warranted.
+
+**Decision: keep shipped `dip_threshold_pct=5.0` / `dip_multiplier=1.5x` —
+closed.** No code change. With this, both DCA dip-buy parameters
+(magnitude Run 27, threshold Run 35) have now been independently isolated
+and closed — no DCA dip-buy parameter axis remains flagged. The shipped
+5.0 sits at a reasonable middle point on the tradeoff (neither the
+most-aggressive 3.0 that maximizes decline-regime benefit at the largest
+rise-regime cost, nor the loose 7.0/10.0 that nearly disables the feature).
+
+**$ impact (test window, all reject/noise):** delta vs OFF ranges −0.1032pp
+(threshold=3.0) to +0.0000pp (7.0/10.0) on $100/$1000 invested capital,
+i.e. −$0.10/−$1.03 at the worst (most aggressive) setting down to ~$0 at
+the loosest settings — economically negligible at every point on the
+sweep, consistent with every DCA parameter finding since Run 4.
+
+**No code change** — pure research; both DCA dip-buy parameters now fully
+characterized, no auto-improve threshold was met.
+
+**Going forward:** DCA's dip-buy feature is now fully characterized on
+both its parameters (threshold and multiplier) — nothing further to tune
+there without a fundamentally different hypothesis about *when* to widen
+the buy (e.g. a signal-conditioned threshold, which would re-open the
+"combine a closed signal-source category with DCA" question, not yet
+tried but likely low-value given all 5 signal-source categories are
+individually null). With every concretely-scoped signal/strategy axis
+closed (Run 34) and both DCA parameters now closed (Run 35), future runs
+should default back to the Run 31/32 self-correction protocol once 2+ full
+days of new data have accumulated since this run's 2026-08-29 anchor —
+checking both the DCA dip-buy default and, per the top-of-file
+SELF-CORRECTION mandate, re-validating that no committed research
+conclusion has quietly stopped holding as fresh candles arrive. Absent new
+data or a genuinely new hypothesis, there is no concretely-scoped
+untested axis left to open.
+
+**Files:** `research/experiments/dca_threshold_isolation.py` (new). 5
+entries appended to `research/decisions.jsonl` (149 active, no rotation
+triggered — `rotate_archive.py` run, threshold is 250). Active
+`RESEARCH_LOG.md` run-section count is now 9 (27-35), still under the
+~15-run archival floor — no log archiving this run.
