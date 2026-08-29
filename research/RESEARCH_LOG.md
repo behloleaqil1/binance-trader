@@ -39,30 +39,35 @@ Run 33 added a 7th strategy family (BB-width volatility-squeeze breakout —
 compression-then-expansion, mechanically distinct from every prior family)
 and closed it, the first case of both TEST and a 3rd non-overlapping window
 clearing the numeric bar together while TRAIN decisively failed, resolved as
-noise via per-symbol breakdown; still no adopted change to shipped risk
-defaults.
+noise via per-symbol breakdown; Run 34 added an 8th strategy family
+(Price-vs-RSI Bullish Divergence — the first oscillator-divergence
+construction, comparing two series' shapes at confirmed swing lows rather
+than reading one series in isolation) and closed it decisively, 0/8 configs
+clearing both OOS bars; still no adopted change to shipped risk defaults.
 
 ---
 
 ## DISTILLED LEARNINGS (read this first; refreshed every run)
 
 **No robust, generalizing edge has been found yet in the candle-strategy
-families, across 33 sessions and ~320 configs — now confirmed across two
+families, across 34 sessions and ~328 configs — now confirmed across two
 materially different historical eras (2025-2026 and, as of Run 31, a
 disjoint 2023 window), not just one regime.** trend_momentum,
 mean_reversion, and grid are now each **fully closed across the entire
 5m/15m/1h/4h TF sweep** — every combo tested is either net-negative or only
 clears the OOS bar by luck/small-sample noise. Donchian breakout, Supertrend,
-Capitulation Wick Reversal, and BB-width squeeze breakout (4 mechanically
-distinct trend/breakout/pattern/volatility-regime families) are also closed.
+Capitulation Wick Reversal, BB-width squeeze breakout, and Price-vs-RSI
+Bullish Divergence (5 mechanically distinct trend/breakout/pattern/
+volatility-regime/oscillator-divergence families) are also closed.
 Honest baseline: simple RSI/BB/EMA/grid/ATR-band/candlestick-shape/
-volatility-compression signals on these 8 majors appear over-arbitraged;
-fees turn near-breakeven setups negative. The one asymmetric,
-mechanically-explicable (not curve-fit) positive finding so far is DCA's
-dip-buy feature — already shipped as the default, not a new change. **Full
-evidence for every closed TF/param combo lives in `research/decisions.jsonl`
-and archived run sections below/in `research/archive/`; this section states
-only the conclusions and why, not the blow-by-blow.**
+volatility-compression/divergence signals on these 8 majors appear
+over-arbitraged; fees turn near-breakeven setups negative. The one
+asymmetric, mechanically-explicable (not curve-fit) positive finding so far
+is DCA's dip-buy feature — already shipped as the default, not a new
+change. **Full evidence for every closed TF/param combo lives in
+`research/decisions.jsonl` and archived run sections below/in
+`research/archive/`; this section states only the conclusions and why, not
+the blow-by-blow.**
 
 **Do not re-test, without a materially new signal/indicator:**
 - **trend_momentum** (EMA-cross + RSI + MACD): every TF 5m–4h, best train PF
@@ -268,6 +273,30 @@ only the conclusions and why, not the blow-by-blow.**
   With this, 4 mechanically distinct trend/breakout constructions (EMA-cross,
   Donchian, Supertrend, BB-squeeze) have now all failed the same way at
   1h/4h on these 8 majors.
+
+- **Price-vs-RSI Bullish Divergence (Run 34, 8th strategy family, first
+  oscillator-DIVERGENCE construction)**: compares two series' shapes at
+  confirmed swing points — price makes a lower low while RSI makes a higher
+  low at the matching pivot (momentum exhaustion) — rather than reading any
+  one series against a fixed threshold/band/channel, mechanically distinct
+  from every prior family including the RSI-threshold use inside
+  mean_reversion. Swing lows confirmed only once `pivot_lookback` bars exist
+  on both sides (no lookahead — confirmation lands at pivot_index +
+  pivot_lookback). BUY on divergence confirmation, SELL on RSI recovering
+  above exit_rsi, unchanged exchange SL/TP. Swept pivot_lookback {3,5} x
+  exit_rsi {55,60} @ 1h/4h = 8 configs. **Decisive reject, 8/8, no
+  3rd-window check warranted (0 configs cleared both OOS bars).** 1h: train
+  PF never exceeds 0.644 across all 4 configs, test PF tops out at 1.011 —
+  fails on PF alone with an adequate sample both sides (test n 52-78). 4h:
+  train PF reaches 1.6-1.8 at pivot_lookback=5, but n=11 train / n=15 test —
+  both sides under the 30-trade floor; confirmed bullish-divergence swings
+  are simply too rare at 4h on 150d/60d windows to evaluate, not evidence of
+  edge. **Closed — do not re-tune pivot_lookback/max_divergence_bars/
+  oversold_max/exit_rsi on this construction.** With this, the "read one
+  series against itself" and "compare two series' shapes" approaches have
+  both now been tried and both show the same over-arbitraged baseline on
+  these 8 majors — divergence does not sidestep the pattern any more than
+  the 7 single-series families did.
 
 - **DCA dip_multiplier magnitude (Run 27, closes the last flagged-open DCA
   variant)**: dip_multiplier in {1.5 (shipped), 1.75, 2.0, 2.5} at the
@@ -1412,4 +1441,101 @@ RSI threshold, not yet tested in this programme).
 appended to `research/decisions.jsonl` (136 active, no rotation triggered —
 `rotate_archive.py` run, threshold is 250). Active `RESEARCH_LOG.md`
 run-section count is now 7 (27-33), still well under the ~15-run archival
+floor — no log archiving this run.
+
+---
+
+## 2026-08-29 — Run 34
+
+**Price-vs-RSI Bullish Divergence — 8th strategy family, first
+oscillator-divergence construction.** Per the DISTILLED LEARNINGS "Going
+forward" note after Run 33, the concretely-scoped candidate was "a genuinely
+new oscillator-divergence construction, e.g. price-vs-RSI divergence rather
+than RSI threshold" — every prior family/gate reads one series (price, RSI,
+ADX, volume, calendar) against a fixed threshold, band, or channel; none
+compares the *shape* of two different series against each other over time.
+Classical technical divergence does exactly that: price makes a lower low
+while RSI makes a higher low at the matching swing, signalling downside
+momentum is fading even as price still falls.
+
+**Construction.** A candle at index j is a confirmed swing low once
+`pivot_lookback` bars have closed on both sides of it and its low is the
+window minimum — confirmation lands at index j+pivot_lookback, never
+earlier, so nothing reads ahead of the current row. At each confirmation,
+compare the pivot to the immediately preceding confirmed pivot (if within
+`max_divergence_bars`): bullish divergence = lower price low AND higher RSI
+low AND RSI at the 2nd pivot below `oversold_max` (keeps it anchored in
+oversold territory, not mid-range noise). BUY on the confirming candle.
+Exit: RSI recovers above `exit_rsi` (the exhaustion thesis resolved), plus
+unchanged exchange-side 2%/4% SL/TP (never touched).
+
+**Method.** Same 8-symbol universe, 7.5bps fees/4bps slippage, unchanged
+exchange SL/TP. Windows shifted one day forward from Run 33's anchor (today
+= 2026-08-29): train 2026-04-01..2026-06-30, test 2026-06-30..2026-08-29,
+older 2026-01-01..2026-04-01 (240d-150d ago, reserved for a 3rd-window
+check that turned out not to be needed). Swept pivot_lookback {3,5} x
+exit_rsi {55,60} @ 1h/4h = 8 configs, rsi_period=14 and max_divergence_bars=
+30/oversold_max=50 held fixed (a first pass on the entry-construction
+question itself, not a full param sweep — those two axes would be the next
+step if this had shown any promise).
+
+**Result — decisive reject, 8/8, no 3rd-window check warranted (0 configs
+cleared both OOS bars).**
+
+*1h*: train PF 0.409-0.644 across all 4 configs (best is pivot_lookback=3,
+exit_rsi=60: 0.644), test PF 0.752-1.011 (best is pivot_lookback=5,
+exit_rsi=55: 1.011, still under 1.1). Sample sizes are adequate on both
+sides (train n 119-130, test n 52-78) — this is a clean fail on PF, not a
+sample-size disqualification.
+
+*4h*: pivot_lookback=3 configs fail outright (train PF 0.51-0.59, test PF
+2.6-2.7 but n=19, under the floor). pivot_lookback=5 configs show the
+sweep's only train PF above 1 (1.617 and 1.799) with test PF 1.32-1.52 — on
+paper the closest this run came to a double-clear — but train n=11 and test
+n=15, both decisively under the 30-trade floor. Confirmed bullish-divergence
+swings (two pivots within 30 bars, both conditions met) are simply rare at
+4h on 150d/60d windows; the high PF is a handful of trades, not a sample
+large enough to trust either way.
+
+**Read:** the divergence *construction itself* isn't a magic escape from
+the pattern documented since Run 1 — the 8 majors at 1h/4h with 7.5bps fees
+still show fee-drag-dominated, near-breakeven-at-best behavior whether the
+signal reads one series against a threshold or two series against each
+other. 1h has enough samples to say so cleanly; 4h doesn't have enough
+divergence events per window to say anything at all (a structural limit of
+the construction at this TF/window length, not evidence for or against).
+
+**$ impact (test window, all reject):** 1h configs range -0.035% to +0.001%
+ret ($100 → -$0.04 to +$0.00, $1000 → -$0.35 to +$0.01) — economically
+negligible even before the PF-based rejection. 4h configs range +0.010% to
++0.044% ret ($100 → +$0.01 to +$0.04, $1000 → +$0.10 to +$0.44) on samples
+too small to trust regardless of sign.
+
+**Self-correction check:** no strategy/risk code has changed since Run 33 —
+nothing to revalidate or revert.
+
+**No code change** — pure research; a new signal-source construction tested
+and closed, no auto-improve threshold was met.
+
+**Going forward:** all 8 strategy families tried in this programme (3
+original + Donchian, Supertrend, Capitulation Wick, BB-squeeze, RSI
+divergence) and all 5 signal-source categories (price-level/band, price-
+shape, volume/cross-symbol, calendar/session-time, oscillator-divergence)
+are now closed on this 8-symbol/1h-4h scope. No concretely-scoped new
+construction remains flagged. Future runs should default to the Run 31/32
+self-correction protocol (DCA dip-buy re-check on rolling-forward windows)
+once a full day+ of new data has accumulated since the last check — Run 32
+was the last DCA check (2026-08-28 anchor), so a re-check is not yet
+overdue by more than the 1 day this run already advanced the window. If a
+self-correction check finds nothing new to report, the next genuinely new
+avenue would need to be either a fundamentally different data source
+(order-book/liquidity signals remain out of reach of kline-only public
+data, as Run 31 confirmed for futures/funding-rate data) or an architecture
+change out of this programme's scope (e.g. short-selling for a true
+market-neutral pairs trade, flagged as out-of-scope since Run 20).
+
+**Files:** `research/experiments/rsi_divergence.py` (new). 8 entries
+appended to `research/decisions.jsonl` (144 active, no rotation triggered —
+`rotate_archive.py` run, threshold is 250). Active `RESEARCH_LOG.md`
+run-section count is now 8 (27-34), still well under the ~15-run archival
 floor — no log archiving this run.
