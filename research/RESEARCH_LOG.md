@@ -1128,3 +1128,33 @@ appended to `research/decisions.jsonl` (156 active, no rotation triggered —
 `rotate_archive.py` run this cycle, threshold is 250). RESEARCH_LOG.md
 condensed this run (see Memory hygiene note above); active run-section
 count is now 10 (27-36), still under the ~15-run archival floor.
+
+---
+
+## 2026-08-30 — Run 37 (deferred, no-op by design)
+
+This cycle fired ~12h after Run 36's commit (`8f140de`, 2026-08-30T02:13Z),
+same calendar day. Run 36 explicitly set the bar for the next self-correction
+re-check at "2+ full days of new data since this run's 2026-08-30 anchor,"
+and its test window already extended through today
+(2026-07-01..2026-08-30). Re-running that check now would use an identical
+window and reproduce Run 36's exact numbers — not new evidence, and
+appending a duplicate config to `decisions.jsonl` would violate the
+"never repeat a config already recorded" rule. Every concretely-scoped
+research axis remains closed per DISTILLED LEARNINGS (8 strategy families,
+6 signal-source categories, gates, cross-symbol constructions, sizing, exit
+mechanism, cost level, symbol universe, TF range, historical era, DCA
+parameter + trend-gate conditioning). Inventing a further recombination of
+an already-closed category to manufacture the appearance of activity is
+exactly what the programme's own anti-noise policy warns against.
+
+**What this cycle did instead:** ran the full backend test suite as a
+repo-health self-correction check — `cd backend && .venv/bin/python -m
+pytest`, 95 passed, 0 failed. No code, params, or shipped defaults have
+drifted; the standing DCA dip-buy default remains as validated in Run 36.
+No backtest configs run, no `decisions.jsonl` entries added, no code
+changes. **Next actionable date:** 2026-09-01 or later (2+ full days past
+Run 36's 2026-08-30 anchor) for the next genuine DCA ON-vs-OFF
+self-correction re-check; a fresh strategy/signal idea would need to be
+mechanically distinct from everything in the closed list above to be worth
+testing before then.
