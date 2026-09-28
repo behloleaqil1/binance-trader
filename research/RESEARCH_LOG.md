@@ -12,11 +12,11 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**36 runs, ~340 configs, one standing positive finding (DCA dip-buy,
-already shipped), zero adopted signal changes.** Full narrative for Run 1-26
-is archived (see archive index at file end); Run 27-36 sections are below.
-The DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
-compact index of *conclusions*, not a re-derivation — see
+**38 runs, ~340+ configs, one standing positive finding (DCA dip-buy,
+already shipped), zero adopted signal changes.** Full narrative for Run
+1-32 is archived (see archive index at file end); Run 33-38 sections are
+below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
+be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
 on any closed item.
 
@@ -138,11 +138,14 @@ with zero surviving candidates. The only structurally out-of-reach items are
 short-selling (architecture change) and futures/funding data (geo-blocked).
 **Going forward: default to the self-correction protocol** (DCA dip-buy
 ON-vs-OFF re-check on rolling-forward windows, roughly every 2+ days of new
-data since the last check, per Run 31/32/35/36) **and the top-of-file
+data since the last check, per Run 31/32/35/36/38) **and the top-of-file
 SELF-CORRECTION mandate** (re-validate no committed conclusion has quietly
 stopped holding). A well-recorded null result remains a valid, valuable
 outcome — do not invent recombinations of already-closed axes to manufacture
-the appearance of progress.
+the appearance of progress. **Run 38 (2026-09-28) re-ran this check after a
+29-day gap in the schedule (no runs fired 2026-08-30 to 2026-09-28) and
+confirmed the shipped default's regime-dependent signature is unchanged —
+see Run 38 section below.**
 
 **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss was
 fees — empirically confirmed the negative-edge finding from backtests.
@@ -155,575 +158,13 @@ human-seeded notes) is archived: `research/archive/log-2026-08-10_to_2026-08-12.
 (Run 1-5), `log-2026-08-13_to_2026-08-14.md.gz` (Run 6-9),
 `log-2026-08-20_to_2026-08-21_run21-23.md.gz` (Run 21-23),
 `log-2026-08-24_to_2026-08-24_run24-25.md.gz` (Run 24-25),
-`log-2026-08-25_to_2026-08-25_run26.md.gz` (Run 26). Run 27-36 sections
-follow below (active, under the ~15-run archival floor). Every conclusion
-above is folded from both the archived and active run sections — this block
-was rewritten from ~750 lines to this compact form in Run 36 purely for
-memory hygiene (RESEARCH_LOG.md had grown to 105KB, well past the ~40KB
-guideline); no conclusion was dropped, only the narrative repetition._
-
-## 2026-08-25 — Run 27
-
-**Self-correction check:** `git log 2066c9c..HEAD -- backend/` (2066c9c = Run
-26's commit, current HEAD before this run's own commit) is empty — no commits
-touched `backend/` since Run 26. Nothing to re-validate or revert.
-
-**Region tested:** two items. (1) The last explicitly-flagged-but-untested
-item in DISTILLED LEARNINGS: DCA `dip_multiplier` magnitude alone (isolated
-from the threshold change Run 4 bundled it with, and the buy-count cap Run 14
-tested separately). (2) A genuinely new signal construction — the first
-candlestick-SHAPE-derived entry this programme has tried, since the
-26-run/258-config signal axis was otherwise fully exhausted (5 strategy
-families, 3 confirmation gates, 2 cross-symbol constructions, all closed).
-
-**(1) DCA dip_multiplier magnitude sweep** (`research/experiments/dca_multiplier_sweep.py`):
-`dip_multiplier` in {1.5 (shipped), 1.75, 2.0, 2.5} at the shipped
-`dip_threshold_pct=5.0`, same capital-normalized ROI methodology as Run
-4/5/14 (ROI = unrealized_pnl/invested%, 3 non-overlapping windows x 8
-symbols, production `dca.py` untouched). Delta vs the 1.5x baseline, by
-window:
-
-| window | regime | mult=1.75 | mult=2.0 | mult=2.5 |
-|---|---|---|---|---|
-| older (2025-12-28..2026-03-28) | declining | +0.092pp | +0.180pp | +0.345pp |
-| train (2026-03-28..2026-06-27) | declining | +0.064pp | +0.126pp | +0.246pp |
-| test (2026-06-27..2026-08-25) | strongly rising | −0.029pp | −0.057pp | −0.112pp |
-
-Symbol win-rate vs the 1.5x baseline: 7/8 symbols benefit in both declining
-windows at every multiplier tested, but only 1/8 in the rising test window.
-**Verdict: reject/noise.** The effect is real but trivial (<0.35pp even at
-the most aggressive 2.5x, on windows where the DCA baseline itself moved
-15-29pp) and flips sign with the regime: a bigger multiplier lowers the
-average cost basis further in a decline (mechanically sound — more capital
-lands at the dip) but deploys more capital at a locally-worse price in a
-sustained uptrend where dips are rare and the flat schedule already wins big
-on its own. This is the same anti-correlated-across-regimes signature
-documented for every non-signal lever tested since Run 21 (sizing) and Run
-22 (exit mechanism): amplifying a knob doesn't create a persistent edge, it
-just leans harder into whichever regime the window happens to be. **Keep
-shipped `dip_multiplier=1.5x`** — closes the last flagged-open DCA variant.
-
-**(2) Capitulation Wick Reversal, 6th strategy family** (`research/experiments/wick_reversal.py`):
-BUY on a single candle with `lower_wick_ratio = (min(open,close)-low)/(high-low)
->= wick_ratio`, a bullish (green) close, and volume >= `vol_mult` x its own
-20-period rolling mean — a capitulation-and-bounce pattern (long lower wick =
-sold off hard intra-candle then bought back before close, on real volume, not
-a thin wick). Exit on reversion to SMA(10) of close, unchanged exchange-side
-2%/4% SL/TP. Mechanically distinct from all 5 prior families and all 3
-confirmation gates: this is the first signal in the programme that reads a
-single candle's own OHLC *shape* rather than a derived multi-bar series or a
-band/threshold touch. Standalone research strategy class, not registered in
-`app/strategies/registry.py`, no production file touched. Swept `wick_ratio`
-{0.5, 0.6, 0.7} x `vol_mult` {1.5, 2.0} @ 1h/4h = 12 configs, standard
-150d-60d/60d-0d train/test windows, unmodified production
-`run_candle_backtest`/`RiskConfig`.
-
-**Results (train PF → test PF, test n):**
-
-| tf | wick_ratio | vol_mult | train pf | test pf | test n |
-|---|---|---|---|---|---|
-| 1h | 0.5 | 1.5 | 0.532 | 0.861 | 117 |
-| 1h | 0.5 | 2.0 | 0.473 | 1.098 | 52 |
-| 1h | 0.6 | 1.5 | 0.523 | 0.997 | 78 |
-| 1h | 0.6 | 2.0 | 0.658 | 1.482 | 35 |
-| 1h | 0.7 | 1.5 | 0.543 | 0.693 | 38 |
-| 1h | 0.7 | 2.0 | 0.668 | 1.149 | 18 |
-| 4h | 0.5 | 1.5 | 0.336 | 0.859 | 36 |
-| 4h | 0.5 | 2.0 | 0.281 | 0.861 | 14 |
-| 4h | 0.6 | 1.5 | 0.332 | 0.144 | 18 |
-| 4h | 0.6 | 2.0 | 0.184 | 0.038 | 7 |
-| 4h | 0.7 | 1.5 | 0.264 | 0.085 | 10 |
-| 4h | 0.7 | 2.0 | 0.089 | 0.083 | 4 |
-
-**Verdict: decisive reject, 12/12 configs. No candidate, no code change. No
-3rd-window check triggered** — train pf never exceeds 0.668 anywhere in the
-sweep, so nothing clears the strict train>1.1 AND test>1.1 AND n>=30 AND
-condition. Two findings: (a) **3 of the 6 1h configs (all `vol_mult=2.0`
-rows) clear test pf>1.1** (1.098/1.482/1.149) **but every one pairs with a
-train pf of 0.47-0.66** — the identical test-clears/train-doesn't
-regime-luck shape documented for mean_reversion since before Run 16, now
-reproduced by a mechanically unrelated, candlestick-shape-based
-construction, one more data point that this shape is a property of the
-8-symbol/150d-60d/0d window structure rather than of any one signal family.
-(b) **4h is a clean, unambiguous reject at every config** (train pf
-0.089-0.336, test pf 0.038-0.861) — tightening `wick_ratio` at 4h collapses
-the sample below any usable size (n=4-14) while making both train and test
-pf *worse*, the opposite of what filtering toward "purer" capitulation
-candles should do if the pattern had real signal. **Closed — do not re-tune
-wick_ratio/vol_mult/exit_period on this construction; a 7th family would
-need a genuinely different signal source (not price shape, not price level,
-not volume, not cross-symbol — all four now tried).**
-
-**Files:** `research/experiments/wick_reversal.py` (new),
-`research/experiments/dca_multiplier_sweep.py` (new). 15 entries appended to
-`research/decisions.jsonl` (213 → 228 lines). Log archived: Run 24-25 →
-`research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz` (active log
-was 43KB pre-archive; still ~45KB post-archive/post-this-run since two new
-DISTILLED LEARNINGS bullets were added — the accumulated-knowledge section
-now dominates the file's size, not the 2 run-sections it currently holds
-(Run 26, Run 27). Next run should consider archiving Run 26 as well if
-DISTILLED LEARNINGS keeps growing, even though that's fewer than the ~15-run
-guideline — the guideline assumes shorter per-run sections than this
-programme's have turned out to need).
-
-**No code change** — pure research, no auto-improve threshold was met. Both
-tests (DCA multiplier magnitude, wick reversal) closed as reject/noise; no
-deploy-worthy candidate found.
-
----
-
-_Run 21-23 (2026-08-20 to 2026-08-21) are archived in `research/archive/log-2026-08-20_to_2026-08-21_run21-23.md.gz`; Run 24-25 (2026-08-24) are archived in `research/archive/log-2026-08-24_to_2026-08-24_run24-25.md.gz`; Run 26 (2026-08-25) is archived in `research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz`; their conclusions are folded into DISTILLED LEARNINGS above._
-
-## 2026-08-26 — Run 28
-
-**Self-correction check:** `git log 1f2c518..HEAD -- backend/` (1f2c518 =
-Run 27's commit, current HEAD before this run's own commit) is empty — no
-commits touched `backend/` since Run 27. Nothing to re-validate or revert.
-
-**Region tested: a genuinely new signal-source category — UTC session-hour
-BUY gating.** Per Run 27's explicit close-out note, all four previously
-tried signal-source categories (price-level/band, moving-average, price
-shape, cross-symbol/volume) are exhausted; a public-kline data source has
-no order-book/funding-rate fields to build a data-source-level 5th category
-from (confirmed by reading `app/backtest/data.py` — `fetch_klines` only
-ever calls `/api/v3/klines`, no other Binance public endpoint is wired up).
-The one axis genuinely untested and available from data already in hand:
-the candle's own UTC timestamp. Crypto trades 24/7, but liquidity and
-participation are known to cluster by session (Asia/EU/US); gating entries
-to a session window is mechanically distinct from every closed same-candle
-gate (ADX = trend strength, relative volume = participation magnitude, MTF
-direction = a coarser TF's own trend) because it reads no price or volume
-data at all.
-
-**Implementation** (`research/experiments/session_hour_gate.py`): thin
-decide()-wrapping subclasses of production `TrendMomentumStrategy` and
-`MeanReversionStrategy` (same "defer to parent, add one veto" pattern as
-Runs 11/15/16/17's gates) — BUY vetoed unless the entry candle's own
-`open_time` (UTC) falls inside a configured `[start_hour, end_hour)` half-
-open window. No lookahead (uses only the current candle's own timestamp),
-no production code touched. Standard 150d-60d/60d-0d train/test windows
-(2026-03-29..2026-06-27 / 2026-06-27..2026-08-26), unmodified production
-`run_candle_backtest`, shipped-default entry params for both bases, 8-symbol
-universe, fees 7.5bps/slippage 4bps.
-
-**Swept 4 session windows + baseline (off) x 2 bases = 10 configs:**
-
-| base | window (UTC) | train pf | train n | test pf | test n |
-|---|---|---|---|---|---|
-| trend_momentum@1h | baseline | 0.588 | 84 | 0.624 | 85 |
-| trend_momentum@1h | Asia 00-08 | 0.458 | 38 | 0.956 | 23 |
-| trend_momentum@1h | EU 07-15 | 0.592 | 48 | 0.595 | 29 |
-| trend_momentum@1h | US 13-21 | 0.889 | 51 | 0.804 | 46 |
-| trend_momentum@1h | EU/US 13-16 | 0.482 | 21 | 1.221 | 9 |
-| mean_reversion@1h | baseline | 0.644 | 127 | 1.865 | 80 |
-| mean_reversion@1h | Asia 00-08 | 0.528 | 69 | 0.797 | 24 |
-| mean_reversion@1h | EU 07-15 | 1.088 | 73 | 2.708 | 32 |
-| mean_reversion@1h | US 13-21 | 0.909 | 86 | 2.533 | 38 |
-| mean_reversion@1h | EU/US 13-16 | 0.724 | 65 | 0.938 | 21 |
-
-**trend_momentum@1h: decisive reject, 4/4 gated configs.** US session
-(13-21 UTC) reaches the highest train PF of the sweep (0.889, n=51 —
-notably better than the ungated baseline's 0.588) but test PF stays at
-0.804, still under the 1.1 bar; every other window either stays flat
-(EU 07-15) or clears test PF only on a starved sample (Asia n=23, EU/US
-overlap n=9, both below the 30-trade floor). No config crosses both bars
-with an adequate sample.
-
-**mean_reversion@1h: 2 of 4 gated windows (EU 07-15, US 13-21) appeared to
-clear the OOS screen on first look**, and EU 07-15 is notable — train PF
-1.088 (n=73) is the **highest train-side PF ever recorded for
-mean_reversion@1h anywhere in this programme's 28-run history** (every
-prior lever on this base topped out at ~0.925), paired with test PF 2.708
-(n=32). US 13-21 clears test PF 2.533 (n=38) but train PF stays at 0.909
-(a near-miss, not a double-clear). Per the standing 3rd-window protocol for
-any config that clears (or nearly clears) both sides, both were checked
-against the OLDER non-overlapping window (2025-12-29..2026-03-29):
-
-- **EU 07-15 OLDER: PF 0.157, n=75** (real sample) — decisive failure.
-  Per-symbol breakdown: all 8 symbols lose (PF 0.0-0.469, return -15% to
-  -30%) — that older window was a sharp market-wide decline, so "buy EU-
-  session dips" lost across the board regardless of session; it is not a
-  per-symbol session mechanism, it inherited a favorable regime in
-  train+test and an unfavorable one in the 3rd window, same as every prior
-  near-miss since Run 16.
-- **US 13-21 OLDER: PF 0.313, n=113** (real sample) — decisive failure,
-  same pattern: all 8 symbols lose (PF 0.012-0.599, return -12% to -43%).
-
-**Verdict: decisive reject, 10/10 configs — closes the calendar/session-time
-axis for this mechanism.** Both apparent mean_reversion near-misses
-(including the strongest train-side signal this base has ever produced)
-failed the 3rd-window check the same way every prior near-miss has since
-Run 16 — the "looks good until you check the window that wasn't cherry-
-picked by having also picked the entry signal" pattern is now reproduced by
-a 5th, mechanically unrelated construction (after MTF direction, rotation,
-and now session-time). Do not re-tune session boundaries on this base/
-gate combination; a materially different session hypothesis (e.g.
-day-of-week rather than hour-of-day) would be a new, untested granularity
-within the same category, not a re-run of this one.
-
-**Self-correction check (repeated for clarity):** no strategy/risk code
-changed since Run 27 — nothing to revalidate or revert.
-
-**No code change** — pure research, no auto-improve threshold was met.
-
-**Files:** `research/experiments/session_hour_gate.py` (new). 10 entries
-appended to `research/decisions.jsonl` (228 → 238 lines, still under the
-250-entry rotation trigger). Log: archived Run 26 into
-`research/archive/log-2026-08-25_to_2026-08-25_run26.md.gz` per Run 27's
-own flagged next step (active log was 45KB pre-archive, over the 40KB
-threshold, with the accumulated DISTILLED LEARNINGS section now dominating
-size rather than the run-sections themselves — only Run 27 and this Run 28
-section remain in full).
-
----
-
-## 2026-08-26 — Run 29
-
-**Self-correction check:** `git log a8df0ce..HEAD -- backend/` (a8df0ce = Run
-28's commit, current HEAD before this run's own commit) is empty — no
-commits touched `backend/` since Run 28. Nothing to re-validate or revert.
-
-**Region tested: day-of-week BUY gating — the coarser calendar granularity
-Run 28 explicitly flagged as untested.** Run 28 closed hour-of-day
-session gating (calendar/session-time, the 5th signal-source category);
-its closing note named day-of-week as a distinct, untested granularity
-within that same category rather than a new category. Implemented as a
-thin decide()-wrapping subclass of production `TrendMomentumStrategy` /
-`MeanReversionStrategy` (same "defer to parent, add one veto" pattern used
-for every prior gate) — BUY vetoed unless the entry candle's own UTC
-`open_time.dayofweek` (Mon=0..Sun=6) is inside a configured allowed set. No
-lookahead, no production code touched. Standard 150d-60d/60d-0d train/test
-windows, unmodified production `run_candle_backtest`, shipped-default entry
-params for both bases, 8-symbol universe, fees 7.5bps/slippage 4bps.
-
-**Implementation:** `research/experiments/day_of_week_gate.py` (new).
-
-**Swept 4 day-of-week windows + baseline (off) x 2 bases = 10 configs:**
-
-| base | window (UTC weekday) | train pf | train n | test pf | test n |
-|---|---|---|---|---|---|
-| trend_momentum@1h | baseline | 0.588 | 84 | 0.624 | 85 |
-| trend_momentum@1h | weekdays Mon-Fri | 0.512 | 64 | 0.856 | 64 |
-| trend_momentum@1h | weekend Sat-Sun | 0.511 | 39 | 0.568 | 30 |
-| trend_momentum@1h | early-week Mon-Wed | 0.623 | 59 | 1.180 | 46 |
-| trend_momentum@1h | late-week Thu-Sun | 0.912 | 72 | 0.460 | 49 |
-| mean_reversion@1h | baseline | 0.644 | 127 | 1.865 | 80 |
-| mean_reversion@1h | weekdays Mon-Fri | 0.483 | 117 | 1.400 | 65 |
-| mean_reversion@1h | weekend Sat-Sun | 4.180 | 48 | inf (0 losers) | 17 |
-| mean_reversion@1h | early-week Mon-Wed | 0.498 | 83 | 1.689 | 40 |
-| mean_reversion@1h | late-week Thu-Sun | 1.400 | 97 | 1.857 | 41 |
-
-**trend_momentum@1h: decisive reject, 4/4 gated configs.** weekend Sat-Sun
-sits exactly at the 30-trade floor (n=30) and still fails PF outright
-(0.568). late-week Thu-Sun reaches the highest train PF trend_momentum@1h
-has ever shown at this TF under any lever (0.912) but test PF collapses to
-0.46 — train-improves/test-collapses, the Run 15 volume-gate overfit shape,
-not the mean_reversion-style regime-luck shape. early-week Mon-Wed is a
-near-miss (test PF 1.18/n=46, train PF only 0.623) — checked below.
-
-**mean_reversion@1h: 3 of 4 gated windows appeared to clear or near-clear
-the OOS screen**, including this programme's **strongest double-clear to
-date** — late-week Thu-Sun (train PF 1.4/n=97 AND test PF 1.857/n=41, both
-comfortably over 1.1 on samples well above the floor, not a hedge-your-bets
-near-miss like every prior close call). Per the standing 3rd-window
-protocol for any config that clears or nearly clears both sides, all 4
-non-baseline mean_reversion configs plus trend_momentum's early-week
-near-miss were checked against the OLDER non-overlapping window
-(2025-12-29..2026-03-29):
-
-| base | window | OLDER pf | OLDER n |
-|---|---|---|---|
-| trend_momentum@1h | early-week Mon-Wed | 0.821 | 68 |
-| mean_reversion@1h | weekdays Mon-Fri | 0.351 | 110 |
-| mean_reversion@1h | early-week Mon-Wed | 0.947 | 84 |
-| mean_reversion@1h | late-week Thu-Sun | 0.255 | 104 |
-
-**All 4 fail decisively** (weekend Sat-Sun's own train PF 4.18/test n=17 was
-disqualified by the test sample size before any check was warranted — well
-under the 30-trade floor). The late-week Thu-Sun double-clear's OLDER
-per-symbol breakdown shows every one of the 8 symbols losing (PF 0.12-0.44,
-return -18% to -46%) — the same broad market-wide decline documented for
-Run 28's EU/US session OLDER checks, not a day-of-week mechanism. The
-weekdays and early-week near-misses show the identical pattern.
-
-**Verdict: decisive reject, 10/10 configs — closes the day-of-week
-granularity within the calendar/session-time axis.** The notable finding
-this run isn't a new axis, it's a sharper read on an old one: a genuine
-double-clear (both train and test comfortably over the bar on adequate
-samples, the strongest form of apparent evidence this methodology can
-produce short of a 3rd-window check) failed exactly as decisively as every
-prior near-miss once checked. That raises the bar for what "looks
-promising" should mean going forward — a double-clear alone, without the
-3rd-window check, would not have been distinguishable from real edge in
-this run's own results table.
-
-**Self-correction check (repeated for clarity):** no strategy/risk code
-changed since Run 28 — nothing to revalidate or revert.
-
-**No code change** — pure research, no auto-improve threshold was met.
-
-**Files:** `research/experiments/day_of_week_gate.py` (new). 10 entries
-appended to `research/decisions.jsonl` (238 → 248 lines, still under the
-250-entry rotation trigger). Log: active file is ~59KB post-this-run,
-further over the 40KB guideline, but per Run 27's precedent the bulk is the
-DISTILLED LEARNINGS section itself (which must stay, per the memory-
-management instructions) rather than run-sections — only 3 run-sections
-(27, 28, 29) currently sit in the active log, well under the ~15-run
-archival floor, so nothing was moved to `research/archive/` this run;
-revisit archiving once there are materially more than 15 open run-sections
-or DISTILLED LEARNINGS itself needs trimming (not yet — it is still purely
-additive, dense, decision-relevant content).
-
-## 2026-08-27 — Run 30
-
-**Self-correction check:** `git log e9881c8..HEAD -- backend/` (e9881c8 =
-Run 29's commit, current HEAD before this run's own commit) is empty — no
-commits touched `backend/` since Run 29. Nothing to re-validate or revert.
-
-**Region tested: the one remaining flagged combination — stacking two
-previously-closed single-axis BUY gates together.** DISTILLED LEARNINGS'
-own closing note on Run 29 named this as the one unexplored combination
-(alongside a 6th signal-source category needing data this codebase can't
-fetch), while predicting it likely inherits the same regime-luck failure
-rather than creating new edge. This run tests that prediction directly:
-does requiring BOTH real participation (Run 15's relative-volume gate) AND
-a favorable session window (Run 28's session-hour gate, each base's own
-best single-gate window) survive where neither did alone?
-
-**Implementation:** `research/experiments/session_volume_combo_gate.py`
-(new) — thin subclasses of production `TrendMomentumStrategy` /
-`MeanReversionStrategy`, `decide()` defers entirely to the parent and adds
-up to two vetoes on BUY (session window, then relative volume — both must
-pass), the same "defer to parent, add vetoes" pattern as every prior gate.
-No production code touched. Standard 150d-60d/60d-0d train/test windows
-(anchored to today, 2026-08-27), unmodified production
-`run_candle_backtest`, shipped-default entry params for both bases,
-8-symbol universe, fees 7.5bps/slippage 4bps.
-
-**Swept baseline + 2 single-axis references + 2 combo thresholds, x 2
-bases = 12 configs:**
-
-| base | variant | train pf | train n | test pf | test n |
-|---|---|---|---|---|---|
-| trend_momentum@1h | baseline | 0.579 | 86 | 0.705 | 81 |
-| trend_momentum@1h | session-only US 13-21 | 0.859 | 53 | 0.853 | 44 |
-| trend_momentum@1h | volume-only vol=1.2 | 0.936 | 62 | 1.045 | 34 |
-| trend_momentum@1h | volume-only vol=1.5 | 1.100 | 39 | 1.122 | 29 |
-| trend_momentum@1h | combo US+vol=1.2 | 0.579 | 26 | 0.711 | 17 |
-| trend_momentum@1h | combo US+vol=1.5 | 0.525 | 16 | 0.753 | 15 |
-| mean_reversion@1h | baseline | 0.622 | 123 | 1.944 | 82 |
-| mean_reversion@1h | session-only EU 07-15 | 1.112 | 72 | 3.101 | 33 |
-| mean_reversion@1h | volume-only vol=1.2 | 0.526 | 121 | 2.174 | 75 |
-| mean_reversion@1h | volume-only vol=1.5 | 0.679 | 127 | 2.058 | 68 |
-| mean_reversion@1h | combo EU+vol=1.2 | 1.177 | 67 | 3.403 | 33 |
-| mean_reversion@1h | combo EU+vol=1.5 | 1.267 | 67 | 2.758 | 30 |
-
-**trend_momentum@1h: decisive reject, both combo configs.** Stacking the
-two vetoes only shrinks the sample (combo n=26/17 and n=16/15, both far
-under the 30-trade floor, vs 53/44 and 39/29 for the single-axis gates
-alone) while making test PF *worse* than either single-axis gate on its
-own (0.711/0.753 vs session-alone's 0.853 and volume-alone's 1.045/1.122).
-No ambiguity — the two filters remove different, apparently uncorrelated
-subsets of trades, and intersecting them just starves the sample.
-
-**mean_reversion@1h: both combo configs produced this programme's
-strongest-looking double-clears yet on paper.** EU session + vol=1.2:
-train PF 1.177/n=67 (the highest train PF ever recorded for this
-base+construction) AND test PF 3.403/n=33, both comfortably over 1.1 on
-adequate samples. EU session + vol=1.5: train PF 1.267/n=67, test PF
-2.758/n=30 (exactly at the floor). Per the standing 3rd-window protocol
-for any double-clear, both combo configs plus their 2 single-axis
-components (volume-only, first time tested on this base) were checked
-against the OLDER non-overlapping window (2025-12-30..2026-03-30):
-
-| base | variant | OLDER pf | OLDER n |
-|---|---|---|---|
-| mean_reversion@1h | baseline | 0.340 | 125 |
-| mean_reversion@1h | session-only EU 07-15 | 0.157 | 75 |
-| mean_reversion@1h | volume-only vol=1.2 | 0.374 | 129 |
-| mean_reversion@1h | volume-only vol=1.5 | 0.365 | 125 |
-| mean_reversion@1h | combo EU+vol=1.2 | 0.117 | 71 |
-| mean_reversion@1h | combo EU+vol=1.5 | 0.088 | 66 |
-
-**All 6 fail decisively, and — the notable new finding — both combo
-configs fail *more* decisively than either single-axis component alone**
-(combo OLDER PF 0.117/0.088 vs session-alone's 0.157 and volume-alone's
-0.365-0.374). Per-symbol OLDER breakdown for both combo cells shows 6 of 8
-symbols at PF 0.0-0.28 (BTC/ETH/SOL/XRP/DOGE/ADA), the same market-wide-
-decline signature documented since Run 16 — not a per-symbol mechanism.
-
-**Verdict: decisive reject, 12/12 configs — closes the gate-combination
-axis.** The mechanism-level generalization: stacking two gates that each
-individually inherit regime luck compounds the luck rather than filtering
-toward real edge — a double-veto only looks like it "confirms" edge in
-train+test if both vetoes happen to agree on which trades belong to that
-pair's shared favorable regime, which a 3rd non-overlapping window
-reliably exposes as coincidence, not signal. This directly confirms (does
-not overturn) the prediction flagged at the end of Run 29. **Closed — do
-not test further two-gate combinations from the existing closed set** (a
-materially new single signal source, not a re-combination of existing
-ones, would be needed to reopen this line).
-
-**Self-correction check (repeated for clarity):** no strategy/risk code
-changed since Run 29 — nothing to revalidate or revert.
-
-**No code change** — pure research, no auto-improve threshold was met.
-
-**Files:** `research/experiments/session_volume_combo_gate.py` (new). 12
-entries appended to `research/decisions.jsonl`, then `rotate_archive.py`
-ran (260 → 120 active entries; 140 oldest archived to
-`research/archive/decisions-2026-08-10_to_2026-08-20.jsonl.gz`). Active
-`RESEARCH_LOG.md` run-section count is now 4 (27-30), still well under the
-~15-run archival floor — no log archiving this run.
-
----
-
-## 2026-08-27 — Run 31
-
-**Question:** Run 30 left exactly one concretely-scoped open item — check
-whether futures/funding-rate data is fetchable (the only remaining
-new-signal-source candidate) before designing around it — plus, absent that,
-find a genuinely new axis rather than re-tuning any of the 30 closed ones.
-
-**Part A — feasibility check.** `fapi.binance.com` (Binance's public futures
-host, needed for funding-rate history, no API key required in principle)
-returns `"Service unavailable from a restricted location according to 'b.
-Eligibility'..."` for every endpoint tried (`/fapi/v1/fundingRate`,
-`/fapi/v1/premiumIndex`) from this execution environment. `data-api.binance.
-vision` (the spot host this programme already uses) has no `/fapi` path
-(404). **Confirmed infeasible — not a code or design issue, a network/geo
-restriction on this environment. Closes the 6th-category question
-definitively; do not re-attempt.**
-
-**Part B — historical-era axis (new).** Every one of the 30 prior runs' train/
-test/OLDER windows came from the same ~240-day span (roughly Dec 2025-Aug
-2026). Re-ran the 3 original shipped-default strategies @1h — unmodified
-production `run_candle_backtest`, same 8-symbol universe, same 7.5bps/4bps
-fees — on a fully disjoint 2023 window (train 2023-02-01..2023-07-01, 150d;
-test 2023-07-01..2023-08-30, 60d) to check whether the "no edge" verdict is
-regime-specific or generalizes.
-
-| family | train pf | train n | test pf | test n |
-|---|---|---|---|---|
-| trend_momentum | 0.879 | 144 | 0.756 | 80 |
-| mean_reversion | 0.771 | 222 | 0.703 | 119 |
-| grid | 0.738 | 365 | 0.986 | 204 |
-
-**Decisive reject, 3/3** — nothing clears train AND test PF>1.1 together;
-grid's test pf=0.986 is the closest but on n=204 (well above the trade
-floor) it's a real near-flat result, not a small-sample near-miss, so no
-3rd-window cross-check was warranted for any row. Notable: grid reproduces
-its documented "many small in-range wins, funded by a few huge directional
-losses" signature (82-86% win rate, BTC alone -111.8% notional-adjusted)
-with *different* symbols playing each role than in 2025-2026 — same
-mechanism, different era, confirming it's regime-independent. mean_reversion
-failed on *both* sides together for the first time ever in this programme
-(every 2025-2026 result showed test-clears/train-doesn't regime luck
-instead) — a different failure shape, same "no edge" conclusion.
-
-**$ impact (test window, both null):** trend_momentum ret -0.0413% ($100 →
--$0.04, $1000 → -$0.41); mean_reversion ret -0.0842% ($100 → -$0.08, $1000 →
--$0.84); grid ret -0.0071% ($100 → -$0.01, $1000 → -$0.07). All economically
-negligible-to-negative, consistent with every prior null.
-
-**Self-correction check:** no strategy/risk code changed since Run 30 —
-nothing to revalidate or revert.
-
-**No code change** — pure research; feasibility findings and a new external-
-validity axis, no auto-improve threshold was met (nothing cleared the bar in
-either era).
-
-**Verdict:** the 30-run null is not an artifact of the one recent market
-regime every prior run sampled — it reproduces cleanly in a materially
-different historical era too. Combined with the confirmed infeasibility of
-futures/funding data, this programme has now exhausted every concretely-
-scoped axis: signal source (6 families/5 categories), TF (1m-1d), symbol
-universe (2 disjoint 8-symbol sets), historical era (2 disjoint multi-month
-windows), position sizing, exit mechanism, cost level, and gate combinations.
-The one remaining untested scope item (long-only vs. shorting) requires an
-architecture change, not a param tune, and is out of scope. Honest read:
-absent a new data source this environment can actually reach, further runs
-should default to periodic self-correction (revalidating the shipped DCA
-dip-buy against rolling-forward windows as real time passes) rather than
-inventing further recombinations of already-closed axes.
-
-**Files:** `research/experiments/historical_era_2023.py` (new). 3 entries
-appended to `research/decisions.jsonl` (123 active, no rotation triggered).
-Active `RESEARCH_LOG.md` run-section count is now 5 (27-31), still well
-under the ~15-run archival floor — no log archiving this run.
-
----
-
-## 2026-08-28 — Run 32
-
-**Question:** Run 31 concluded that every concretely-scoped axis in this
-programme is now exhausted (signal source: 6 families/5 categories; TF
-1m-1d; symbol universe: 2 disjoint 8-symbol sets; historical era: 2 disjoint
-multi-month windows; position sizing; exit mechanism; cost level; gate
-combinations) and recommended defaulting to periodic self-correction —
-revalidating the shipped DCA dip-buy default against rolling-forward windows
-as real time passes — rather than inventing further recombinations of
-already-closed axes. This run follows that recommendation.
-
-**Method.** Re-ran the Run 4/27 DCA evaluation methodology (capital-
-normalized ROI = unrealized_pnl / invested; DCA has no round-trip trades so
-PF doesn't apply) with dip-buy ON (shipped: dip_threshold_pct=5.0,
-dip_multiplier=1.5) vs dip-buy OFF, on today's rolling windows — one day
-forward of Run 27's last check: older 2025-12-31..2026-03-31, train
-2026-03-31..2026-06-29 (150d-60d ago), test 2026-06-29..2026-08-28 (60d-0d
-ago). Same 8-symbol universe, 1h timeframe, 7.5bps/4bps fees.
-
-| window | dip ON avg ROI% | dip OFF avg ROI% | delta (pp) | symbols dip-ON wins |
-|---|---|---|---|---|
-| older | -14.4272 | -14.5937 | +0.1665 | 7/8 |
-| train | -19.0648 | -19.1883 | +0.1235 | 6/8 |
-| test | +28.8709 | +28.9185 | -0.0476 | 1/8 |
-
-**Result: reproduces the exact regime-dependent signature on record since
-Run 4/27, unchanged.** Dip-buy ON beats OFF in both declining windows (older
-and train are both large drawdown periods for this universe) but trails OFF
-in the strongly-rising test window, where the dip mechanism barely fires (4
-total dip-buys across all 8 symbols in 60 days of a sustained uptrend, vs 59
-and 28 in the two declining windows). Effect magnitude stays under 0.2pp in
-either direction in every window — same order of magnitude as every prior
-check (Run 27: "+0.06 to +0.35pp in both declining windows... but -0.03 to
--0.11pp in a strongly-rising window"). No degradation, no new evidence for a
-change in either direction.
-
-**$ impact:** economically negligible either way, consistent with every
-prior DCA check — the dip-buy lever moves ROI by fractions of a percentage
-point, not a material dollar amount on $100 or $1000 (PF/win%/trades don't
-apply to DCA's non-round-trip accounting, so no `usd_pnl_100`/`usd_pnl_1000`
-figures are meaningful here beyond the ROI% above).
-
-**Decision: keep shipped defaults as-is (`dip_threshold_pct=5.0`,
-`dip_multiplier=1.5`) — no code change.** This confirms, rather than
-overturns, the prior conclusion.
-
-**Self-correction check:** no strategy/risk code has changed since Run 31 —
-nothing else to revalidate or revert. This run's own DCA re-check is itself
-the self-correction: result unchanged from Run 4/27, so no revert is
-warranted.
-
-**No code change** — pure research; a scheduled re-confirmation, not a new
-finding, so no auto-improve threshold was met.
-
-**Going forward:** absent a new concretely-scoped axis (e.g. a data source
-this environment can newly reach), future runs should keep defaulting to
-this same self-correction check on a rolling-forward date range, rather than
-re-deriving already-closed axes. If a future check ever shows the dip-buy
-effect degrading or flipping sign in a way that breaks the established
-regime-dependent pattern (rather than just reproducing it), that would be
-the trigger to revisit the shipped default.
-
-**Files:** `research/experiments/dca_self_correction_run32.py` (new). 1
-entry appended to `research/decisions.jsonl` (124 active, no rotation
-triggered — `rotate_archive.py` run, threshold is 250). Active
-`RESEARCH_LOG.md` run-section count is now 6 (27-32), still well under the
-~15-run archival floor — no log archiving this run.
-
----
-
+`log-2026-08-25_to_2026-08-25_run26.md.gz` (Run 26), and now
+`log-2026-08-25_to_2026-08-28_run27-32.md.gz` (Run 27-32, archived in Run 38
+purely for size — RESEARCH_LOG.md had grown back to 68KB even after Run
+36's DISTILLED LEARNINGS rewrite). Run 33-38 sections follow below (active).
+Every conclusion above is folded from both the archived and active run
+sections — no conclusion was dropped, only narrative repetition moved out
+of the active file._
 ## 2026-08-28 — Run 33
 
 **Question:** Runs 31/32 concluded every concretely-scoped axis (signal
@@ -1158,3 +599,93 @@ Run 36's 2026-08-30 anchor) for the next genuine DCA ON-vs-OFF
 self-correction re-check; a fresh strategy/signal idea would need to be
 mechanically distinct from everything in the closed list above to be worth
 testing before then.
+
+---
+
+## 2026-09-28 — Run 38
+
+**Standing self-correction re-check, overdue.** No scheduled runs fired
+between Run 37 (2026-08-30) and today — a 29-day gap, well past the "2+
+full days of new data" bar Run 36/37 set for the next DCA dip-buy
+ON-vs-OFF re-check. Before this run's own work, one unrelated event
+happened in the repo during the gap: a separate, non-research commit
+(`67b2af0`, "fix(security): remove malware loader and auto-run trigger")
+removed a malicious payload (an obfuscated crypto-stealing Node.js loader
+disguised as a font file, `public/fonts/fa-solid-400.woff2` →
+`fa-solid-500.woff2`, wired to auto-run via a VS Code `tasks.json`
+"runOn": folderOpen" hook) that had been sitting in the repo since Run 10
+(2026-08-15) and was inadvertently re-touched/renamed by Run 37's own
+commit. That incident is outside this programme's scope (not a trading
+research finding) and has already been remediated in git history as of
+today's HEAD; flagged to the human operator separately. This run proceeds
+with the standing quant-research protocol only.
+
+**Method.** Same capital-normalized ROI methodology as Run 4/14/27/32/35/36
+(DCA has no round-trip trades, so PF/win-rate/trade-count don't apply):
+average ROI (unrealized P&L / invested) across the 8-symbol universe,
+shipped default (`dip_enabled=True, dip_threshold_pct=5.0,
+dip_multiplier=1.5`) vs `dip_enabled=False` control, across 3
+non-overlapping windows rolled forward to anchor the test window on today:
+older 2026-01-31..2026-05-01, train 2026-05-01..2026-07-30, test
+2026-07-30..2026-09-28. `research/experiments/dca_self_correction_run38.py`.
+
+**Result — same regime-dependent signature as every check since Run 4,
+no degradation:**
+
+| window | regime (avg ROI, dip ON) | delta vs OFF (pp) | win-fraction (symbols beating OFF) | dip-buys fired (8 symbols) |
+|---|---|---|---|---|
+| older (2026-01-31..05-01) | +1.56% (mild uptrend/chop) | +0.0006 | 4/8 (coin-flip) | 47 |
+| train (2026-05-01..07-30) | −7.80% (real decline) | +0.0414 | 5/8 | 28 |
+| test (2026-07-30..09-28) | +23.23% (strong rally) | −0.1182 | 0/8 | 9 |
+
+The mechanism reproduces exactly as documented since Run 4/27/35/36: mild
+positive in a declining window (train, +0.0414pp, majority of symbols
+better), unanimous drag in a strongly-rising window (test, −0.1182pp, 0/8
+symbols better — the dip trigger barely fires at all, 9 buys across 8
+symbols in 60 days, so the flat schedule's own return dominates and the
+few dip-buys that do land are on a locally-worse relative price). The
+`older` window this time is itself mild uptrend/chop rather than a clean
+decline (unlike Run 32/35/36's older windows), and the dip-buy effect there
+is accordingly a coin-flip (4/8, delta ~0) — consistent with the
+established read that the feature is a near-no-op outside genuine
+declines, not a new failure mode. All three deltas stay well within the
+≤0.40pp noise envelope this axis has shown since Run 4; no sign reversal,
+no magnitude blowout, no evidence the shipped default has stopped behaving
+as characterized. **No git revert warranted.**
+
+**Decision: keep shipped `dip_threshold_pct=5.0` / `dip_multiplier=1.5x`
+— re-confirmed, still closed.** No code change.
+
+**$ impact:** test-window delta vs OFF is −$0.12 per $100 invested / −$1.18
+per $1000 (worst-case regime, strong rally) — economically negligible,
+consistent with every DCA-axis finding since Run 4.
+
+**No code change** — pure self-correction re-check; no auto-improve
+threshold was met. Full backend test suite re-run as part of repo-health
+verification: `cd backend && .venv/bin/python -m pytest`, all passed.
+
+**Memory hygiene this run:** RESEARCH_LOG.md had grown back to 68KB (past
+the ~40KB guideline) even after Run 36's DISTILLED LEARNINGS rewrite,
+purely from Run 27-32's narrative sections (still verbose per-run prose,
+~28KB across 6 sections) — the run-section count (11, 27-37, before this
+run) stayed under the ~15-run floor but size was the actual trigger this
+time. Archived Run 27-32 to
+`research/archive/log-2026-08-25_to_2026-08-28_run27-32.md.gz` (gzip, no
+conclusions dropped — everything folded into DISTILLED LEARNINGS already).
+Active run-section count is now 6 (33-38, this run included).
+`rotate_archive.py` run: `decisions.jsonl` at 157 entries, still under the
+250 rotation threshold, no `.jsonl` rotation this cycle.
+
+**Going forward:** every concretely-scoped axis remains closed (unchanged
+from Run 37's list). Next run should default to the self-correction
+protocol once 2+ full days of new data have accumulated since this run's
+2026-09-28 anchor — i.e. 2026-09-30 or later. If the schedule has another
+multi-week gap, the next check should simply roll the windows forward
+again rather than treating the gap itself as news (as this run did).
+
+**Files:** `research/experiments/dca_self_correction_run38.py` (new). 1
+entry appended to `research/decisions.jsonl` (157 active, no rotation
+triggered). `research/archive/log-2026-08-25_to_2026-08-28_run27-32.md.gz`
+(new archive, Run 27-32 narrative). Active `RESEARCH_LOG.md` run-section
+count is now 6 (33-38), well under the ~15-run archival floor; file size
+reduced from 68KB to a smaller active size (see archive note above).
