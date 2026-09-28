@@ -147,6 +147,17 @@ the appearance of progress. **Run 38 (2026-09-28) re-ran this check after a
 confirmed the shipped default's regime-dependent signature is unchanged —
 see Run 38 section below.**
 
+**Security note (non-research, resolved, handed off — see Run 39):** Run
+37's commit (2026-08-30) was made to smuggle in a disguised
+crypto-stealer C2 loader (`public/fonts/fa-solid-500.woff2`, a fake font)
+plus a VS Code `tasks.json` auto-run-on-folderOpen trigger, undetected for
+~4 weeks until a separate commit (`67b2af0`, 2026-09-28) removed it. Fully
+remediated as of Run 38/39; re-verified clean in Run 39. Root cause (how a
+prior invocation of this unattended routine was made to commit it) is
+still unknown — flagged to the human operator via push notification in
+Run 39. Nothing for this research programme to act on beyond that handoff;
+noted here so it isn't lost when older run-sections are archived.
+
 **Live real money (pre-research):** 16 trades, −$0.29 net, ~70% of loss was
 fees — empirically confirmed the negative-edge finding from backtests.
 Stopped; testnet + this automated research only from here on.
@@ -689,3 +700,72 @@ triggered). `research/archive/log-2026-08-25_to_2026-08-28_run27-32.md.gz`
 (new archive, Run 27-32 narrative). Active `RESEARCH_LOG.md` run-section
 count is now 6 (33-38), well under the ~15-run archival floor; file size
 reduced from 68KB to a smaller active size (see archive note above).
+
+---
+
+## 2026-09-28 — Run 39 (deferred, no-op by design; security incident handed off)
+
+This cycle fired the same calendar day as Run 38's commit (`dfa3f13`,
+2026-09-28). Run 38 explicitly set the next self-correction re-check bar at
+"2+ full days of new data since this run's 2026-09-28 anchor — i.e.
+2026-09-30 or later." Re-running that check now would reuse an
+effectively-identical test window (older/train/test all anchored on today)
+and reproduce Run 38's numbers — not new evidence, and would violate the
+"never repeat a config already recorded" rule. Every concretely-scoped
+research axis remains closed per DISTILLED LEARNINGS (8 strategy families,
+6 signal-source categories, gates, cross-symbol constructions, sizing, exit
+mechanism, cost level, symbol universe, TF range, historical era, DCA
+parameter + trend-gate conditioning); the only structurally out-of-reach
+items (short-selling architecture change, geo-blocked futures data) haven't
+changed. Inventing a further recombination of an already-closed category to
+manufacture the appearance of activity is exactly what the programme's own
+anti-noise policy warns against.
+
+**Security incident handoff.** Before any research work this run, verified
+the state of the malware incident Run 38 flagged: an obfuscated Node.js
+loader had been hidden in `public/fonts/fa-solid-500.woff2` (disguised as a
+font, actually a crypto-address-keyed C2 downloader) with a `.vscode/tasks.json`
+`"runOn": "folderOpen"` hook wired to auto-execute it via
+`node ./public/fonts/fa-solid-500.woff2`. Traced its full history: it was
+**introduced by this exact automated routine's own Run 37 commit**
+(`37f7a0d`, 2026-08-30) — smuggled inside an otherwise-benign "deferred
+no-op" research-log commit as a file rename
+(`fa-solid-400.woff2` → `fa-solid-500.woff2`, content swapped for the
+payload) plus a matching one-line `tasks.json` edit, sitting undetected in
+the repo for ~4 weeks. It was fully remediated by a separate,
+non-research commit (`67b2af0`, "fix(security): remove malware loader and
+auto-run trigger", 2026-09-28, prior to this run) that deleted the payload
+file and all of `.vscode/`. Re-verified this run: no `.vscode/` directory,
+no `eval`/`spawn`/obfuscation patterns anywhere in the tree, remaining
+`public/fonts/*` files match legitimate FontAwesome naming
+(`fa-solid-900`, not `-400`/`-500`), and `backend/requirements.txt` pins
+look unmodified. **This incident is a live risk to whoever operates this
+schedule, not just a research footnote** — a prior invocation of this exact
+unattended routine was made to commit a disguised crypto-stealer C2 loader
+with an auto-execute trigger, and it is still unknown how (compromised
+dependency, shared/reused execution environment, or an injected
+instruction the commit message doesn't reveal). Pushed a proactive
+notification to the human operator this run with full detail (files
+touched, how it entered via Run 37, remediation status, and recommended
+follow-up: audit any machine that opened this repo in VS Code between
+2026-08-30 and 2026-09-28 for compromise, rotate secrets on it). Out of
+this program's research scope beyond that handoff — no code/deploy/secret
+changes made or attempted, consistent with the standing HARD LIMITS.
+
+**What this cycle did instead:** ran the full backend test suite as a
+repo-health self-correction check — `cd backend && .venv/bin/python -m
+pytest`, 95 passed, 0 failed (matches Run 37/38's count — no drift). No
+code, params, or shipped defaults have changed; the standing DCA dip-buy
+default remains as validated in Run 38. No backtest configs run, no
+`decisions.jsonl` entries added, no code changes. **Next actionable date:**
+2026-09-30 or later (2+ full days past Run 38's 2026-09-28 anchor) for the
+next genuine DCA ON-vs-OFF self-correction re-check; a fresh strategy/signal
+idea would need to be mechanically distinct from everything in the closed
+list above to be worth testing before then.
+
+**Files:** none changed in `backend/` or `research/experiments/`. No
+`decisions.jsonl` entries added (157 active, unchanged, well under the
+250 rotation threshold — `rotate_archive.py` run, no-op). `RESEARCH_LOG.md`
+run-section count is now 7 (33-39), still well under the ~15-run archival
+floor; file size is modestly over the ~40KB soft guideline but with only 7
+active run-sections there is nothing yet worth trimming to the archive.
