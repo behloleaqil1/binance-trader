@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**38 runs, ~340+ configs, one standing positive finding (DCA dip-buy,
+**40 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-32 is archived (see archive index at file end); Run 33-38 sections are
+1-32 is archived (see archive index at file end); Run 33-40 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -127,7 +127,11 @@ hurts or ties — more dip-buying in a decline lowers cost basis further, cap
 only removes the buys that would've helped most. **DCA is now fully closed
 on every concretely-scoped parameter axis; standing self-correction protocol
 (re-check ON vs OFF on rolling-forward windows) is the only recommended
-periodic check, not further parameter tuning.**
+periodic check, not further parameter tuning.** Run 40 (2026-09-30) repeated
+this check on windows shifted +2 days vs Run 38 and reproduced the identical
+regime-dependent sign pattern (positive in decline/chop, negative in a
+strong rally, all deltas <=0.17pp) — still no reversal, see Run 40 section
+below.
 
 ### Where this programme stands
 Every concretely-scoped axis — 8 strategy families, 5 signal-source
@@ -144,8 +148,9 @@ stopped holding). A well-recorded null result remains a valid, valuable
 outcome — do not invent recombinations of already-closed axes to manufacture
 the appearance of progress. **Run 38 (2026-09-28) re-ran this check after a
 29-day gap in the schedule (no runs fired 2026-08-30 to 2026-09-28) and
-confirmed the shipped default's regime-dependent signature is unchanged —
-see Run 38 section below.**
+confirmed the shipped default's regime-dependent signature is unchanged; Run
+40 (2026-09-30) repeated it on windows shifted +2 days and again confirmed
+no reversal — see Run 38/40 sections below.**
 
 **Security note (non-research, resolved, handed off — see Run 39):** Run
 37's commit (2026-08-30) was made to smuggle in a disguised
@@ -769,3 +774,87 @@ list above to be worth testing before then.
 run-section count is now 7 (33-39), still well under the ~15-run archival
 floor; file size is modestly over the ~40KB soft guideline but with only 7
 active run-sections there is nothing yet worth trimming to the archive.
+
+---
+
+## 2026-09-30 — Run 40 (self-correction, on schedule)
+
+**Housekeeping first.** This container's clone had `main` pinned at
+`67b2af0` (the security-fix commit) with a detached `HEAD` two commits
+ahead, at `e36f045` (Run 38 + Run 39's own commits, already pushed to
+`origin/main` by a prior session — confirmed via `git fetch` that
+`origin/main` already matched `e36f045`, so nothing was lost, just a stale
+local branch pointer in this fresh container). Fast-forwarded local `main`
+to `e36f045` before doing anything else, so this run's commit lands on the
+real branch history rather than another orphaned detached-HEAD tip.
+Re-verified the Run 37 malware incident remains remediated: no `.vscode/`
+directory, `public/fonts/*` all match legitimate FontAwesome naming
+(`fa-solid-900`, no `-400`/`-500` swap), no stray `eval`/obfuscated JS in
+`public/`. Nothing new to flag beyond Run 39's handoff.
+
+**Question.** Run 38 set the next actionable date for the standing DCA
+self-correction protocol at "2026-09-30 or later" (2+ full days past its
+2026-09-28 anchor). Run 39 fired the same day as Run 38 and correctly
+deferred. Today is 2026-09-30 — the bar is met, so this run performs the
+genuine re-check rather than another deferral. No concretely-scoped
+strategy/signal/gate axis has reopened since Run 39; per DISTILLED
+LEARNINGS every one of them (8 strategy families, 6 signal-source
+categories, gates, cross-symbol constructions, sizing, exit mechanism, cost
+level, symbol universe, TF range, historical era, DCA parameter + trend-gate
+conditioning) remains closed with zero surviving candidates, and the only
+structurally out-of-reach items (short-selling, geo-blocked futures data)
+are unchanged.
+
+**Method.** Same methodology as Run 4/14/27/32/35/36/38 (capital-normalized
+average ROI across the 8-symbol universe, dip_enabled=True (shipped,
+`dip_threshold_pct=5.0`, `dip_multiplier=1.5`) vs dip_enabled=False
+(control), 1h entry timeframe, 7.5bps fees/4bps slippage). All 3
+non-overlapping windows shifted forward by exactly 2 days vs Run 38 (same
+window lengths — older/train 90d, test 60d): older
+2026-02-02..2026-05-03, train 2026-05-03..2026-08-01, test
+2026-08-01..2026-09-30 (anchor = today's close).
+
+**Result — same regime-dependent signature, no reversal.**
+
+| window | OFF avg ROI% | ON-OFF delta (pp) | symbols beating OFF |
+|---|---|---|---|
+| older (mild uptrend/chop) | +3.3051 | **+0.0572** | 6/8 |
+| train (real decline) | -7.3223 | **+0.0336** | 5/8 |
+| test (strong rally) | +20.2762 | **-0.1651** | 0/8 |
+
+Identical sign pattern to every prior check since Run 4: mild positive when
+the window contains a real decline or chop, a small unanimous drag when the
+window is a sustained rally (only 12 dip-buys fired across all 8 symbols in
+60 days of a +20% rally — the mechanism is a rare no-op there by
+construction). All 3 deltas are inside the established <=0.40pp noise
+envelope (this run's max magnitude is 0.1651pp, smaller than Run 38's
+0.1182pp test-window drag). **No reversal, no quiet degradation of the
+shipped default — no git revert warranted.**
+
+**$ impact:** test-window delta (the decision-relevant window) is -$0.1651
+on $100 invested notional / -$1.651 on $1000 — economically trivial, as
+established since Run 4.
+
+**Decision: noise — shipped default (`dip_threshold_pct=5.0`,
+`dip_multiplier=1.5`) reconfirmed, no code change.**
+
+**No code change** — pure self-correction re-check; no auto-improve
+threshold was met, no revert was warranted.
+
+**Going forward:** next self-correction check due once 2+ full days of new
+data have accumulated past this run's 2026-09-30 anchor, i.e. 2026-10-02 or
+later; a same-day or next-day re-fire should defer as a no-op exactly as
+Run 39 did. A fresh strategy/signal idea would need to be mechanically
+distinct from every closed item in DISTILLED LEARNINGS to be worth testing
+before then — none identified this run.
+
+**Files:** `research/experiments/dca_self_correction_run40.py` (new, copied
+from Run 38's script with windows rolled forward +2 days).
+`research/experiments/dca_self_correction_run40_output.json` (new, raw
+per-symbol output, gitignored-equivalent scratch data kept alongside prior
+runs' outputs for continuity). 1 entry appended to `research/decisions.jsonl`
+(158 active, no rotation triggered — `rotate_archive.py` run, no-op). Full
+backend test suite re-run: 95 passed, 0 failed, no drift. `RESEARCH_LOG.md`
+run-section count is now 8 (33-40); file size (~47KB) is over the ~40KB
+soft guideline but still well under the ~15-run archival floor — leaving
+active for now, as Run 39 did.
