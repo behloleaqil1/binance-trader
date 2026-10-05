@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**42 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**43 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-36 is archived (see archive index at file end); Run 37-42 sections are
+1-36 is archived (see archive index at file end); Run 37-43 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -602,3 +602,56 @@ per-symbol output). 1 entry appended to `research/decisions.jsonl` (159
 active, no rotation triggered). `research/archive/log-2026-08-28_to_2026-08-30_run33-36.md.gz`
 (new archive, Run 33-36 narrative). Active `RESEARCH_LOG.md` run-section
 count is now 6 (37-42), file size ~30KB, back under the ~40KB guideline.
+
+---
+
+## 2026-10-05 — Run 43 (same-day deferred no-op)
+
+**Housekeeping first.** Fresh container clone had local `main` pinned one
+commit behind (`f697c2b`, Run 41) with `origin/main` already at Run 42's
+`7241ded` — same stale-pointer pattern noted in Run 40/41's own
+housekeeping (a fresh container clone predates the previous session's
+push). Fast-forwarded local `main` to `origin/main` (`7241ded`) via `git
+checkout main && git merge --ff-only`. Re-verified the Run 37 malware
+incident remains remediated: no `.vscode/` directory, `public/fonts/*` all
+legitimate FontAwesome filenames (`fa-solid-900`, `fa-brands-400`,
+`fa-regular-400` — no `-400`/`-500` swapped fake font), no stray `eval(`
+anywhere under `public/`. Nothing new to flag.
+
+**Question.** This scheduled fire lands on 2026-10-05 — the same calendar
+date as Run 42's commit (`7241ded`, 2026-10-05T02:12:32Z). Run 42 itself set
+the next actionable date for the standing DCA self-correction protocol at
+"2026-10-07 or later" (2+ full days past its own 2026-10-05 anchor) and
+explicitly said a same-day or next-day re-fire should defer as a no-op,
+exactly as Run 39/41 did. That bar is not yet met today, so this run defers
+rather than re-running the self-correction check on <12h of new data (which
+would just reproduce Run 42's numbers with noise-level rounding, adding no
+information, and would violate the "never repeat a config already recorded"
+rule).
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
+mechanically distinct from the closed list (8 strategy families, 6
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning) that would be worth testing before the next scheduled
+self-correction date. None identified — the only structurally out-of-reach
+items remain short-selling (architecture change, out of scope per the
+task's own auto-improve boundaries) and geo-blocked futures/funding data.
+No new construction proposed this run.
+
+**Verification.** `cd backend && .venv/bin/python -m pytest` — 95 passed, 0
+failed, matching every prior run's count exactly, no drift. No code,
+params, or shipped defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just be a duplicate-window rerun of
+Run 42 with no new signal), no code changes, no candidate.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-07 or later, per Run 42. Unchanged from Run 42's guidance.
+
+**Files:** none changed in `backend/` or `research/experiments/`.
+`decisions.jsonl` unchanged (159 active). `rotate_archive.py` not run (no
+new entries to rotate). `RESEARCH_LOG.md` run-section count is now 7
+(37-43); file size still comfortably under the ~40KB guideline.
