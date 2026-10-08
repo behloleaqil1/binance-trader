@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**48 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**49 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-40 is archived (see archive index at file end); Run 41-48 sections are
+1-40 is archived (see archive index at file end); Run 41-49 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -684,3 +684,60 @@ remains 2026-10-09 or later, per Run 46. Unchanged.
 `decisions.jsonl` unchanged (160 active). `rotate_archive.py` not run (no
 new entries to rotate). `RESEARCH_LOG.md` run-section count is now 8
 (41-48); file size (~37KB) still under the ~40KB guideline.
+
+---
+
+## 2026-10-08 — Run 49 (same-day deferred no-op)
+
+**Housekeeping first.** Fresh container clone had `HEAD` detached at
+`820c5ad` (Run 48's commit, matching `origin/main`) with local `main`
+pinned 4 commits behind at `5fa7d2a` (Run 44) — same stale-branch-pointer
+pattern as Run 40/41/43/44/46/48's own housekeeping notes (a fresh clone
+predates the previous session's `git checkout main`). Fast-forwarded local
+`main` to `origin/main` (`820c5ad`) via `git checkout main && git merge
+--ff-only` — clean fast-forward, no divergent commits, no work at risk.
+Re-verified the Run 37 malware incident remains remediated: no `.vscode/`
+directory, `public/fonts/*` all legitimate FontAwesome filenames
+(`fa-solid-900`, `fa-brands-400`, `fa-regular-400`, plus `README.md` — no
+`-400`/`-500` swapped fake font), no stray `eval(` anywhere under
+`public/`. Nothing new to flag.
+
+**Question.** This scheduled fire lands on 2026-10-08 — the same calendar
+day as Run 48's commit (`820c5ad`) and Run 47's deferral. Run 46 set the
+next actionable date for the standing DCA self-correction protocol at
+"2026-10-09 or later" (2+ full days past its own 2026-10-07 anchor). Today
+is still one day short of that bar. Re-running the check now would reuse
+windows overlapping Run 46's by all but one day and reproduce its numbers
+with noise-level rounding, adding no information and violating the "never
+repeat a config already recorded" rule. This run defers, exactly as Run
+39/41/43/44/45/47/48 did at the equivalent point in their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
+mechanically distinct from the closed list (8 strategy families, 6
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning). None identified — the only structurally out-of-reach items
+remain short-selling (architecture change, out of scope per the task's own
+auto-improve boundaries) and geo-blocked futures/funding data. No new
+construction proposed this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 95 passed, 0 failed, matching every prior run's count exactly, no drift.
+No code, params, or shipped defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just be a duplicate-window rerun of
+Run 46 with no new signal), no code changes, no candidate.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-09 or later, per Run 46. Unchanged.
+
+**Files:** none changed in `backend/` or `research/experiments/`.
+`decisions.jsonl` unchanged (160 active). `rotate_archive.py` not run (no
+new entries to rotate). `RESEARCH_LOG.md` run-section count is now 9
+(41-49); file size (~41KB) is now just over the ~40KB soft guideline — the
+next run that does real work (the 2026-10-09 self-correction check, if the
+schedule lands on or after that date) should fold the oldest 1-2
+already-closed sections (Run 41/42) into an archive to bring it back under
+budget, as Run 42/46 did previously.
