@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**50 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**51 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-42 is archived (see archive index at file end); Run 43-50 sections are
+1-42 is archived (see archive index at file end); Run 43-51 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -724,3 +724,65 @@ section was appended, but this section's own narrative pushes the final
 size to ~41.7KB — just over the ~40KB guideline again. The next run that
 does real work should fold Run 43-45 (3 short, already-closed/deferred
 sections) into an archive to bring it back under budget.
+
+---
+
+## 2026-10-12 — Run 51 (same-day deferred no-op)
+
+**Housekeeping first.** Fresh container clone had `HEAD` detached at
+`34c9866` (Run 50's commit, matching `origin/main`) with local `main`
+pinned 6 commits behind at `5fa7d2a` (Run 44) — same stale-branch-pointer
+pattern as every prior run's housekeeping note (a fresh clone predates the
+previous session's `git checkout main`). This time the gap had grown to 6
+commits (Run 45-50) sitting only on the detached `HEAD`, unreferenced by
+any local or remote branch — worth flagging explicitly since one more
+missed fast-forward could have left them orphaned for garbage collection.
+Fast-forwarded local `main` to `34c9866` via `git checkout main && git
+merge --ff-only` and confirmed `origin/main` already matched (no-op push,
+already in sync) — clean fast-forward, no divergent commits, no work lost.
+Re-verified the Run 37 malware incident remains remediated: no `.vscode/`
+directory, `public/fonts/*` all legitimate FontAwesome filenames
+(`fa-solid-900`, `fa-brands-400`, `fa-regular-400`, plus `README.md` — no
+`-400`/`-500` swapped fake font), no stray `eval(` anywhere under
+`public/`. Nothing new to flag.
+
+**Question.** This scheduled fire lands on 2026-10-12 — the same calendar
+day as Run 50's commit (`34c9866`, 2026-10-12T02:13:47Z), ~12h later. Run
+50 set the next actionable date for the standing DCA self-correction
+protocol at "2026-10-14 or later" (2+ full days past its own 2026-10-12
+anchor). That bar is not met today. Re-running the check now would reuse
+windows overlapping Run 50's by all but a few hours and reproduce its
+numbers with noise-level rounding, adding no information and violating
+the "never repeat a config already recorded" rule. This run defers,
+exactly as Run 39/41/43/44/45/47/48/49 did at the equivalent point in
+their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
+mechanically distinct from the closed list (8 strategy families, 6
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning). None identified — the only structurally out-of-reach items
+remain short-selling (architecture change, out of scope per the task's own
+auto-improve boundaries) and geo-blocked futures/funding data. No new
+construction proposed this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest`
+— 95 passed, 0 failed, matching every prior run's count exactly, no drift.
+No code, params, or shipped defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just be a duplicate-window rerun of
+Run 50 with no new signal), no code changes, no candidate.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-14 or later, per Run 50. Unchanged.
+
+**Files:** none changed in `backend/` or `research/experiments/`.
+`decisions.jsonl` unchanged (161 active). `rotate_archive.py` not run (no
+new entries to rotate). `RESEARCH_LOG.md` run-section count is now 9
+(43-51); file size (~44KB) is now over the ~40KB soft guideline — the next
+run that does real work (the 2026-10-14 self-correction check, if the
+schedule lands on or after that date) should fold Run 43-45 (3 short,
+already-closed/deferred sections, as flagged since Run 50) into an archive
+to bring it back under budget.
