@@ -203,154 +203,14 @@ DISTILLED LEARNINGS above).
 
 ---
 
-## 2026-10-05 — Run 43 (same-day deferred no-op)
+## Run 43-45 — archived
 
-**Housekeeping first.** Fresh container clone had local `main` pinned one
-commit behind (`f697c2b`, Run 41) with `origin/main` already at Run 42's
-`7241ded` — same stale-pointer pattern noted in Run 40/41's own
-housekeeping (a fresh container clone predates the previous session's
-push). Fast-forwarded local `main` to `origin/main` (`7241ded`) via `git
-checkout main && git merge --ff-only`. Re-verified the Run 37 malware
-incident remains remediated: no `.vscode/` directory, `public/fonts/*` all
-legitimate FontAwesome filenames (`fa-solid-900`, `fa-brands-400`,
-`fa-regular-400` — no `-400`/`-500` swapped fake font), no stray `eval(`
-anywhere under `public/`. Nothing new to flag.
-
-**Question.** This scheduled fire lands on 2026-10-05 — the same calendar
-date as Run 42's commit (`7241ded`, 2026-10-05T02:12:32Z). Run 42 itself set
-the next actionable date for the standing DCA self-correction protocol at
-"2026-10-07 or later" (2+ full days past its own 2026-10-05 anchor) and
-explicitly said a same-day or next-day re-fire should defer as a no-op,
-exactly as Run 39/41 did. That bar is not yet met today, so this run defers
-rather than re-running the self-correction check on <12h of new data (which
-would just reproduce Run 42's numbers with noise-level rounding, adding no
-information, and would violate the "never repeat a config already recorded"
-rule).
-
-**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
-mechanically distinct from the closed list (8 strategy families, 6
-signal-source categories, 3 confirmation gates + 1 stacked combo, 2
-cross-symbol constructions, sizing, exit mechanism, cost level, symbol
-universe, TF range, historical era, DCA parameter + trend-gate
-conditioning) that would be worth testing before the next scheduled
-self-correction date. None identified — the only structurally out-of-reach
-items remain short-selling (architecture change, out of scope per the
-task's own auto-improve boundaries) and geo-blocked futures/funding data.
-No new construction proposed this run.
-
-**Verification.** `cd backend && .venv/bin/python -m pytest` — 95 passed, 0
-failed, matching every prior run's count exactly, no drift. No code,
-params, or shipped defaults touched.
-
-**Decision: no-op deferral, nothing to log.** No backtest configs run, no
-`decisions.jsonl` entry added (would just be a duplicate-window rerun of
-Run 42 with no new signal), no code changes, no candidate.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains 2026-10-07 or later, per Run 42. Unchanged from Run 42's guidance.
-
-**Files:** none changed in `backend/` or `research/experiments/`.
-`decisions.jsonl` unchanged (159 active). `rotate_archive.py` not run (no
-new entries to rotate). `RESEARCH_LOG.md` run-section count is now 7
-(37-43); file size still comfortably under the ~40KB guideline.
-
----
-
-## 2026-10-06 — Run 44 (deferred no-op)
-
-**Housekeeping first.** Fresh container clone had local `main` pinned one
-commit behind (`f697c2b`, Run 41) with `origin/main` already at Run 43's
-`2611d4a`. Fast-forwarded local `main` to `origin/main` via `git checkout
-main && git merge --ff-only` — clean, no divergent commits. Re-verified the
-Run 37 malware incident remains remediated: no `.vscode/` directory,
-`public/fonts/*` all legitimate FontAwesome filenames (`fa-solid-900`,
-`fa-brands-400`, `fa-regular-400` — no `-400`/`-500` swapped fake font), no
-stray `eval(` anywhere under `public/`. Nothing new to flag.
-
-**Question.** Run 42 set the next actionable date for the standing DCA
-self-correction protocol at "2026-10-07 or later" (2+ full days past its
-own 2026-10-05 anchor). Today is 2026-10-06 — only 1 day past that anchor,
-so the bar is not yet met. Re-running the check now would reuse windows
-overlapping Run 42's by all but one day and reproduce its numbers with
-noise-level rounding, adding no information and violating the "never
-repeat a config already recorded" rule. This run defers, exactly as Run
-39/41/43 did at the equivalent point in their own cycles.
-
-**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
-mechanically distinct from the closed list (8 strategy families, 6
-signal-source categories, 3 confirmation gates + 1 stacked combo, 2
-cross-symbol constructions, sizing, exit mechanism, cost level, symbol
-universe, TF range, historical era, DCA parameter + trend-gate
-conditioning). None identified — the only structurally out-of-reach items
-remain short-selling (architecture change, out of scope) and geo-blocked
-futures/funding data. No new construction proposed this run.
-
-**Verification.** `cd backend && .venv/bin/python -m pytest` — 95 passed, 0
-failed, matching every prior run's count exactly, no drift. No code,
-params, or shipped defaults touched.
-
-**Decision: no-op deferral, nothing to log.** No backtest configs run, no
-`decisions.jsonl` entry added, no code changes, no candidate.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains 2026-10-07 or later, per Run 42. Unchanged.
-
-**Files:** none changed in `backend/` or `research/experiments/`.
-`decisions.jsonl` unchanged (159 active). `rotate_archive.py` not run (no
-new entries to rotate). `RESEARCH_LOG.md` run-section count is now 8
-(37-44); file size still comfortably under the ~40KB guideline.
-
----
-
-## 2026-10-06 — Run 45 (same-day deferred no-op)
-
-**Housekeeping first.** Local `main` was already fast-forwarded to
-`origin/main` (`5fa7d2a`, Run 44's commit) — no stale-pointer issue this
-time, `git fetch`/`git status` confirmed clean and in sync. Re-verified the
-Run 37 malware incident remains remediated: no `.vscode/` directory,
-`public/fonts/*` contains only legitimate FontAwesome files
-(`fa-solid-900.woff2`, `fa-brands-400.woff2`, `fa-regular-400.woff2` — no
-`-400`/`-500` swapped fake font), no stray `eval(` anywhere under
-`public/`. Nothing new to flag.
-
-**Question.** This scheduled fire lands on 2026-10-06, ~12h after Run 44's
-commit (`5fa7d2a`, 2026-10-06T02:09:37Z) — the same calendar day. Run 42
-set the next actionable date for the standing DCA self-correction protocol
-at "2026-10-07 or later" (2+ full days past its own 2026-10-05 anchor);
-Run 44 confirmed that bar was still unmet on 2026-10-06. It remains unmet
-now. Re-running the check this cycle would reuse windows overlapping Run
-42's by all but one day and reproduce its numbers with noise-level
-rounding — not new evidence, and would violate the "never repeat a config
-already recorded" rule. This run defers, exactly as Run 39/41/43/44 did at
-the equivalent point in their own cycles.
-
-**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
-mechanically distinct from the closed list (8 strategy families, 6
-signal-source categories, 3 confirmation gates + 1 stacked combo, 2
-cross-symbol constructions, sizing, exit mechanism, cost level, symbol
-universe, TF range, historical era, DCA parameter + trend-gate
-conditioning). None identified — the only structurally out-of-reach items
-remain short-selling (architecture change, out of scope) and geo-blocked
-futures/funding data. No new construction proposed this run.
-
-**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
-— exit code 0, 95 dots printed (72 + 23, matching every prior run's count
-exactly), no drift. No code, params, or shipped defaults touched.
-
-**Decision: no-op deferral, nothing to log.** No backtest configs run, no
-`decisions.jsonl` entry added, no code changes, no candidate.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains 2026-10-07 or later, per Run 42/44. Unchanged.
-
-**Files:** none changed in `backend/` or `research/experiments/`.
-`decisions.jsonl` unchanged (159 active). `rotate_archive.py` not run (no
-new entries to rotate). `RESEARCH_LOG.md` run-section count is now 9
-(37-45); file size (~43KB) is modestly over the ~40KB soft guideline but
-still well under the ~15-run archival floor — the next run that does real
-work (the 2026-10-07 self-correction check) should fold the oldest 1-2
-already-closed sections into an archive to bring it back under budget, as
-Run 42 did for Run 33-36.
+Run 43 (same-day deferred no-op), Run 44 (deferred no-op), and Run 45
+(same-day deferred no-op) — all no-op deferrals ahead of the Run 46
+self-correction check, no backtests run, no code changed — are archived
+verbatim to `research/archive/log-2026-10-05_to_2026-10-08_run43-45.md.gz`
+(gzip, no conclusions dropped — nothing in them was outside what DISTILLED
+LEARNINGS already states).
 
 ---
 
@@ -786,3 +646,68 @@ run that does real work (the 2026-10-14 self-correction check, if the
 schedule lands on or after that date) should fold Run 43-45 (3 short,
 already-closed/deferred sections, as flagged since Run 50) into an archive
 to bring it back under budget.
+
+---
+
+## 2026-10-13 — Run 52 (same-day/next-day deferred no-op; memory hygiene)
+
+**Housekeeping first.** Fresh container clone had `HEAD` detached at
+`dd6bd4b` (Run 51's commit, matching `origin/main`) with local `main`
+pinned 7 commits behind at `5fa7d2a` (Run 44) — same stale-branch-pointer
+pattern as every prior run's housekeeping note (a fresh clone predates the
+previous session's `git checkout main`). Fast-forwarded local `main` to
+`origin/main` (`dd6bd4b`) via `git checkout main && git merge --ff-only` —
+clean fast-forward, no divergent commits, no work at risk. Re-verified the
+Run 37 malware incident remains remediated: no `.vscode/` directory,
+`public/fonts/*` all legitimate FontAwesome filenames (`fa-solid-900`,
+`fa-brands-400`, `fa-regular-400`, plus `README.md` — no `-400`/`-500`
+swapped fake font), no stray `eval(` anywhere under `public/`. Nothing new
+to flag.
+
+**Question.** Run 50 set the next actionable date for the standing DCA
+self-correction protocol at "2026-10-14 or later" (2+ full days past its
+2026-10-12 anchor). Today is 2026-10-13 — only 1 day past that anchor, so
+the bar is not yet met. Re-running the check now would reuse windows
+overlapping Run 50's by all but one day and reproduce its numbers with
+noise-level rounding, adding no information and violating the "never
+repeat a config already recorded" rule. This run defers, exactly as Run
+39/41/43/44/45/47/48/49/51 did at the equivalent point in their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
+mechanically distinct from the closed list (8 strategy families, 6
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning). None identified — the only structurally out-of-reach items
+remain short-selling (architecture change, out of scope per the task's own
+auto-improve boundaries) and geo-blocked futures/funding data. No new
+construction proposed this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest` —
+95 passed, 0 failed, matching every prior run's count exactly, no drift. No
+code, params, or shipped defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just be a duplicate-window rerun of
+Run 50 with no new signal), no code changes, no candidate.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` had grown to ~45.5KB (over
+the ~40KB soft guideline) across 9 active run-sections (43-51), exactly as
+Run 50/51 flagged. Archived Run 43-45 (the oldest 3 — all no-op deferrals
+ahead of the Run 46 self-correction check; nothing in them beyond what
+DISTILLED LEARNINGS already states) to
+`research/archive/log-2026-10-05_to_2026-10-08_run43-45.md.gz` (gzip, no
+conclusions dropped). Active run-section count is now 7 (46-52) after this
+section is appended; file size reduced to ~37KB before this section, back
+under the ~40KB guideline. `rotate_archive.py` not run (no new
+`decisions.jsonl` entries this cycle — still 161 active, under the 250
+rotation threshold).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-14 or later, per Run 50. Unchanged.
+
+**Files:** `research/archive/log-2026-10-05_to_2026-10-08_run43-45.md.gz`
+(new archive, Run 43-45 narrative). `research/RESEARCH_LOG.md` edited
+(Run 43-45 sections removed, archive-pointer section added, this section
+appended). No files changed in `backend/` or `research/experiments/`.
+`decisions.jsonl` unchanged (161 active).
