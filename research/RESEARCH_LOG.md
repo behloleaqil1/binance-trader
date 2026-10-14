@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**51 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**54 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-42 is archived (see archive index at file end); Run 43-51 sections are
+1-49 is archived (see archive index at file end); Run 50-54 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -133,9 +133,15 @@ regime-dependent sign pattern (positive in decline/chop, negative in a
 strong rally, all deltas <=0.13pp); Run 50 (2026-10-12) repeated it again on
 windows shifted +5 more days — deltas shrank further (all <=0.10pp, the
 smallest set yet) and the decline-window sign flipped negative for the
-first time at trivial magnitude (-0.02pp, 3/8 symbols), read as the effect
-wobbling at the noise floor rather than a reversal — still no reversal of
-the shipped default, see Run 46/50 sections below.
+first time at trivial magnitude (-0.02pp, 3/8 symbols); Run 54 (2026-10-14)
+repeated it a further +2 days forward — deltas stayed at the same tiny
+scale (max |delta| 0.0864pp) and the decline-window sign stayed negative a
+second consecutive run (-0.0168pp, 3/8 symbols), essentially matching Run
+50's magnitude. Two in a row on the same side is noted for continued
+tracking, but both readings are an order of magnitude inside the <=0.40pp
+noise envelope — read as the effect having settled at (not reversing
+through) the noise floor, not a reversal of the shipped default. See Run
+46/50/54 sections below.
 
 ### Where this programme stands
 Every concretely-scoped axis — 8 strategy families, 5 signal-source
@@ -146,7 +152,7 @@ with zero surviving candidates. The only structurally out-of-reach items are
 short-selling (architecture change) and futures/funding data (geo-blocked).
 **Going forward: default to the self-correction protocol** (DCA dip-buy
 ON-vs-OFF re-check on rolling-forward windows, roughly every 2+ days of new
-data since the last check, per Run 31/32/35/36/38) **and the top-of-file
+data since the last check, per Run 31/32/35/36/38/50) **and the top-of-file
 SELF-CORRECTION mandate** (re-validate no committed conclusion has quietly
 stopped holding). A well-recorded null result remains a valid, valuable
 outcome — do not invent recombinations of already-closed axes to manufacture
@@ -524,3 +530,105 @@ remains 2026-10-14 or later, per Run 50. Unchanged.
 46-49 sections folded into archive-pointer section, this section appended).
 No files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
 unchanged (161 active).
+
+---
+
+## 2026-10-14 — Run 54 (self-correction, on schedule)
+
+**Housekeeping first.** Git was already on `main`, up to date with
+`origin/main` at `4f27436` (Run 53's commit) — no detached-HEAD/stale-branch
+issue this time. `.venv` was absent in this container; rebuilt via
+`python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt`, no
+behavior change. Re-verified the Run 37 malware incident remains
+remediated: no `.vscode/` directory, `public/fonts/*` all legitimate
+FontAwesome filenames, no stray `eval(` anywhere under `public/`. Nothing
+new to flag.
+
+**Question.** Run 50 set the next actionable date for the standing DCA
+self-correction protocol at "2026-10-14 or later" (2+ full days past its
+2026-10-12 anchor). Today is 2026-10-14 — the bar is exactly met, so this
+run performs the genuine re-check rather than another deferral. No
+concretely-scoped strategy/signal/gate axis has reopened since Run 53;
+every one of them remains closed with zero surviving candidates, and the
+only structurally out-of-reach items (short-selling, geo-blocked futures
+data) are unchanged.
+
+**Method.** Same methodology as Run 4/14/27/32/35/36/38/40/42/46/50
+(capital-normalized average ROI across the 8-symbol universe,
+dip_enabled=True (shipped, `dip_threshold_pct=5.0`, `dip_multiplier=1.5`)
+vs dip_enabled=False (control), 1h entry timeframe, 7.5bps fees/4bps
+slippage). All 3 non-overlapping windows shifted forward by exactly 2 days
+vs Run 50 (same window lengths — older/train 90d, test 60d): older
+2026-02-16..2026-05-17, train 2026-05-17..2026-08-15, test
+2026-08-15..2026-10-14 (anchor = today's close).
+
+**Result — smallest-delta set continues; second consecutive negative
+train-window sign, still at the noise floor, no reversal.**
+
+| window | OFF avg ROI% | ON-OFF delta (pp) | symbols beating OFF | dip-buys fired |
+|---|---|---|---|---|
+| older (mild uptrend) | +3.8441 | **+0.0605** | 6/8 | 17 |
+| train (mild decline) | -1.6874 | **-0.0168** | 3/8 | 27 |
+| test (mild rally, milder than Run 50) | +3.9623 | **-0.0864** | 0/8 | 15 |
+
+The older and test windows reproduce the established sign pattern exactly
+(positive-ish in uptrend/chop-adjacent conditions, unanimous drag in the
+rally window — 0/8 symbols beating OFF, as in every rally window since
+Run 4). The train window again went negative (-0.0168pp, only 3/8 symbols
+beating OFF) — the second consecutive run with this sign, essentially
+matching Run 50's -0.0179pp in both sign and magnitude. The decline itself
+is real (OFF avg ROI -1.6874%, smaller in magnitude than Run 50's -2.5364%
+but still a genuine decline), so two data points now sit on the same side
+of zero where every check from Run 4 through Run 46 sat on the other side.
+Both magnitudes remain an order of magnitude below the established
+<=0.40pp noise envelope, and all 3 deltas this run are again the
+smallest-magnitude set on record (max |delta| = 0.0864pp, essentially
+tying Run 50's prior low of 0.0986pp) — the most honest reading remains
+"the ON-vs-OFF effect is a weak, shrinking statistical tendency sitting at
+the noise floor," not a mechanism reversing. Per Run 50's own
+"worth watching" note, this is now two-in-a-row on the negative side for
+the decline window specifically — flagged for continued tracking on the
+next check, but still nowhere near a revert bar (which would require a
+clear, compounding, economically meaningful reversal, not a sub-0.02pp
+wobble).
+
+**$ impact:** test-window delta (the decision-relevant window) is -$0.0864
+on $100 invested notional / -$0.864 on $1000 — again among the smallest
+magnitudes of any self-correction check to date, reinforcing "economically
+trivial."
+
+**Decision: noise — shipped default (`dip_threshold_pct=5.0`,
+`dip_multiplier=1.5`) reconfirmed, no code change.** The train-window
+negative sign (now 2 runs running) is recorded honestly above but does not
+meet any revert bar: both magnitudes are far below the noise envelope and
+the mechanism remains fully explicable (extra buys only fire on real
+24h dips; the sign of the aggregate effect in a mild, choppy decline with
+few dip triggers is inherently noisy regardless of direction).
+
+**No code change** — pure self-correction re-check; no auto-improve
+threshold was met, no revert was warranted. Full backend test suite re-run:
+`cd backend && PYTHONPATH=. .venv/bin/python -m pytest` — 95 passed, 0
+failed, matching every prior run's count exactly, no drift.
+
+**Memory hygiene this run:** `RESEARCH_LOG.md` was ~29.8KB before this
+section (under the ~40KB soft guideline) across 4 active run-sections
+(50-53) — no archiving needed this cycle. `rotate_archive.py` run:
+`decisions.jsonl` at 162 entries, still under the 250 rotation threshold,
+no `.jsonl` rotation this cycle.
+
+**Going forward:** next self-correction check due once 2+ full days of new
+data have accumulated past this run's 2026-10-14 anchor, i.e. 2026-10-16 or
+later; a same-day or next-day re-fire should defer as a no-op exactly as
+prior same-day/next-day runs did. Specifically worth checking next time:
+whether the train-window (decline) delta stays negative a third time
+(would suggest the sign has genuinely settled, still trivial in magnitude)
+or flips back positive (would just be more noise at the floor either way)
+— not actionable yet either way. A fresh strategy/signal idea would need to
+be mechanically distinct from every closed item in DISTILLED LEARNINGS to
+be worth testing before then — none identified this run.
+
+**Files:** `research/experiments/dca_self_correction_run54.py` (new,
+copied from Run 50's script with windows rolled forward +2 days).
+`research/experiments/dca_self_correction_run54_output.json` (new, raw
+per-symbol output). 1 entry appended to `research/decisions.jsonl` (162
+active, no rotation triggered).
