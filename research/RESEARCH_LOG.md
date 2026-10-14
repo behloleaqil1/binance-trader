@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**54 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**55 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-49 is archived (see archive index at file end); Run 50-54 sections are
+1-49 is archived (see archive index at file end); Run 50-55 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -632,3 +632,58 @@ copied from Run 50's script with windows rolled forward +2 days).
 `research/experiments/dca_self_correction_run54_output.json` (new, raw
 per-symbol output). 1 entry appended to `research/decisions.jsonl` (162
 active, no rotation triggered).
+
+---
+
+## 2026-10-14 — Run 55 (same-day deferred no-op, 2nd fire this day)
+
+**Housekeeping first.** On invocation, `HEAD` was detached at `70c7634`
+(Run 54's commit) with local `main` still pinned 1 commit behind at
+`4f27436` (Run 53) — matching `origin/main` exactly, i.e. Run 54's commit
+had never been fast-forwarded onto `main` or pushed despite existing
+locally. Fast-forwarded `main` to `70c7634` and pushed — `git push`
+reported `origin/main` already up to date, confirming Run 54's commit had
+in fact reached the remote and only the local branch pointer was stale
+(same recurring stale-pointer pattern as every prior run's housekeeping
+note; no work was at risk). Rebuilt the Python venv (absent in this fresh
+container) via `python3 -m venv .venv && pip install -r requirements.txt`,
+no behavior change. Re-verified the Run 37 malware incident remains
+remediated: no `.vscode/` directory, `public/fonts/*` all legitimate
+FontAwesome filenames (no swapped fake font), no stray `eval(` under
+`public/`. Nothing new to flag.
+
+**Question.** This is the second scheduled fire today, a few hours after
+Run 54's commit (`70c7634`, 2026-10-14T02:12:12Z), same calendar day. Run
+54 itself set the next actionable date for the DCA self-correction
+protocol at "2026-10-16 or later" (2+ full days past its own anchor).
+Today doesn't meet that bar — re-running the check now would reuse
+identical windows and reproduce Run 54's numbers exactly. This run defers,
+exactly as Run 39/41/43/44/45/47/48/49/51/52/53 did at the equivalent
+point in their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS for anything
+mechanically distinct from the closed list (8 strategy families, 6
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning). None identified. No new construction proposed this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest`
+— 95 passed, 0 failed, matching every prior run's count exactly, no code,
+params, or shipped defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added, no code changes, no candidate.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` was ~36.8KB before this
+section (under the ~40KB soft guideline) across 5 active run-sections
+(50-54) — no archiving needed this cycle. `rotate_archive.py` not run (no
+new `decisions.jsonl` entries this cycle — still 162 active, under the
+250 rotation threshold).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-16 or later, per Run 54. Unchanged.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
+unchanged (162 active).
