@@ -586,3 +586,64 @@ copied from Run 58's script with windows rolled forward +3 days).
 `research/experiments/dca_self_correction_run60_output.json` (new, raw
 per-symbol output). 1 entry appended to `research/decisions.jsonl` (164
 active, no rotation triggered).
+
+---
+
+## 2026-10-19 — Run 61 (same-day deferred no-op, 2nd fire this day)
+
+**Housekeeping first.** Fresh container resumed with `HEAD` detached at
+`ec75e7b` (Run 60's commit) with local `main` pinned behind at `4f27436`
+(Run 53) — same recurring stale-branch-pointer pattern as every prior
+run's housekeeping note. `git fetch origin main` confirmed `origin/main`
+already matched Run 60's commit — no work was at risk, only the local
+ref/branch pointer was stale. `git checkout -B main origin/main`
+fast-forwarded the local branch to `ec75e7b`. Rebuilt the Python venv
+(absent in this fresh container) via `python3 -m venv .venv && pip
+install -q -r requirements.txt`, no behavior change. Re-verified the Run
+37 malware incident remains remediated: no `.vscode/` directory,
+`public/fonts/*` all legitimate FontAwesome filenames (`fa-solid-900`,
+`fa-brands-400`, `fa-regular-400`, plus `README.md`), no stray `eval(`
+anywhere under `public/`. Nothing new to flag.
+
+**Question.** This is the second scheduled fire today, ~12h after Run
+60's commit (`ec75e7b`, 2026-10-19T02:10:01Z), same calendar day. Run 60
+set the next actionable date for the standing DCA self-correction
+protocol at "2026-10-21 or later" (2+ full days past its 2026-10-19
+anchor). Today does not meet that bar. Nothing has changed since Run 60
+ran ~12 hours ago — re-running the check now would reuse the same windows
+and reproduce Run 60's numbers exactly. This run defers, exactly as Run
+39/41/43/44/45/47/48/49/51/52/53/55/56/57/59 did at the equivalent point
+in their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS and
+`backend/app/strategies/` for anything mechanically distinct from the
+closed list (8 strategy families, 6 signal-source categories, 3
+confirmation gates + 1 stacked combo, 2 cross-symbol constructions,
+sizing, exit mechanism, cost level, symbol universe, TF range, historical
+era, DCA parameter + trend-gate conditioning, and now the revised
+regime-sign framing from Run 60). The strategies directory still holds
+exactly the 4 modules every prior run has tested (`dca.py`, `grid.py`,
+`mean_reversion.py`, `trend_momentum.py`) — no new strategy file, no new
+registry entry. None identified. No new construction proposed this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 95 passed (72+23 dots across two batches), 0 failed, 0 errors, matching
+every prior run's count exactly, no drift. No code, params, or shipped
+defaults touched.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just be a duplicate-window rerun of
+Run 60 with no new signal), no code changes, no candidate.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` is ~37.7KB before this
+section, still under the ~40KB soft guideline, across 5 active
+run-sections (56-60); no archiving needed this cycle. `rotate_archive.py`
+not run (no new `decisions.jsonl` entries this cycle — still 164 active,
+under the 250 rotation threshold).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-21 or later, per Run 60. Unchanged.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
+unchanged (164 active).
