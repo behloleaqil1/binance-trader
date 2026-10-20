@@ -647,3 +647,67 @@ remains 2026-10-21 or later, per Run 60. Unchanged.
 **Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
 files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
 unchanged (164 active).
+
+---
+
+## 2026-10-20 — Run 62 (next-day deferred no-op)
+
+**Housekeeping first.** Fresh container resumed with local `main` already
+matching `origin/main` at `b75fc2a` (Run 61's commit) — no stale-ref issue
+this run. Backend venv rebuilt from scratch (absent in this fresh
+container): `python3 -m venv .venv && pip install -q -r requirements.txt`
+(took longer than usual to resolve but completed clean, no behavior
+change). Re-verified the Run 37 malware incident remains remediated: no
+`.vscode/` directory, `public/fonts/*` all legitimate FontAwesome
+filenames (`fa-solid-900`, `fa-brands-400`, `fa-regular-400`, plus
+`README.md`), no stray `eval(` anywhere under `public/`. Nothing new to
+flag.
+
+**Question.** This is the first scheduled fire of a new calendar day
+(2026-10-20, ~02:06 UTC), ~12h after Run 61's deferral and ~24h after Run
+60's commit (`ec75e7b`, 2026-10-19T02:10:01Z). Run 60 set the next
+actionable date for the standing DCA self-correction protocol at
+"2026-10-21 or later" (2+ full days past its 2026-10-19 anchor). Today is
+only 1 day past that anchor — bar not met. Re-running the check now would
+reuse windows 1 day short of the last check's and add no new information.
+This run defers, exactly as Run 56 did at the equivalent next-day point in
+its own cycle.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS and
+`backend/app/strategies/` for anything mechanically distinct from the
+closed list (8 strategy families, 6 signal-source categories, 3
+confirmation gates + 1 stacked combo, 2 cross-symbol constructions,
+sizing, exit mechanism, cost level, symbol universe, TF range, historical
+era, DCA parameter + trend-gate conditioning, and the Run 60-revised
+regime-sign framing). `backend/app/strategies/` still holds exactly the 4
+strategy modules every prior run has tested (`dca.py`, `grid.py`,
+`mean_reversion.py`, `trend_momentum.py`) plus the unchanged
+`indicators.py`/`scanner.py`/`base.py`/`registry.py` support files — no
+new strategy file, no new registry entry. None identified this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 95 passed, 0 failed, 0 errors, matching every prior run's count exactly,
+no drift.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just rerun Run 60's method on windows
+1 day short, with no new signal), no code changes, no candidate.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` is ~40.0KB with this section
+appended — right at, not meaningfully over, the ~40KB soft guideline.
+Run 56-57 were already archived out verbatim by an earlier run (see the
+`Run 56-57 — archived` stub above pointing to
+`research/archive/log-2026-10-15_to_2026-10-15_run56-57.md.gz`); the
+active file currently holds only 5 full run-sections (58-62), well under
+the "keep the last ~15 runs" floor, so no further archiving is warranted
+this cycle despite the byte count — archiving further now would violate
+the floor for no real benefit. `rotate_archive.py` run anyway per
+protocol: still 164 active `decisions.jsonl` entries, under the 250
+rotation threshold, no-op confirmed.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains 2026-10-21 or later, per Run 60. Unchanged.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
+unchanged (164 active).
