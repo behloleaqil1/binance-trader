@@ -103,21 +103,28 @@ funding-rate data** (Run 31): confirmed geo-restricted (`fapi.binance.com`
 returns "Service unavailable from a restricted location" from this
 environment; `data-api.binance.vision` has no `/fapi` path) — not a code
 issue, definitively unreachable from here. **Long-only / no shorting** —
-**REOPENED 2026-10-21 (human-directed capability addition, not an
-autonomous finding; see the "Capability addition" section near the end of
-this file for full detail):** `run_candle_backtest` now supports short
-positions via an opt-in `allow_short` flag (default False, zero effect on
-any existing caller/test), and `trend_momentum` gained a symmetric
-`allow_short` param. This is backtest/research-only — Binance Spot (the
-only exchange this bot trades) cannot execute real short sales, so live
-trading is unaffected; real short-selling would need Binance Margin
-(borrowing, interest, margin calls, unbounded loss potential) which remains
-explicitly out of scope pending its own separate authorization. **Pairs
-mean-reversion and trend-following shorts can now be re-tested** with the
-standard OOS bar — this does not itself imply shorting will find edge
-(fees apply symmetrically; the over-arbitraged conclusion likely transfers)
-but the axis is no longer structurally untestable. A dedicated run should
-test both before revising the headline "no edge found" conclusion.
+reopened 2026-10-21 by a human-directed capability addition (backtest-only
+`allow_short` on `run_candle_backtest` and `trend_momentum`; see the
+"Capability addition" section near the end of this file), then **closed
+again the same day by Run 65 (autonomous, first short-selling test)**:
+isolated the SHORT side of `trend_momentum` (research-only
+`TrendMomentumShortOnly` subclass suppressing BUY signals, see
+`research/experiments/trend_momentum_shorts.py`) at 1h (train PF 0.909,
+test PF 0.688, 66 trades) and 4h (train PF 0.428, test PF 0.316, only 23
+trades — also fails the trade-count floor), plus the literal symmetric
+long+short mirror strategy at 1h (train PF 0.544, test PF 0.99 — closest
+to breakeven of the three but still fails train). All 3 configs fail the
+train-side >1.1 bar decisively, so none reached a 3rd-window check.
+**Confirms the capability-addition note's own prediction: fees apply
+symmetrically to shorts, and the over-arbitraged-at-7.5bps conclusion
+transfers from longs to shorts without needing new evidence.** Per-symbol:
+6/8 symbols net losing in the short-only@1h test window (BTC PF 0.089, ETH
+0.0, BNB 0.0), only DOGE/ADA cleared 1.1 individually (12-13 trades each,
+too thin to mean anything on their own). Pairs mean-reversion-with-actual-
+shorting (vs the long laggard-only proxy already closed in Run 20) remains
+the one still-open sub-item from the capability addition — low priority
+given this result, since the same symmetric-fee argument likely applies
+there too, but not yet concretely tested.
 
 ### DCA dip-buy — fully characterized, shipped default kept
 `dip_enabled=True, dip_threshold_pct=5.0, dip_multiplier=1.5` beats a flat
@@ -959,3 +966,121 @@ changes the headline "no edge found" conclusion.
 — 107 passed, 0 failed, exit 0. `git status --short` confirmed only the 6
 intended files touched (3 production + 3 test files), nothing under
 `deploy/`, `.github/workflows/`, or any secrets/env file.
+
+---
+
+## 2026-10-21 — Run 65 (first short-selling test; new region)
+
+**Housekeeping first.** Fresh container, `HEAD` detached at `606d70b`
+(the capability-addition commit) with local `main` pinned one commit
+behind — same recurring stale-ref pattern as every prior run. `git fetch
+origin main` confirmed `origin/main` already matched the detached HEAD;
+rather than reset the local `main` ref (flagged by the permission
+classifier as an irreversible-destruction risk this run, even though it
+would only have fast-forwarded), committed directly on the detached HEAD
+and pushed with `git push origin HEAD:main` instead — same end state
+(origin/main advances), no destructive git operation needed. Backend venv
+was absent in this fresh container; rebuilt via `python3 -m venv .venv &&
+pip install -q -r requirements.txt` (took several minutes this run — no
+behavior change, just a slower container).
+
+**Question.** The 2026-10-21 capability-addition section above (human-
+directed, not autonomous) explicitly recommends "a dedicated run testing
+[pairs mean-reversion shorts and trend-following shorts] before assuming
+it changes the headline no-edge conclusion." This is a concretely new,
+previously-untestable region — picked over the standing DCA
+self-correction protocol (not due again until 2026-10-23 per Run 64) and
+over re-deriving any already-closed long-only axis.
+
+**Method.** New script `research/experiments/trend_momentum_shorts.py`
+(research-only, not registered in `app/strategies/registry.py`). Three
+configs, standard train (150d-60d ago) / test (60d-0d ago, held-out)
+split, same 8-symbol universe, 7.5bps fees, 4bps slippage, RiskConfig
+defaults (2% SL / 4% TP, never loosened):
+- **A: short-only @1h** — a thin `TrendMomentumShortOnly` subclass defers
+  to the parent's unmodified `decide()` and converts any BUY into a hold,
+  isolating the short mechanism from the already-closed long side's trades.
+- **B: short-only @4h** — same isolation, slower TF (hypothesis: less fee
+  drag per trade, cleaner reversals).
+- **C: symmetric long+short @1h** — the literal shipped mirror strategy
+  (`allow_short=True` on unmodified `TrendMomentumStrategy`, no
+  suppression), both sides trading exactly as they would live if Margin
+  were ever wired up (it isn't — backtest-only).
+
+**Results — all 3 decisively rejected, none reached a 3rd-window check
+(train already fails the >1.1 bar in every config):**
+
+| config | train PF | train trades | test PF | test trades | test win% |
+|---|---|---|---|---|---|
+| A: short-only @1h | 0.909 | 139 | 0.688 | 66 | 28.79 |
+| B: short-only @4h | 0.428 | 33 | 0.316 | 23 | 21.74 |
+| C: symmetric @1h | 0.544 | 92 | 0.990 | 81 | 33.33 |
+
+Config B also independently fails the >=30 trade floor (23 test trades).
+Config C's test PF (0.99) is the closest-to-breakeven reading of the
+three — coincidentally almost identical to the long side's own best-ever
+train PF (0.99 @15m, closed in Run 1-15) — but still fails both its own
+train bar (0.544) and the test bar, and exhibits the same
+test-clears/train-doesn't-by-enough shape flagged as regime luck for
+every other closed family since Run 16. Per-symbol breakdown for config A
+(test window): 6/8 symbols net losing (BTC PF 0.089/14 trades, ETH
+0.0/2, BNB 0.0/2, XRP 0.418/12, LINK 0.5/11, SOL no trades), only DOGE
+(1.118/12) and ADA (1.442/13) cleared 1.1 individually — both far too few
+trades to mean anything standalone, and outnumbered by the losing majority.
+
+**Interpretation.** This exactly confirms the capability-addition note's
+own prediction: fees apply symmetrically whichever direction a position is
+opened, and the "over-arbitraged at 7.5bps" conclusion that closed
+long-only `trend_momentum` (Run 1-15) transfers to its short side without
+needing new evidence — shorting the same EMA-cross+RSI+MACD signal is not
+a materially different bet from longing it once realistic costs are
+applied, it is the same signal mirrored, and the market doesn't leave more
+edge on one side than the other. **Closes "trend-following shorts" as a
+sub-item of the reopened long-only axis.** The one remaining untested
+sub-item from the capability addition is pairs mean-reversion *with actual
+shorting* (vs. the long-laggard-only proxy already closed in Run 20) —
+flagged as low priority given this result (same symmetric-fee argument
+likely applies) but not yet concretely run; noted in DISTILLED LEARNINGS
+above for whoever picks it up next, rather than assumed closed by
+extension.
+
+**No code change** — pure research finding, nothing promoted. HARD LIMITS
+observed throughout: no risk control touched, no live/testnet path
+touched, `app/core/engine.py`/`order_manager.py`/`exchange.py` untouched
+this run (verified via `git status --short` below).
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 107 passed, 0 failed, exit 0, matching Run 64's post-capability-addition
+count exactly (the short-selling capability's own 12 tests included), no
+drift. `git status --short` after this run's commits shows only
+`research/` files touched (the new experiment script + its JSON output +
+`decisions.jsonl` + `RESEARCH_LOG.md`) — nothing under `backend/app/`,
+`deploy/`, `.github/workflows/`, or any secrets/env file.
+
+**Decision log.** Appended 3 entries to `decisions.jsonl` (all
+`decision="reject"`, configs A/B/C above). `rotate_archive.py` run: 168
+active entries, under the 250 rotation threshold — no-op, confirmed.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` is ~60KB after this
+append, well over the ~40KB soft guideline, but still only 9 full
+run-sections (58-65 plus the capability-addition section) in the active
+file — under the "keep the last ~15 runs" floor from the memory-management
+protocol, so archiving now would violate that floor for no real benefit
+(same call Run 62/63/64 made at a smaller byte count). No archiving this
+cycle; flagging for whoever does the next archive pass that this file is
+now the largest it's been without an archive move.
+
+**Going forward:** the standing DCA self-correction protocol's next
+actionable date is unchanged at **2026-10-23 or later** (set by Run 64).
+Short-selling for `trend_momentum` is now closed (this run). The one
+remaining open sub-item is pairs mean-reversion with real shorting
+(low priority, likely same outcome, not yet run) — a future run can pick
+either that or return to the standing self-correction protocol once due.
+
+**Files:** `research/RESEARCH_LOG.md` edited (DISTILLED LEARNINGS
+long-only/shorting item updated + this section appended),
+`research/decisions.jsonl` appended (168 active),
+`research/experiments/trend_momentum_shorts.py` (new, committed earlier
+this run as WIP before the backtest finished) and
+`research/experiments/trend_momentum_shorts_output.json` (new, raw
+numbers). No files changed in `backend/app/`.

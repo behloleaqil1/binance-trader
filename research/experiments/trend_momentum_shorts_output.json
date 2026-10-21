@@ -1,0 +1,233 @@
+[
+  {
+    "label": "A: short-only @1h",
+    "timeframe": "1h",
+    "params": {
+      "ema_fast": 20,
+      "ema_slow": 50,
+      "rsi_period": 14,
+      "rsi_buy_min": 50,
+      "rsi_buy_max": 70,
+      "rsi_exit": 78,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "require_macd": true,
+      "allow_short": true,
+      "rsi_short_min": 30,
+      "rsi_short_max": 50,
+      "rsi_cover": 22,
+      "timeframe": "1h"
+    },
+    "train": {
+      "pf": 0.909,
+      "win_pct": 30.22,
+      "trades": 139,
+      "avg_ret_pct": -0.0308
+    },
+    "test": {
+      "pf": 0.688,
+      "win_pct": 28.79,
+      "trades": 66,
+      "avg_ret_pct": -0.0552,
+      "per_symbol": {
+        "BTC": {
+          "pf": 0.089,
+          "trades": 14,
+          "ret_pct": -0.2415
+        },
+        "ETH": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.022
+        },
+        "SOL": {
+          "pf": null,
+          "trades": 0,
+          "ret_pct": 0.0
+        },
+        "BNB": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.0355
+        },
+        "XRP": {
+          "pf": 0.418,
+          "trades": 12,
+          "ret_pct": -0.1612
+        },
+        "LINK": {
+          "pf": 0.5,
+          "trades": 11,
+          "ret_pct": -0.1396
+        },
+        "DOGE": {
+          "pf": 1.118,
+          "trades": 12,
+          "ret_pct": 0.0284
+        },
+        "ADA": {
+          "pf": 1.442,
+          "trades": 13,
+          "ret_pct": 0.13
+        }
+      }
+    },
+    "older": null,
+    "clears_oos_bar": false
+  },
+  {
+    "label": "B: short-only @4h",
+    "timeframe": "4h",
+    "params": {
+      "ema_fast": 20,
+      "ema_slow": 50,
+      "rsi_period": 14,
+      "rsi_buy_min": 50,
+      "rsi_buy_max": 70,
+      "rsi_exit": 78,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "require_macd": true,
+      "allow_short": true,
+      "rsi_short_min": 30,
+      "rsi_short_max": 50,
+      "rsi_cover": 22,
+      "timeframe": "4h"
+    },
+    "train": {
+      "pf": 0.428,
+      "win_pct": 18.18,
+      "trades": 33,
+      "avg_ret_pct": -0.0709
+    },
+    "test": {
+      "pf": 0.316,
+      "win_pct": 21.74,
+      "trades": 23,
+      "avg_ret_pct": -0.0625,
+      "per_symbol": {
+        "BTC": {
+          "pf": 0.0,
+          "trades": 1,
+          "ret_pct": -0.043
+        },
+        "ETH": {
+          "pf": 0.298,
+          "trades": 4,
+          "ret_pct": -0.0906
+        },
+        "SOL": {
+          "pf": 1.79,
+          "trades": 2,
+          "ret_pct": 0.034
+        },
+        "BNB": {
+          "pf": 0.447,
+          "trades": 3,
+          "ret_pct": -0.0475
+        },
+        "XRP": {
+          "pf": 0.256,
+          "trades": 5,
+          "ret_pct": -0.112
+        },
+        "LINK": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.086
+        },
+        "DOGE": {
+          "pf": 0.358,
+          "trades": 4,
+          "ret_pct": -0.069
+        },
+        "ADA": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.086
+        }
+      }
+    },
+    "older": null,
+    "clears_oos_bar": false
+  },
+  {
+    "label": "C: symmetric long+short @1h",
+    "timeframe": "1h",
+    "params": {
+      "ema_fast": 20,
+      "ema_slow": 50,
+      "rsi_period": 14,
+      "rsi_buy_min": 50,
+      "rsi_buy_max": 70,
+      "rsi_exit": 78,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "require_macd": true,
+      "allow_short": true,
+      "rsi_short_min": 30,
+      "rsi_short_max": 50,
+      "rsi_cover": 22,
+      "timeframe": "1h"
+    },
+    "train": {
+      "pf": 0.544,
+      "win_pct": 23.91,
+      "trades": 92,
+      "avg_ret_pct": -0.1039
+    },
+    "test": {
+      "pf": 0.99,
+      "win_pct": 33.33,
+      "trades": 81,
+      "avg_ret_pct": -0.0021,
+      "per_symbol": {
+        "BTC": {
+          "pf": 0.106,
+          "trades": 13,
+          "ret_pct": -0.1942
+        },
+        "ETH": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.0275
+        },
+        "SOL": {
+          "pf": null,
+          "trades": 0,
+          "ret_pct": 0.0
+        },
+        "BNB": {
+          "pf": 0.0,
+          "trades": 2,
+          "ret_pct": -0.043
+        },
+        "XRP": {
+          "pf": 1.044,
+          "trades": 18,
+          "ret_pct": 0.0175
+        },
+        "LINK": {
+          "pf": 0.0,
+          "trades": 4,
+          "ret_pct": -0.1075
+        },
+        "DOGE": {
+          "pf": 1.074,
+          "trades": 18,
+          "ret_pct": 0.0302
+        },
+        "ADA": {
+          "pf": 1.655,
+          "trades": 24,
+          "ret_pct": 0.3078
+        }
+      }
+    },
+    "older": null,
+    "clears_oos_bar": false
+  }
+]
