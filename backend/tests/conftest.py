@@ -33,8 +33,8 @@ def make_account(equity=10_000.0, day_start=None, peak=None,
 
 
 def make_position(pid=1, symbol="BTCUSDT", strategy="trend_momentum", qty=0.01,
-                  entry=100.0, mark=100.0) -> PositionView:
-    return PositionView(pid, symbol, strategy, qty, entry, mark)
+                  entry=100.0, mark=100.0, side="LONG") -> PositionView:
+    return PositionView(pid, symbol, strategy, qty, entry, mark, side=side)
 
 
 def make_df(closes, opens=None, highs=None, lows=None, start_ts=1_700_000_000_000,

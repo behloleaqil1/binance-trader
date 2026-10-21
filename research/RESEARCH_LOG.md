@@ -102,9 +102,22 @@ edge" conclusion via a different failure shape than 2025-2026. **Futures/
 funding-rate data** (Run 31): confirmed geo-restricted (`fapi.binance.com`
 returns "Service unavailable from a restricted location" from this
 environment; `data-api.binance.vision` has no `/fapi` path) — not a code
-issue, definitively unreachable from here. **Long-only / no shorting**: an
-architecture change out of scope, not a param tune — the one scope
-assumption left structurally untestable, not just untested.
+issue, definitively unreachable from here. **Long-only / no shorting** —
+**REOPENED 2026-10-21 (human-directed capability addition, not an
+autonomous finding; see the "Capability addition" section near the end of
+this file for full detail):** `run_candle_backtest` now supports short
+positions via an opt-in `allow_short` flag (default False, zero effect on
+any existing caller/test), and `trend_momentum` gained a symmetric
+`allow_short` param. This is backtest/research-only — Binance Spot (the
+only exchange this bot trades) cannot execute real short sales, so live
+trading is unaffected; real short-selling would need Binance Margin
+(borrowing, interest, margin calls, unbounded loss potential) which remains
+explicitly out of scope pending its own separate authorization. **Pairs
+mean-reversion and trend-following shorts can now be re-tested** with the
+standard OOS bar — this does not itself imply shorting will find edge
+(fees apply symmetrically; the over-arbitraged conclusion likely transfers)
+but the axis is no longer structurally untestable. A dedicated run should
+test both before revising the headline "no edge found" conclusion.
 
 ### DCA dip-buy — fully characterized, shipped default kept
 `dip_enabled=True, dip_threshold_pct=5.0, dip_multiplier=1.5` beats a flat
@@ -862,3 +875,87 @@ section updated + this section appended), `research/decisions.jsonl`
 appended (165 active), `research/experiments/dca_self_correction_run64.py`
 (new) and `research/experiments/dca_self_correction_run64_output.json`
 (new, raw numbers). No files changed in `backend/`.
+
+---
+
+## 2026-10-21 — Capability addition (human-directed, not an autonomous run): backtest-only short-selling
+
+**Context.** The user explicitly asked to remove the "short-selling is an
+architecture change, out of scope" blocker noted in DISTILLED LEARNINGS
+(originally closing out pairs mean-reversion and leaving trend-following
+shorts untested). This was done live/interactively, not by the autonomous
+research routine, and is recorded here so the next automated run picks it
+up and knows this axis can be re-opened.
+
+**Scope decision, and why.** This bot trades Binance **Spot** only
+(`app/core/exchange.py`) — spot accounts cannot short at all; real
+short-selling needs Binance Margin (borrowing, interest, margin calls, and
+unlike a long position, *unbounded* loss potential as price can rise
+indefinitely). That is a materially different, riskier product than
+anything live-tested so far (recall: live real-money trading was already
+stopped after a small loss, confirming no edge — see DISTILLED LEARNINGS
+"Live real money" note) and was explicitly scoped OUT of this change pending
+its own separate authorization. What was built instead is **short-selling
+support in the backtest/research engine only** — zero live-money risk,
+never reaches the exchange gateway, and unblocks exactly what the research
+program needs (testing whether shorting finds alpha) without taking on
+margin-trading risk.
+
+**What changed (code, not a backtest finding — see decisions.jsonl for
+actual config results once short strategies are tested):**
+- `app/core/types.py`: added `SignalAction.SHORT`/`COVER` (the live engine
+  at `app/core/engine.py` only ever checks for BUY/SELL, so these are
+  no-ops on the live/testnet path — confirmed by reading the dispatch code
+  before adding them). `PositionView` gained a `side: str = "LONG"` field
+  (default preserves all existing behavior) and `unrealized_pnl` is now
+  sign-aware for shorts.
+- `app/backtest/simulator.py`: `run_candle_backtest` gained an
+  `allow_short: bool = False` parameter (every existing caller — the live
+  backtest runner, the API, all prior tests — omits it and is therefore
+  byte-for-byte unaffected). When `True`, SHORT/COVER signals open/close a
+  short position with direction-mirrored entry/exit fills, fees, SL/TP, and
+  trailing-stop logic, reusing the *same* `RiskConfig.stop_loss_pct` /
+  `take_profit_pct` / trailing fields already in place — no new risk-config
+  schema, no loosening of any existing control. Short sizing is bounded by
+  available cash the same way long sizing is (a conservative approximation,
+  not a literal margin/borrow simulation).
+- `app/strategies/trend_momentum.py`: added an opt-in `allow_short` param
+  (default `False`, so the shipped default strategy is unchanged) plus
+  symmetric `rsi_short_min/max`/`rsi_cover` params. When enabled, a
+  cross-down opens a short (mirroring the existing cross-up long entry
+  conditions) and cross-up/RSI-blow-off/MACD-rollover covers it (mirroring
+  the existing long exit conditions).
+- Tests: 12 new tests added (`backend/tests/test_backtest.py`
+  `TestShortSim`, `backend/tests/test_strategies.py` short/cover cases and
+  `TestPositionViewShort`), covering short entry/exit fills, SL/TP
+  direction, pessimistic ordering, fees/slippage, end-of-backtest
+  liquidation, the `allow_short=False` no-op guarantee, and the PnL sign
+  inversion. Full suite: **107 passed** (95 prior + 12 new), 0 failed.
+
+**Not changed, deliberately:** `app/core/engine.py`, `app/core/order_manager.py`,
+`app/core/exchange.py`, `app/risk/risk_engine.py`, `app/risk/models.py` — the
+entire live/testnet order-placement and risk-approval path. No risk control
+was loosened; the new short SL/TP reuse the existing stop_loss_pct/
+take_profit_pct values symmetrically. No API/DB wiring was added either
+(`routes_backtest.py`, `db/models.py` untouched) — the capability is reached
+by calling `run_candle_backtest(..., allow_short=True)` directly, exactly how
+the research scripts in `research/experiments/` already operate.
+
+**What this unblocks for future research runs:** the two previously-closed
+items that cited "needs short-selling, architecture change, out of scope" —
+**pairs mean-reversion** (buy the laggard, short the leader — can now
+actually short the leader instead of only going long the laggard) and
+**trend-following shorts** (symmetric short side of the already-closed long
+`trend_momentum`, via its new `allow_short` param) — can be re-tested with
+the same train/test discipline and OOS bar (PF>1.1, >=30 trades) as every
+other closed axis. This is a new capability, not a finding: it does not by
+itself suggest shorting will find edge where longing didn't (fees apply
+symmetrically, and the "over-arbitraged at 7.5bps" conclusion likely applies
+to shorts too) — it only means the axis is no longer structurally
+untestable. Recommend a dedicated run testing both before assuming it
+changes the headline "no edge found" conclusion.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 107 passed, 0 failed, exit 0. `git status --short` confirmed only the 6
+intended files touched (3 production + 3 test files), nothing under
+`deploy/`, `.github/workflows/`, or any secrets/env file.

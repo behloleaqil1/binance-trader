@@ -7,6 +7,13 @@ Fidelity rules:
   • Protective SL/TP are checked intra-candle via high/low. When both could
     fill in one candle the pessimistic assumption (stop first) is used.
   • Grid and DCA reuse the same ladder/schedule math as the live engine.
+  • run_candle_backtest also supports SHORT/COVER signals when allow_short=True
+    (default False — every existing caller is long-only and unaffected). This
+    is a backtest/research-only capability: Binance Spot cannot execute real
+    short sales, and the live engine (app/core/engine.py) does not act on
+    SHORT/COVER signals, so enabling it here never reaches live trading. Short
+    sizing is bounded by available cash the same way long sizing is — a
+    conservative approximation, not a literal margin/borrow simulation.
 """
 from __future__ import annotations
 
@@ -49,7 +56,8 @@ def _slip(price: float, cfg: SimConfig, side: str) -> float:
 
 # ── trend / mean-reversion (any "candle" strategy) ──────────────────────────
 def run_candle_backtest(strategy: Strategy, risk: RiskConfig, df: pd.DataFrame,
-                        cfg: SimConfig, symbol: str = "SIM") -> SimResult:
+                        cfg: SimConfig, symbol: str = "SIM",
+                        allow_short: bool = False) -> SimResult:
     idf = strategy.compute_indicators(df)
     warmup = min(strategy.required_history(), max(len(df) - 2, 1))
     cash = cfg.initial_equity
@@ -58,21 +66,27 @@ def run_candle_backtest(strategy: Strategy, risk: RiskConfig, df: pd.DataFrame,
     curve_ts: list[int] = []
     curve_val: list[float] = []
     pending_entry: str | None = None
+    pending_entry_side: str = "LONG"
     pending_exit: str | None = None
     adaptive_blocked = 0
 
     def close_trade(exit_price: float, ts: int, kind: str, reason: str) -> None:
         nonlocal cash, pos
-        exit_fee = _fee(pos["qty"] * exit_price, cfg)
-        cash += pos["qty"] * exit_price - exit_fee
+        exit_notional = pos["qty"] * exit_price
+        exit_fee = _fee(exit_notional, cfg)
         fees = pos["entry_fee"] + exit_fee
-        pnl = pos["qty"] * (exit_price - pos["entry"]) - fees
+        if pos["side"] == "SHORT":
+            cash -= exit_notional + exit_fee          # buy back to cover
+            pnl = pos["qty"] * (pos["entry"] - exit_price) - fees
+        else:
+            cash += exit_notional - exit_fee           # sell to close
+            pnl = pos["qty"] * (exit_price - pos["entry"]) - fees
         entry_value = pos["qty"] * pos["entry"]
         trades.append({
             "opened_at": pos["ts"], "closed_at": ts, "qty": round(pos["qty"], 10),
             "entry": pos["entry"], "exit": exit_price, "pnl": round(pnl, 6),
             "pnl_pct": round(pnl / entry_value * 100, 4) if entry_value else 0.0,
-            "fees": round(fees, 6), "exit_kind": kind,
+            "fees": round(fees, 6), "exit_kind": kind, "side": pos["side"],
             "entry_reason": pos["reason"], "exit_reason": reason})
         pos = None
 
@@ -83,7 +97,8 @@ def run_candle_backtest(strategy: Strategy, risk: RiskConfig, df: pd.DataFrame,
 
         # 1) execute decisions made at the previous close
         if pending_exit and pos:
-            close_trade(_slip(o, cfg, "SELL"), ts, "signal_exit", pending_exit)
+            exit_fill = _slip(o, cfg, "BUY" if pos["side"] == "SHORT" else "SELL")
+            close_trade(exit_fill, ts, "signal_exit", pending_exit)
         if pending_entry and pos is None:
             # Same adaptive layer as live: losing streaks shrink size,
             # probation blocks the entry entirely.
@@ -92,50 +107,78 @@ def run_candle_backtest(strategy: Strategy, risk: RiskConfig, df: pd.DataFrame,
                 adaptive_blocked += 1
                 pending_entry = None
         if pending_entry and pos is None:
-            fill = _slip(o, cfg, "BUY")
+            side = pending_entry_side
+            fill = _slip(o, cfg, "SELL" if side == "SHORT" else "BUY")
             notional = min(cash * risk.position_size_pct / 100
                            * adaptive.size_multiplier, cash)
             if notional > 1e-9 and fill > 0:
                 qty = notional / fill
                 entry_fee = _fee(notional, cfg)
-                cash -= notional + entry_fee
+                cash += (notional - entry_fee) if side == "SHORT" else -(notional + entry_fee)
+                if side == "SHORT":
+                    sl = fill * (1 + risk.stop_loss_pct / 100)
+                    tp = fill * (1 - risk.take_profit_pct / 100)
+                else:
+                    sl = fill * (1 - risk.stop_loss_pct / 100)
+                    tp = fill * (1 + risk.take_profit_pct / 100)
                 pos = {"qty": qty, "entry": fill, "ts": ts, "reason": pending_entry,
-                       "entry_fee": entry_fee, "hwm": fill,
-                       "sl": fill * (1 - risk.stop_loss_pct / 100),
-                       "tp": fill * (1 + risk.take_profit_pct / 100)}
+                       "side": side, "entry_fee": entry_fee, "hwm": fill,
+                       "sl": sl, "tp": tp}
         pending_entry = pending_exit = None
+        pending_entry_side = "LONG"
 
         # 2) intra-candle protective exits (stop checked first = pessimistic)
         if pos:
-            sl_hit = low <= pos["sl"]
-            tp_hit = h >= pos["tp"]
+            if pos["side"] == "SHORT":
+                sl_hit, tp_hit = h >= pos["sl"], low <= pos["tp"]
+                stop_fill, tp_fill = max(pos["sl"], o), min(pos["tp"], o)
+            else:
+                sl_hit, tp_hit = low <= pos["sl"], h >= pos["tp"]
+                stop_fill, tp_fill = min(pos["sl"], o), max(pos["tp"], o)
             if cfg.pessimistic and sl_hit:
-                close_trade(min(pos["sl"], o), ts, "stop_loss",
-                            f"stop {pos['sl']:.6g} hit (low {low:.6g})")
+                close_trade(stop_fill, ts, "stop_loss",
+                            f"stop {pos['sl']:.6g} hit (low {low:.6g} high {h:.6g})")
             elif tp_hit:
-                close_trade(max(pos["tp"], o), ts, "take_profit",
-                            f"take-profit {pos['tp']:.6g} hit (high {h:.6g})")
+                close_trade(tp_fill, ts, "take_profit",
+                            f"take-profit {pos['tp']:.6g} hit (low {low:.6g} high {h:.6g})")
             elif sl_hit:
-                close_trade(min(pos["sl"], o), ts, "stop_loss",
-                            f"stop {pos['sl']:.6g} hit (low {low:.6g})")
+                close_trade(stop_fill, ts, "stop_loss",
+                            f"stop {pos['sl']:.6g} hit (low {low:.6g} high {h:.6g})")
 
-        # 3) trailing stop ratchets for the NEXT candle
+        # 3) trailing stop ratchets for the NEXT candle ("hwm" = most favorable
+        #    price reached so far: highest high for a long, lowest low for a short)
         if pos and risk.trailing_stop_enabled:
-            pos["hwm"] = max(pos["hwm"], h)
-            if pos["hwm"] >= pos["entry"] * (1 + risk.trailing_activation_pct / 100):
-                pos["sl"] = max(pos["sl"], pos["hwm"] * (1 - risk.trailing_stop_pct / 100))
+            if pos["side"] == "SHORT":
+                pos["hwm"] = min(pos["hwm"], low)
+                if pos["hwm"] <= pos["entry"] * (1 - risk.trailing_activation_pct / 100):
+                    pos["sl"] = min(pos["sl"], pos["hwm"] * (1 + risk.trailing_stop_pct / 100))
+            else:
+                pos["hwm"] = max(pos["hwm"], h)
+                if pos["hwm"] >= pos["entry"] * (1 + risk.trailing_activation_pct / 100):
+                    pos["sl"] = max(pos["sl"], pos["hwm"] * (1 - risk.trailing_stop_pct / 100))
 
         # 4) strategy decision at candle close
-        view = (PositionView(0, symbol, strategy.id, pos["qty"], pos["entry"], c)
-                if pos else None)
+        view = (PositionView(0, symbol, strategy.id, pos["qty"], pos["entry"], c,
+                             side=pos["side"]) if pos else None)
         sig = strategy.decide(symbol, idf, i, view)
         if sig.action == SignalAction.BUY and pos is None:
-            pending_entry = sig.reason
-        elif sig.action == SignalAction.SELL and pos is not None:
+            pending_entry, pending_entry_side = sig.reason, "LONG"
+        elif sig.action == SignalAction.SELL and pos is not None and pos["side"] == "LONG":
+            pending_exit = sig.reason
+        elif allow_short and sig.action == SignalAction.SHORT and pos is None:
+            pending_entry, pending_entry_side = sig.reason, "SHORT"
+        elif sig.action == SignalAction.COVER and pos is not None and pos["side"] == "SHORT":
             pending_exit = sig.reason
 
         curve_ts.append(ts)
-        curve_val.append(cash + (pos["qty"] * c if pos else 0.0))
+        if pos is None:
+            curve_val.append(cash)
+        elif pos["side"] == "SHORT":
+            # mark-to-market: cash already holds the short-sale proceeds: equity
+            # is that cash minus the cost to buy back qty at the current close.
+            curve_val.append(cash - pos["qty"] * c)
+        else:
+            curve_val.append(cash + pos["qty"] * c)
 
     if pos:  # liquidate at the last close so every trade is a closed round-trip
         last = df.iloc[-1]

@@ -23,6 +23,13 @@ class SignalAction(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
     HOLD = "HOLD"
+    # Backtest/research only (see app.backtest.simulator.run_candle_backtest's
+    # allow_short flag): opening/closing a short position. Binance Spot cannot
+    # execute real short sales, so the live engine does not act on these — it
+    # only recognizes BUY/SELL (app/core/engine.py) — making them safe to add
+    # to the shared enum without any live-trading effect.
+    SHORT = "SHORT"
+    COVER = "COVER"
 
 
 class OrderPurpose(str, Enum):
@@ -90,6 +97,10 @@ class PositionView:
     qty: float
     avg_entry: float
     mark_price: float
+    # "LONG" (default, every live/spot position) or "SHORT" (backtest/research
+    # only — see SignalAction.SHORT). Existing call sites that omit this keep
+    # their current LONG behavior unchanged.
+    side: str = "LONG"
 
     @property
     def notional(self) -> float:
@@ -97,7 +108,8 @@ class PositionView:
 
     @property
     def unrealized_pnl(self) -> float:
-        return (self.mark_price - self.avg_entry) * self.qty
+        sign = -1.0 if self.side == "SHORT" else 1.0
+        return (self.mark_price - self.avg_entry) * self.qty * sign
 
 
 @dataclass(slots=True)

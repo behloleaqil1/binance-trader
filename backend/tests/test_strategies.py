@@ -68,6 +68,48 @@ class TestTrendMomentum:
         assert any(("crossed below" in s.reason) or ("RSI" in s.reason)
                    or ("MACD" in s.reason) for s in sells)
 
+    def test_allow_short_false_by_default_no_short_signals(self):
+        strat = TrendMomentumStrategy(self.params)
+        closes = [100 * 1.006 ** i for i in range(40)]
+        closes += [closes[-1] * (1 - 0.012) ** i for i in range(1, 26)]
+        signals = run_decides(strat, make_df(closes))
+        assert all(s.action != SignalAction.SHORT for _, s in signals)
+
+    def test_short_appears_after_crossdown_when_allowed(self):
+        strat = TrendMomentumStrategy({**self.params, "allow_short": True,
+                                       "rsi_short_min": 0, "rsi_short_max": 100})
+        closes = [100 * 1.006 ** i for i in range(40)]
+        closes += [closes[-1] * (1 - 0.012) ** i for i in range(1, 26)]
+        signals = run_decides(strat, make_df(closes))
+        shorts = [(i, s) for i, s in signals if s.action == SignalAction.SHORT]
+        assert shorts, "expected a SHORT after the cross-down with allow_short=True"
+        assert "crossed below" in shorts[0][1].reason
+
+    def test_cover_on_cross_up_with_short_position(self):
+        strat = TrendMomentumStrategy({**self.params, "allow_short": True})
+        closes = [100 * (1 - 0.006) ** i for i in range(40)]
+        closes += [closes[-1] * (1 + 0.012) ** i for i in range(1, 26)]
+        pos = make_position(symbol="TESTUSDT", entry=closes[35], mark=closes[-1],
+                            side="SHORT")
+        signals = run_decides(strat, make_df(closes), position=pos)
+        covers = [s for _, s in signals if s.action == SignalAction.COVER]
+        assert covers
+        assert any(("crossed above" in s.reason) or ("RSI" in s.reason)
+                   or ("MACD" in s.reason) for s in covers)
+
+
+class TestPositionViewShort:
+    def test_short_unrealized_pnl_sign_is_inverted(self):
+        long_pos = make_position(entry=100.0, mark=90.0, side="LONG")
+        short_pos = make_position(entry=100.0, mark=90.0, side="SHORT")
+        assert long_pos.unrealized_pnl < 0   # long loses when price falls
+        assert short_pos.unrealized_pnl > 0  # short profits when price falls
+        assert short_pos.unrealized_pnl == pytest.approx(-long_pos.unrealized_pnl)
+
+    def test_notional_unaffected_by_side(self):
+        pos = make_position(qty=2.0, mark=50.0, side="SHORT")
+        assert pos.notional == pytest.approx(100.0)
+
 
 class TestMeanReversion:
     params = {"bb_period": 20, "bb_std": 2.0, "rsi_period": 5,

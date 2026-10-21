@@ -33,6 +33,26 @@ class BuyAtIndex(Strategy):
         return self.hold(symbol, "stub hold")
 
 
+class ShortAtIndex(Strategy):
+    """Test stub: SHORT once at a fixed row, never COVER — isolates short SL/TP mechanics."""
+    id = "stub_short"
+    name = "Stub Short"
+    description = "test"
+    kind = "candle"
+
+    @classmethod
+    def param_specs(cls):
+        return [ParamSpec("short_at", "short index", "int", 5)]
+
+    def required_history(self):
+        return 2
+
+    def decide(self, symbol, df, i, position):
+        if position is None and i == self.params["short_at"]:
+            return Signal(SignalAction.SHORT, symbol, self.id, "stub short entry")
+        return self.hold(symbol, "stub hold")
+
+
 def flat_df(n=30, price=100.0, **overrides):
     closes = [price] * n
     df = make_df(closes, opens=[price] * n, highs=[price] * n, lows=[price] * n)
@@ -103,6 +123,79 @@ class TestCandleSim:
         assert len(res.trades) >= 1
         assert len(res.equity) > 0
         assert res.equity.iloc[-1] > 9_000  # sane, no blow-up
+
+
+class TestShortSim:
+    def test_short_signal_ignored_when_allow_short_false(self):
+        # Default allow_short=False: a SHORT signal must be a no-op, exactly
+        # like HOLD — existing long-only callers are unaffected.
+        df = flat_df(20, low={10: 95.0})
+        res = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df, CFG)
+        assert res.trades == []
+        assert res.equity.iloc[-1] == pytest.approx(10_000)
+
+    def test_short_profits_when_price_falls(self):
+        df = flat_df(20, low={10: 95.0})
+        res = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df, CFG,
+                                  allow_short=True)
+        assert len(res.trades) == 1
+        t = res.trades[0]
+        assert t["side"] == "SHORT"
+        assert t["exit_kind"] == "take_profit"
+        assert t["exit"] == pytest.approx(96.0)  # entry 100, TP 4% below = 96
+        assert t["pnl"] > 0
+
+    def test_short_loses_when_price_rises(self):
+        df = flat_df(20, high={12: 103.0})
+        res = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df, CFG,
+                                  allow_short=True)
+        t = res.trades[0]
+        assert t["side"] == "SHORT"
+        assert t["exit_kind"] == "stop_loss"
+        assert t["exit"] == pytest.approx(102.0)  # entry 100, SL 2% above = 102
+        assert t["pnl"] < 0
+
+    def test_short_pessimistic_stop_first_when_both_hit(self):
+        df = flat_df(20, low={12: 94.0}, high={12: 106.0})
+        res = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df, CFG,
+                                  allow_short=True)
+        assert res.trades[0]["exit_kind"] == "stop_loss"
+
+    def test_short_fees_and_slippage_reduce_pnl(self):
+        df = flat_df(20, low={10: 95.0})
+        gross = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df,
+                                    SimConfig(10_000, fee_bps=0, slippage_bps=0),
+                                    allow_short=True)
+        net = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df,
+                                  SimConfig(10_000, fee_bps=10, slippage_bps=5),
+                                  allow_short=True)
+        assert net.trades[0]["pnl"] < gross.trades[0]["pnl"]
+        assert net.trades[0]["fees"] > 0
+
+    def test_short_open_position_liquidated_at_end(self):
+        df = flat_df(15)  # never hits SL/TP
+        res = run_candle_backtest(ShortAtIndex({"short_at": 5}), RISK, df, CFG,
+                                  allow_short=True)
+        assert res.trades[0]["exit_kind"] == "end_of_backtest"
+        assert res.equity.iloc[-1] == pytest.approx(10_000, rel=0.01)
+
+    def test_trend_momentum_allow_short_opens_and_covers(self):
+        # Downtrend then reversal up: should open a short on cross-down and
+        # cover on cross-up, with default allow_short=False emitting nothing.
+        closes = [100 * (1 + 0.004) ** i for i in range(60)]
+        closes += [closes[-1] * (1 - 0.006) ** i for i in range(1, 81)]
+        params = {"ema_fast": 5, "ema_slow": 15, "macd_fast": 6, "macd_slow": 13,
+                  "macd_signal": 5, "rsi_period": 7, "rsi_short_min": 0,
+                  "rsi_short_max": 100}
+        long_only = TrendMomentumStrategy(params)
+        res_off = run_candle_backtest(long_only, RISK, make_df(closes), CFG,
+                                      allow_short=True)
+        assert all(t.get("side", "LONG") == "LONG" for t in res_off.trades)
+
+        shorting = TrendMomentumStrategy({**params, "allow_short": True})
+        res_on = run_candle_backtest(shorting, RISK, make_df(closes), CFG,
+                                     allow_short=True)
+        assert any(t["side"] == "SHORT" for t in res_on.trades)
 
 
 class TestGridSim:

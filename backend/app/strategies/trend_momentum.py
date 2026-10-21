@@ -15,7 +15,11 @@ class TrendMomentumStrategy(Strategy):
     name = "Trend / Momentum"
     description = ("Buys when the fast EMA crosses above the slow EMA with RSI in a "
                    "healthy band and MACD histogram positive. Exits on cross-down, "
-                   "RSI blow-off, or MACD rollover. Long-only (spot).")
+                   "RSI blow-off, or MACD rollover. Long-only (spot) by default; "
+                   "allow_short mirrors the same logic to the short side for "
+                   "backtest/research use only — Binance Spot cannot execute real "
+                   "short sales, and the live engine does not act on SHORT/COVER "
+                   "signals, so this param has no effect on live/testnet trading.")
 
     @classmethod
     def param_specs(cls) -> list[ParamSpec]:
@@ -33,6 +37,15 @@ class TrendMomentumStrategy(Strategy):
             ParamSpec("macd_slow", "MACD slow", "int", 26, min=5, max=200),
             ParamSpec("macd_signal", "MACD signal", "int", 9, min=2, max=50),
             ParamSpec("require_macd", "Require MACD confirmation", "bool", True),
+            ParamSpec("allow_short", "Allow short entries (backtest-only)", "bool", False,
+                      help="Research use only — mirrors the long entry/exit logic to "
+                           "the short side. No effect on live/testnet trading."),
+            ParamSpec("rsi_short_min", "RSI min for short entry", "float", 30, min=0, max=100,
+                      help="Short entry blocked below this (already oversold)"),
+            ParamSpec("rsi_short_max", "RSI max for short entry", "float", 50, min=0, max=100,
+                      help="Short entry requires RSI below this (bearish momentum present)"),
+            ParamSpec("rsi_cover", "RSI cover level", "float", 22, min=0, max=50,
+                      help="Cover (close short) when RSI falls to this oversold blow-off level"),
         ]
 
     def required_history(self) -> int:
@@ -80,10 +93,38 @@ class TrendMomentumStrategy(Strategy):
                               f"EMA{p['ema_fast']} crossed above EMA{p['ema_slow']}, "
                               f"RSI {r:.1f} in band, MACD hist {hist:.4g} > 0. {state}",
                               price=close)
+            if p["allow_short"] and crossed_down:
+                if not (p["rsi_short_min"] <= r <= p["rsi_short_max"]):
+                    return self.hold(symbol, f"EMA crossed down but RSI {r:.1f} outside "
+                                     f"[{p['rsi_short_min']}, {p['rsi_short_max']}] — no short "
+                                     f"entry. {state}", price=close)
+                if p["require_macd"] and hist >= 0:
+                    return self.hold(symbol, f"EMA crossed down but MACD hist {hist:.4g} ≥ 0 "
+                                     f"— no bearish confirmation. {state}", price=close)
+                return Signal(SignalAction.SHORT, symbol, self.id,
+                              f"EMA{p['ema_fast']} crossed below EMA{p['ema_slow']}, "
+                              f"RSI {r:.1f} in band, MACD hist {hist:.4g} < 0. {state}",
+                              price=close)
             return self.hold(symbol, f"no crossover ({'up' if ef > es else 'down'}trend "
                              f"continues). {state}", price=close)
 
-        # Managing an open position (exchange-side SL/TP also active).
+        if position.side == "SHORT":
+            # Managing an open short (backtest/research only).
+            if crossed_up:
+                return Signal(SignalAction.COVER, symbol, self.id,
+                              f"EMA{p['ema_fast']} crossed above EMA{p['ema_slow']} — trend "
+                              f"reversed, cover. {state}", price=close)
+            if r <= p["rsi_cover"]:
+                return Signal(SignalAction.COVER, symbol, self.id,
+                              f"RSI {r:.1f} ≤ cover level {p['rsi_cover']} — oversold "
+                              f"blow-off, cover. {state}", price=close)
+            if p["require_macd"] and hist > 0 and ef > es:
+                return Signal(SignalAction.COVER, symbol, self.id,
+                              f"MACD hist positive with fast EMA above slow — short thesis "
+                              f"faded. {state}", price=close)
+            return self.hold(symbol, f"holding short. {state}", price=close)
+
+        # Managing an open long (exchange-side SL/TP also active).
         if crossed_down:
             return Signal(SignalAction.SELL, symbol, self.id,
                           f"EMA{p['ema_fast']} crossed below EMA{p['ema_slow']} — trend "
