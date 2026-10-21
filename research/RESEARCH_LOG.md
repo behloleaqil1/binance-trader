@@ -163,7 +163,15 @@ whose sign is not reliably predictable from regime alone, and which stays
 economically trivial regardless of sign. This does not change the shipped
 default (still net-neutral-to-slightly-helpful and never a meaningful
 drag) — it only corrects how the effect's sign behavior should be
-described. See Run 46/50/54/58/60 sections below.
+described. Run 64 (2026-10-21) repeated the check a further +2 days
+forward and strongly confirmed the revised framing: the train window was a
+strong +28.07% rally yet produced a POSITIVE delta (+0.0307pp), and the
+test window was a mild decline yet produced a NEGATIVE delta (-0.0185pp)
+— both breaking the pre-Run-60 "positive in decline / negative in rally"
+story outright, exactly as the revised characterization predicts. All
+three Run 64 deltas (max |delta|=0.0535pp) are the smallest-magnitude set
+on record, continuing the contraction toward the noise floor. See Run
+46/50/54/58/60/64 sections below.
 
 ### Where this programme stands
 Every concretely-scoped axis — 8 strategy families, 5 signal-source
@@ -770,3 +778,87 @@ remains 2026-10-21 or later, per Run 60. Unchanged.
 **Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
 files changed in `backend/` or `research/experiments/`. `decisions.jsonl`
 unchanged (164 active).
+
+---
+
+## 2026-10-21 — Run 64 (DCA self-correction, on schedule)
+
+**Housekeeping first.** Fresh container resumed with local `main` matching
+`origin/main` at `e82758d` (Run 63's commit) — no stale-ref issue. Backend
+venv was absent in this fresh container; rebuilt clean via `python3 -m venv
+.venv && pip install -q -r requirements.txt`, no behavior change. Security
+re-check: no `.vscode/` directory anywhere in the repo, every
+`public/fonts/*` file a legitimate FontAwesome asset (woff/woff2/ttf/eot/svg
+for `fa-solid-900`, `fa-brands-400`, `fa-regular-400`, plus `README.md`), no
+`eval(` anywhere under `public/` — Run 37 incident remains remediated.
+
+**Question.** Today is 2026-10-21, exactly the next actionable date Run 60
+set for the standing DCA self-correction protocol ("2026-10-21 or later",
+2+ full days past its 2026-10-19 anchor). Run 61/62/63 deferred at the
+same-day/next-day points in this cycle. The bar is now met, so this run
+performs the genuine re-check.
+
+**Method.** Same capital-normalized ROI methodology as every prior check
+(Run 4/14/27/32/35/36/38/40/42/46/50/54/58/60): average ROI (unrealized
+P&L / invested) across the 8-symbol universe, `dip_enabled=True` (shipped:
+`dip_threshold_pct=5.0, dip_multiplier=1.5`) vs `dip_enabled=False`
+(control), across 3 non-overlapping windows shifted forward by exactly 2
+days vs Run 60 (older 2026-02-23..2026-05-24, train 2026-05-24..2026-08-22,
+test 2026-08-22..2026-10-21, anchor=today). Script:
+`research/experiments/dca_self_correction_run64.py` (new, adapted from
+Run 60's script with windows shifted forward; production `dca.py`
+untouched).
+
+**Results.**
+- Older window: mild uptrend (avg ROI OFF +1.4190%), dip-buy delta
+  **+0.0535pp**, 7/8 symbols beat OFF — consistent with the established
+  pattern.
+- Train window: a **strong rally** (avg ROI OFF +28.0726%, the strongest
+  rally seen in this check to date), dip-buy delta **+0.0307pp
+  (POSITIVE)**, 5/8 symbols beat OFF.
+- Test window: a **mild decline** (avg ROI OFF -1.6204%), dip-buy delta
+  **-0.0185pp (NEGATIVE)**, only 2/8 symbols beat OFF.
+
+**Interpretation.** This run strongly reinforces Run 60's revised framing.
+The pre-Run-60 story ("positive in decline, negative in rally", established
+across Run 4-58) would have predicted a *negative* delta on the train
+window's +28% rally and a *positive* delta on the test window's decline —
+instead both signs are the opposite of that story. This is now the second
+consecutive check (after Run 60) where regime sign and delta sign disagree
+with the old framing, confirming it was never a real mechanism: the
+dip-buy ON/OFF delta is a small, noisy effect whose sign is not reliably
+predictable from regime alone. All three deltas this run (max
+|delta|=0.0535pp) are the smallest-magnitude set on record across the
+entire protocol, continuing the steady contraction toward the noise floor
+first flagged in Run 50/54/58. No reversal of substance, no revert
+warranted — the bar requires a clear, economically meaningful, compounding
+reversal, not a sub-0.06pp sign pattern that was never reliable to begin
+with. **No git revert warranted; shipped default unchanged.**
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 95 passed (72+23 dots), 0 failed, exit 0, matching every prior run's
+count exactly, no drift. No code, params, or shipped defaults touched.
+
+**Decision log.** Appended one entry to `decisions.jsonl` (decision=`noise`,
+usd_pnl_100=-0.0185 using the test-window delta, usd_pnl_1000=-0.185).
+`rotate_archive.py` run: 165 active entries, under the 250 rotation
+threshold — no-op, confirmed.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` was ~43.6KB before this
+section, over the ~40KB soft guideline, but the active file holds only 7
+full run-sections (58-64) after this append — well under the "keep the
+last ~15 runs" floor from the memory-management protocol, so archiving now
+would violate that floor for no real benefit (same call Run 62/63 made at
+a similar byte count). No archiving this cycle.
+
+**Going forward:** per the standing protocol, the next actionable date for
+the DCA self-correction check is **2026-10-23 or later** (2+ full days past
+today's 2026-10-21 anchor). Every concretely-scoped research axis remains
+closed with zero surviving candidates (unchanged from Run 63) — no new
+strategy file, no new registry entry identified this run.
+
+**Files:** `research/RESEARCH_LOG.md` edited (DISTILLED LEARNINGS DCA
+section updated + this section appended), `research/decisions.jsonl`
+appended (165 active), `research/experiments/dca_self_correction_run64.py`
+(new) and `research/experiments/dca_self_correction_run64_output.json`
+(new, raw numbers). No files changed in `backend/`.
