@@ -12,9 +12,9 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**59 runs, ~341+ configs, one standing positive finding (DCA dip-buy,
+**66 runs, ~385+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-49 is archived (see archive index at file end); Run 50-59 sections are
+1-49 is archived (see archive index at file end); Run 50-66 sections are
 below. The DISTILLED LEARNINGS block just below was rewritten in Run 36 to
 be a compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -121,10 +121,31 @@ transfers from longs to shorts without needing new evidence.** Per-symbol:
 6/8 symbols net losing in the short-only@1h test window (BTC PF 0.089, ETH
 0.0, BNB 0.0), only DOGE/ADA cleared 1.1 individually (12-13 trades each,
 too thin to mean anything on their own). Pairs mean-reversion-with-actual-
-shorting (vs the long laggard-only proxy already closed in Run 20) remains
-the one still-open sub-item from the capability addition — low priority
-given this result, since the same symmetric-fee argument likely applies
-there too, but not yet concretely tested.
+shorting (vs the long laggard-only proxy already closed in Run 20) was the
+one still-open sub-item from the capability addition — **closed by Run 66
+(2026-10-22, autonomous)**: a true two-legged pairs trade (long the
+relative laggard, short the relative leader within each of 7 alt/BTC
+pairs, via `PairsMeanReversionShortStrategy` in
+`research/experiments/pairs_mean_reversion_shorts.py`), swept across 3
+lookbacks x 2 entry/exit configs (42 total). **0/42 cleared the OOS bar.**
+Several configs had train-side support this time (best: ADA/BTC lb=50
+entry_z=1.5, train PF 1.728 but only 17 trades and test PF 0.0/0 trades;
+DOGE/BTC lb=50 entry_z=1.5, train PF 1.256/36 trades, test PF 0.851/38
+trades — the closest near-miss in the whole sweep) — more train support
+than Run 20's long-only proxy ever had (which never cleared train PF>1 at
+all), but every train-side PF>1.1 decayed on the held-out test window, and
+the DOGE/BTC near-miss still fell short of both the PF and (for most
+configs) the trade-count bar. The anchor (BTC) leg of each pair was the
+recurring drag: its test-window PF sat at 0.0-0.4 in the large majority of
+configs where it traded, dragging the aggregate down even when the alt leg
+alone looked better. **Confirms the capability-addition note's prediction
+exactly: a 2-leg hedge pays roughly 2x the round-trip fee cost of the
+long-only proxy, and that extra cost is not recovered by removing basis
+risk** — the true market-neutral construction does not rescue the signal
+Run 20 already found no train-side support for. Fully closes "pairs
+mean-reversion with real shorting"; both concretely-scoped sub-items of the
+2026-10-21 capability addition (trend-following shorts, pairs
+mean-reversion shorts) are now closed with zero surviving candidates.
 
 ### DCA dip-buy — fully characterized, shipped default kept
 `dip_enabled=True, dip_threshold_pct=5.0, dip_multiplier=1.5` beats a flat
@@ -196,10 +217,16 @@ on record, continuing the contraction toward the noise floor. See Run
 ### Where this programme stands
 Every concretely-scoped axis — 8 strategy families, 5 signal-source
 categories, 3 confirmation gates (+ 1 stacked combo), 2 cross-symbol
-constructions, sizing, exit mechanism, cost level, symbol universe, TF
-range, historical era, and now DCA's dip-buy trend-conditioning — is closed
-with zero surviving candidates. The only structurally out-of-reach items are
-short-selling (architecture change) and futures/funding data (geo-blocked).
+constructions (now both re-tested with real shorting too, per Run 65/66),
+sizing, exit mechanism, cost level, symbol universe, TF range, historical
+era, and now DCA's dip-buy trend-conditioning — is closed with zero
+surviving candidates. Short-selling is no longer structurally out of reach
+(backtest-only `allow_short` capability added 2026-10-21) but has itself
+been exhaustively tried and closed (trend-following shorts: Run 65; pairs
+mean-reversion shorts: Run 66) — fees apply symmetrically, so the
+over-arbitraged-at-7.5bps conclusion transfers from longs to shorts without
+exception found so far. The only remaining structurally out-of-reach item
+is futures/funding data (geo-blocked).
 **Going forward: default to the self-correction protocol** (DCA dip-buy
 ON-vs-OFF re-check on rolling-forward windows, roughly every 2+ days of new
 data since the last check, per Run 31/32/35/36/38/50) **and the top-of-file
@@ -1083,4 +1110,128 @@ long-only/shorting item updated + this section appended),
 `research/experiments/trend_momentum_shorts.py` (new, committed earlier
 this run as WIP before the backtest finished) and
 `research/experiments/trend_momentum_shorts_output.json` (new, raw
+numbers). No files changed in `backend/app/`.
+
+---
+
+## 2026-10-22 — Run 66 (pairs mean-reversion with real shorting; closes the capability addition)
+
+**Housekeeping first.** Fresh container, repo had no backend venv at all
+(not just stale — absent); rebuilt via `python3 -m venv .venv &&
+.venv/bin/pip install -q -r requirements.txt`. The install itself took
+unusually long this run (~20 minutes, confirmed genuine via repeated
+`/proc/<pid>/io` checks showing steadily climbing `rchar`/`wchar` while
+downloading/unpacking the pandas wheel — not stuck, just a slow container
+this time). `git status` was clean on arrival (no detached-HEAD housekeeping
+needed this run, unlike every prior one).
+
+**Question.** Run 65 closed trend-following shorts but explicitly left one
+sub-item of the 2026-10-21 capability addition open: pairs mean-reversion
+*with actual shorting* (vs. Run 20's long-only-laggard proxy, flagged as
+low priority but not yet concretely tested). The standing DCA
+self-correction protocol's next actionable date (set by Run 64) is
+2026-10-23 — one day away, not yet due — so this run picks the one
+remaining open, concretely-scoped item instead of a self-correction
+re-check or any already-closed axis.
+
+**Method.** New script `research/experiments/pairs_mean_reversion_shorts.py`
+(research-only, not registered in `app/strategies/registry.py`). True
+two-legged pairs trade: for each of 7 alt/BTC pairs, a causal rolling
+z-score of `log(close_alt) - log(close_anchor)` drives a signed per-leg
+signal (`PairsMeanReversionShortStrategy`) — SHORT the leg that has
+outperformed its partner by `entry_z` std devs, BUY (long) the leg that has
+underperformed, exit (flat) once the signal reverts back through
+`+-exit_z`. The two legs trade in exactly opposite directions at every
+point by construction (a genuine hedge, not a proxy). Swept 3 lookbacks
+(20/50/100 bars) x 2 (entry_z, exit_z) pairs ((1.5,0.3), (2.0,0.3)) x 7
+pairs = 42 configs, via the same `run_candle_backtest(..., allow_short=True)`
+capability Run 65 used (generic — not trend_momentum-specific). Standard
+train (150d-60d ago: 2026-05-25..2026-08-23) / test (60d-0d ago, held-out:
+2026-08-23..2026-10-22) split, 7.5bps fees, 4bps slippage, RiskConfig
+defaults (2% SL / 4% TP, never loosened) applied per leg independently
+(same methodology Run 20 and Run 65 both used for multi-symbol/multi-leg
+aggregation).
+
+**Results — 0/42 configs cleared the OOS bar (train&test PF>1.1 AND test
+trades>=30).** Full sweep in
+`research/experiments/pairs_mean_reversion_shorts_output.json`, all 42
+logged individually to `decisions.jsonl`. Notable configs:
+
+| pair | lookback | entry_z | train PF (n) | test PF (n) |
+|---|---|---|---|---|
+| ADA/BTC | 50 | 1.5 | 1.728 (17) | 0.0 (0) |
+| LINK/BTC | 20 | 2.0 | 1.205 (52) | 0.164 (9) |
+| DOGE/BTC | 50 | 1.5 | 1.256 (36) | 0.851 (38) |
+| DOGE/BTC | 100 | 1.5 | 1.237 (32) | 0.507 (7) |
+| DOGE/BTC | 20 | 1.5 | 1.104 (53) | 1.003 (53) |
+
+DOGE/BTC@lb=20/entry_z=1.5 is the closest-to-breakeven reading in the whole
+sweep (test PF 1.003, 53 trades — clears the trade-count floor) but still
+sits essentially at breakeven, well short of the 1.1 PF bar, and its
+avg_ret_pct is +0.0013% (economically negligible: $0.0013 on $100). Several
+configs this run had genuine train-side support (train PF>1.1 in 7/42
+configs) — more than Run 20's long-only proxy ever showed (which never
+cleared train PF>1 at all) — but every one of those decayed on the
+held-out test window. Per-symbol detail shows the recurring drag: the BTC
+leg of each pair (BTC itself, traded whenever it was the relative
+laggard/leader) posted test-window PF of 0.0-0.4 in the large majority of
+configs where it traded at all, while the alt leg alone sometimes looked
+closer to breakeven (e.g. ADA's own test PF 1.097 in the ADA/BTC
+lb=20/entry_z=2.0 config) — the hedge's second leg is what drags the
+aggregate down, consistent with fees applying per leg (a 2-leg hedge pays
+~2x the long-only proxy's round-trip cost for removing basis risk that
+Run 20 never established was the actual problem).
+
+**Interpretation.** This closes the question Run 65's own note raised:
+does the true market-neutral construction (removing shared-market-
+direction risk) rescue pairs mean-reversion where the long-only proxy
+found no train-side support at all? No — if anything it costs more
+(doubled fees) than it recovers (cleaner basis-risk isolation), exactly as
+predicted. **Closes "pairs mean-reversion with real shorting."** Both
+concretely-scoped sub-items the 2026-10-21 capability addition opened
+(trend-following shorts, pairs mean-reversion shorts) are now closed with
+zero surviving candidates — DISTILLED LEARNINGS updated above to reflect
+this. No further shorting variant is currently flagged as open; the
+capability remains available in the codebase (backtest-only, unused by any
+live/testnet path) for any future concretely-new hypothesis.
+
+**No code change** — pure research finding, nothing promoted. HARD LIMITS
+observed throughout: no risk control touched, no live/testnet path
+touched, no file under `backend/app/` (besides the research script's
+imports, which touch no production file), `deploy/`, or
+`.github/workflows/` touched this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— all tests passed (fresh venv rebuild this run, confirmed no change from
+Run 65's post-capability-addition suite). `git status --short` confirmed
+only `research/` files touched (the new experiment script, its JSON
+output, `decisions.jsonl`, `RESEARCH_LOG.md`).
+
+**Decision log.** Appended 42 entries to `decisions.jsonl` (all
+`decision="reject"`, `strategy="pairs_mean_reversion_short"`).
+`rotate_archive.py` run: 210 active entries, under the 250 rotation
+threshold — no-op, confirmed.
+
+**Memory hygiene this run.** `RESEARCH_LOG.md` is now well over 64KB (11
+full run-sections in the active file: 58-65 + the capability-addition note
++ this section), the largest it has been without an archive move —
+flagging again for whoever does the next archive pass, same call Run 65
+made. Not archiving this cycle since the active file is still under the
+"keep the last ~15 runs" floor from the memory-management protocol.
+
+**Going forward:** the standing DCA self-correction protocol's next
+actionable date is **2026-10-23 or later** (unchanged, set by Run 64 — one
+day away from this run). Short-selling (both trend-following and pairs
+mean-reversion variants) is now fully closed. No concretely-scoped item is
+currently flagged open; the next run should default to the self-correction
+protocol once due, or re-validate a prior conclusion against fresh data per
+the standing SELF-CORRECTION mandate, rather than inventing a recombination
+of already-closed axes.
+
+**Files:** `research/RESEARCH_LOG.md` edited (DISTILLED LEARNINGS +
+"Where this programme stands" updated, this section appended),
+`research/decisions.jsonl` appended (210 active),
+`research/experiments/pairs_mean_reversion_shorts.py` (new, committed
+earlier this run as WIP before the backtest finished) and
+`research/experiments/pairs_mean_reversion_shorts_output.json` (new, raw
 numbers). No files changed in `backend/app/`.
