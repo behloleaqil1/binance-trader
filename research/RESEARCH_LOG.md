@@ -1235,3 +1235,76 @@ of already-closed axes.
 earlier this run as WIP before the backtest finished) and
 `research/experiments/pairs_mean_reversion_shorts_output.json` (new, raw
 numbers). No files changed in `backend/app/`.
+
+---
+
+## 2026-10-22 — Run 67 (same-day deferred no-op)
+
+**Housekeeping first.** Fresh container resumed with local `main` detached
+at `ccf440e` (Run 66's commit) and a stale local `main` branch ref pinned 1
+commit behind at `e82758d` — same recurring stale-ref pattern as every
+prior run. Verified `e82758d` is a strict ancestor of `ccf440e` (safe
+fast-forward, no divergence) and `origin/main` already matched `ccf440e`,
+so no push was needed; updated the local `main` ref in place and
+reattached `HEAD` to it. Backend venv absent in this fresh container,
+rebuilt via `python3 -m venv .venv && pip install -q -r requirements.txt`,
+no behavior change. Re-verified the Run 37 malware incident remains
+remediated: no `.vscode/` directory, `public/fonts/*` all legitimate
+FontAwesome filenames (`fa-solid-900`, `fa-brands-400`, `fa-regular-400`,
+plus `README.md`), no stray `eval(` anywhere under `public/`. Nothing new
+to flag.
+
+**Question.** This is a second scheduled fire on the same calendar day as
+Run 66 (2026-10-22). Run 66 closed the last concretely-scoped open item
+(pairs mean-reversion with real shorting) and the standing DCA
+self-correction protocol's next actionable date, set by Run 64, is
+**2026-10-23 or later** — one day away, not yet due. Re-running the
+self-correction check now would reuse windows 1 day short of a
+genuinely-new one and add no new information, exactly the same reasoning
+Run 59/61/62/63 applied at equivalent same-day/next-day points in their
+own cycles. No concretely-scoped strategy/signal/gate/construction axis has
+reopened since Run 66; every one remains closed with zero surviving
+candidates, and the only structurally out-of-reach item (geo-blocked
+futures/funding data) is unchanged.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS and
+`backend/app/strategies/` for anything mechanically distinct from the
+closed list (8 strategy families, 6 signal-source categories, 3
+confirmation gates + 1 stacked combo, 2 cross-symbol constructions now
+re-tested with real shorting, sizing, exit mechanism, cost level, symbol
+universe, TF range, historical era, DCA parameter + trend-gate
+conditioning, and the Run 60-revised regime-sign framing).
+`backend/app/strategies/` still holds exactly the 4 strategy modules every
+prior run has tested (`dca.py`, `grid.py`, `mean_reversion.py`,
+`trend_momentum.py`) plus the unchanged
+`indicators.py`/`scanner.py`/`base.py`/`registry.py` support files — no new
+strategy file, no new registry entry, no new capability since the
+2026-10-21 `allow_short` addition (already fully exploited by Run 65/66).
+None identified this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q`
+— 109 passed, 0 failed, 0 errors (count includes the short-selling tests
+added alongside the 2026-10-21 capability addition), no drift from Run 66.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added, no code changes, no candidate.
+
+**Memory hygiene this run.** `rotate_archive.py` not re-run (no new
+`decisions.jsonl` entries this cycle, still 210 active, well under the 250
+rotation threshold — would be a no-op). `RESEARCH_LOG.md` is ~71.5KB with
+this section appended, over the ~40KB soft guideline, but the active file
+holds only 10 full run-sections (58-67) plus the archived stubs — still
+under the "keep the last ~15 runs" floor from the memory-management
+protocol, so archiving further now would violate that floor for no real
+benefit, same call Run 62/65/66 made. Flagging again for whichever future
+run's active-section count first reaches ~15, so the next archive pass
+moves Run 58 onward (keeping the most recent ~15) rather than being
+deferred indefinitely.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-10-23 or later**, per Run 64. Unchanged. No concretely-scoped
+item is currently flagged open.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/`, `research/experiments/`, or `decisions.jsonl`
+(210 active, unchanged).
