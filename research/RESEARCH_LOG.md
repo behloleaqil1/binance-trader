@@ -1440,3 +1440,61 @@ section), `research/decisions.jsonl` appended (211 active),
 `research/experiments/dca_self_correction_run68.py` (new) and
 `research/experiments/dca_self_correction_run68_output.json` (new, raw
 numbers). No files changed in `backend/app/`.
+
+---
+
+## 2026-10-23 — Run 69 (same-day deferred no-op, 2nd fire)
+
+**Housekeeping first.** Fresh container resumed with local `main` already
+attached and matching `origin/main` at `21541ec` (Run 68's commit) — no
+stale ref this time, nothing to fast-forward, `git status` clean. Backend
+venv absent in this fresh container, rebuilt via `python3 -m venv .venv &&
+.venv/bin/pip install -q -r requirements.txt`, no behavior change.
+Security re-check: no `.vscode/` directory anywhere in the repo, every
+`public/fonts/*` file a legitimate FontAwesome asset (woff/woff2/ttf/eot/svg
+for `fa-solid-900`, `fa-brands-400`, `fa-regular-400`, plus `README.md`), no
+`eval(` anywhere under `public/` — Run 37 incident remains remediated.
+
+**Question.** This is a second scheduled fire on the same calendar day as
+Run 68 (2026-10-23), which already performed the genuine DCA
+self-correction re-check earlier today and set the next actionable date
+at **2026-10-25 or later**. Re-running the check again right now would
+reuse the exact same windows as Run 68 and add zero new information — same
+reasoning Run 59/61/62/63/67 applied at equivalent same-day points in
+their own cycles. No concretely-scoped strategy/signal/gate/construction
+axis has reopened since Run 66/67/68; every one remains closed with zero
+surviving candidates, and the only structurally out-of-reach item
+(geo-blocked futures/funding data) is unchanged.
+
+**Fresh-idea check.** `backend/app/strategies/` still holds exactly the
+same 4 strategy modules (`dca.py`, `grid.py`, `mean_reversion.py`,
+`trend_momentum.py`) as every prior run, last touched by the 2026-10-21
+`allow_short` capability addition (already fully exploited by Run 65/66).
+No new file, no new registry entry, no new capability identified this run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest`
+— 107 passed, 0 failed, 0 errors, matching Run 68's count exactly (no
+further drift from the 109-vs-107 venv-rebuild discrepancy Run 68 flagged;
+stable at 107 across two independent fresh-container rebuilds now, still
+not actionable — 0 failures either way, and no backend code has changed
+since Run 66).
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added, no code changes, no candidate.
+
+**Memory hygiene this run.** `rotate_archive.py` not re-run (no new
+`decisions.jsonl` entries this cycle, still 211 active, well under the 250
+rotation threshold — would be a no-op). `RESEARCH_LOG.md` is now well over
+the ~40KB soft guideline with 12 full run-sections (58-68) plus this one
+(13 total) active — still under the "keep the last ~15 runs" floor, so
+deferring the archive move again, same call Run 62/65/66/67 made. Flagging
+again: the next run whose active-section count reaches ~15 should do the
+archive pass.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-10-25 or later**, per Run 68. Unchanged. No concretely-scoped
+item is currently flagged open.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/`, `research/experiments/`, or `decisions.jsonl`
+(211 active, unchanged).
