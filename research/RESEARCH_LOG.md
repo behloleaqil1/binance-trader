@@ -1498,3 +1498,74 @@ item is currently flagged open.
 **Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
 files changed in `backend/`, `research/experiments/`, or `decisions.jsonl`
 (211 active, unchanged).
+
+---
+
+## 2026-10-24 — Run 70 (next-day deferred no-op)
+
+**Housekeeping first.** Fresh container resumed in a detached-HEAD state
+one commit *ahead* of `origin/main`: Run 69's commit (`36a2acd`) existed
+locally but had never actually reached the remote (`git push` from Run
+69's session evidently didn't land, or landed and the local ref was never
+updated to notice — same family of stale-ref bookkeeping issue flagged by
+Run 67/68, just the opposite direction this time: ahead, not behind).
+Fixed by re-pointing local `main` at the detached HEAD commit and pushing
+(`git checkout -B main 36a2acd && git push -u origin main:main`) —
+confirmed `origin/main` now matches at `36a2acd`, no force-push needed, no
+data lost. Backend venv absent in this fresh container, rebuilt via
+`python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt`, no
+behavior change. Security re-check: no `.vscode/` directory anywhere in
+the repo, every `public/fonts/*` file a legitimate FontAwesome asset
+(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
+`fa-regular-400`, plus `README.md`), no `eval(` anywhere under `public/`
+— Run 37 incident remains remediated.
+
+**Question.** First scheduled fire of a new calendar day (2026-10-24).
+Run 68 set the next actionable date for the standing DCA self-correction
+protocol at **2026-10-25 or later** (2+ full days past its 2026-10-23
+anchor). Today is only 1 day past that anchor — bar not met. Re-running
+the check now would reuse windows 1 day short of Run 68's and add no new
+information. This run defers, exactly as Run 56/62 did at the equivalent
+next-day point in their own cycles.
+
+**Fresh-idea check.** Re-scanned DISTILLED LEARNINGS and
+`backend/app/strategies/` for anything mechanically distinct from the
+closed list (8 strategy families, 6 signal-source categories, 3
+confirmation gates + 1 stacked combo, 2 cross-symbol constructions (both
+re-tested with real shorting per Run 65/66), sizing, exit mechanism, cost
+level, symbol universe, TF range, historical era, DCA parameter +
+trend-gate conditioning, and the Run 60-revised regime-sign framing).
+`backend/app/strategies/` still holds exactly the 4 strategy modules every
+prior run has tested (`dca.py`, `grid.py`, `mean_reversion.py`,
+`trend_momentum.py`), last touched by the 2026-10-21 `allow_short`
+capability addition (already fully exploited by Run 65/66). No new
+strategy file, no new registry entry, no new capability identified this
+run.
+
+**Verification.** `cd backend && PYTHONPATH=. .venv/bin/python -m pytest`
+— 107 passed, 0 failed, 0 errors, matching Run 68/69's count exactly, no
+drift across a third independent fresh-container rebuild.
+
+**Decision: no-op deferral, nothing to log.** No backtest configs run, no
+`decisions.jsonl` entry added (would just rerun Run 68's method on windows
+1 day short, with no new signal), no code changes, no candidate.
+
+**Memory hygiene this run.** `rotate_archive.py` not re-run (no new
+`decisions.jsonl` entries this cycle, still 211 active, well under the 250
+rotation threshold — would be a no-op). `RESEARCH_LOG.md` is now ~87KB,
+more than double the ~40KB soft guideline, with 12 full run-sections
+(58-69, including the Run 65 capability-addition stub) active — still
+under the "keep the last ~15 runs" floor, so deferring the archive move
+again, same call Run 62/65/66/67/69 made. Flagging again, more urgently:
+active-section count is now 13; the next run that adds any further
+section should do the archive pass (move Run 58 onward into
+`research/archive/`, keeping the DISTILLED LEARNINGS block + the most
+recent ~15 sections) rather than deferring a further cycle.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-10-25 or later**, per Run 68. Unchanged. No concretely-scoped
+item is currently flagged open.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section appended). No
+files changed in `backend/`, `research/experiments/`, or `decisions.jsonl`
+(211 active, unchanged).
