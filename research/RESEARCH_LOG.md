@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**78 runs, ~395+ configs, one standing positive finding (DCA dip-buy,
+**79 runs, ~395+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-75 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 76-78 are below in full. The
+archived" stub sections below); Run 76-79 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -650,3 +650,62 @@ paragraph + top summary line refreshed, this section appended).
 `research/decisions.jsonl` (214 active, +1 this run).
 `research/experiments/dca_self_correction_run78.py` (new, research-only).
 No files changed in `backend/`.
+
+---
+
+## 2026-10-30 — Run 79 (same-day deferred no-op)
+
+**Housekeeping first.** Fresh container resumed with local `main` stale
+(detached `HEAD` 5 commits ahead of local `main`'s ref, itself already
+landed on `origin/main` per `git fetch` + `git log main..origin/main`) —
+same recurring stale-ref pattern flagged by every run since Run 67.
+Fast-forwarded local `main` to `origin/main` (`4eb0480`, Run 78's commit)
+via `git checkout main && git reset --hard origin/main`, no divergence, no
+force-push. Backend venv rebuilt (`python3 -m venv .venv && pip install -q
+-r requirements.txt`), no behavior change.
+
+**Question.** Run 78 (earlier today, 02:07 UTC) performed the genuine DCA
+self-correction re-check and set the next actionable date at **2026-11-01
+or later**. This firing is 14:46 UTC the same calendar day — not due yet.
+Per the standing protocol (see "Going forward" in Run 78 and the
+top-of-file SELF-CORRECTION mandate), this run defers with a brief
+verification pass rather than re-running the check early or inventing a
+new backtest sweep to manufacture the appearance of progress.
+
+**Fresh-idea check.** Re-listed `backend/app/strategies/` and
+`registry.py` — still exactly the same 4 registered strategy classes
+(`dca`, `grid`, `mean_reversion`, `trend_momentum`), no new file, no change
+since Run 76-78. Considered whether a genuinely new, not-yet-tried signal
+family exists (e.g. VWAP-band mean reversion, Ichimoku Cloud) that would
+count as a legitimately new concretely-scoped item rather than a
+recombination — concluded both fall inside signal-source categories the
+DISTILLED LEARNINGS block already states are exhausted (price-level/band
+and moving-average respectively, the same categories that killed BB+RSI
+mean_reversion, Donchian, and Supertrend), so running either now would be
+exactly the "invent a recombination of an already-closed axis to
+manufacture the appearance of progress" pattern the mandate warns against,
+not new evidence. No concretely-scoped strategy/signal/gate/construction
+axis has reopened since Run 66.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python -m
+pytest -q` on a fresh rebuilt venv — 107 passed, 0 failed, exit code 0,
+matching Run 68-78's count across a twelfth independent fresh-container
+rebuild. Security re-check: no `.vscode/` directory anywhere in the repo,
+no `tasks.json`, no stray `eval(` under `public/`, every `public/fonts/*`
+file a legitimate FontAwesome asset — Run 37 incident remains remediated.
+No production code touched; no decision logged to `decisions.jsonl` (no
+backtest run this fire, consistent with every prior same-day deferred
+no-op).
+
+**Memory hygiene.** `decisions.jsonl` unchanged at 214 active entries, well
+under the 250 rotation threshold — `rotate_archive.py` not needed this
+fire. `RESEARCH_LOG.md` stays under the ~40KB-per-section guideline after
+Run 76's archive pass; no further archiving needed this run.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-01 or later**, unchanged from Run 78. The next run
+should default to the self-correction protocol once due, or defer again
+with a brief no-op note if fired earlier.
+
+**Files:** `research/RESEARCH_LOG.md` edited (this section + top summary
+line only). No other files changed; no files changed in `backend/`.
