@@ -1,0 +1,339 @@
+{
+  "windows": {
+    "on": {
+      "older": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 1372.5,
+            "unrealized_pnl": -186.8043,
+            "roi_pct": -13.6105,
+            "dip_buys_fired": 1
+          },
+          "ETH": {
+            "invested": 1387.5,
+            "unrealized_pnl": -257.65,
+            "roi_pct": -18.5694,
+            "dip_buys_fired": 3
+          },
+          "SOL": {
+            "invested": 1387.5,
+            "unrealized_pnl": -276.2357,
+            "roi_pct": -19.9089,
+            "dip_buys_fired": 3
+          },
+          "BNB": {
+            "invested": 1380.0,
+            "unrealized_pnl": -71.3096,
+            "roi_pct": -5.1674,
+            "dip_buys_fired": 2
+          },
+          "XRP": {
+            "invested": 1372.5,
+            "unrealized_pnl": -216.3067,
+            "roi_pct": -15.76,
+            "dip_buys_fired": 1
+          },
+          "LINK": {
+            "invested": 1417.5,
+            "unrealized_pnl": -194.8033,
+            "roi_pct": -13.7427,
+            "dip_buys_fired": 7
+          },
+          "DOGE": {
+            "invested": 1402.5,
+            "unrealized_pnl": -148.29,
+            "roi_pct": -10.5733,
+            "dip_buys_fired": 5
+          },
+          "ADA": {
+            "invested": 1387.5,
+            "unrealized_pnl": -423.8087,
+            "roi_pct": -30.5448,
+            "dip_buys_fired": 3
+          }
+        },
+        "avg_roi_pct": -15.9846,
+        "total_invested": 11107.5,
+        "total_dips": 25
+      },
+      "train": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 1365.0,
+            "unrealized_pnl": 247.4988,
+            "roi_pct": 18.1318,
+            "dip_buys_fired": 0
+          },
+          "ETH": {
+            "invested": 1372.5,
+            "unrealized_pnl": 387.4198,
+            "roi_pct": 28.2273,
+            "dip_buys_fired": 1
+          },
+          "SOL": {
+            "invested": 1380.0,
+            "unrealized_pnl": 416.8809,
+            "roi_pct": 30.2088,
+            "dip_buys_fired": 2
+          },
+          "BNB": {
+            "invested": 1365.0,
+            "unrealized_pnl": 204.6837,
+            "roi_pct": 14.9951,
+            "dip_buys_fired": 0
+          },
+          "XRP": {
+            "invested": 1372.5,
+            "unrealized_pnl": 261.4924,
+            "roi_pct": 19.0523,
+            "dip_buys_fired": 1
+          },
+          "LINK": {
+            "invested": 1372.5,
+            "unrealized_pnl": 413.3228,
+            "roi_pct": 30.1146,
+            "dip_buys_fired": 1
+          },
+          "DOGE": {
+            "invested": 1365.0,
+            "unrealized_pnl": 86.8101,
+            "roi_pct": 6.3597,
+            "dip_buys_fired": 0
+          },
+          "ADA": {
+            "invested": 1387.5,
+            "unrealized_pnl": 212.8629,
+            "roi_pct": 15.3415,
+            "dip_buys_fired": 3
+          }
+        },
+        "avg_roi_pct": 20.3039,
+        "total_invested": 10980.0,
+        "total_dips": 8
+      },
+      "test": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 915.0,
+            "unrealized_pnl": -35.2821,
+            "roi_pct": -3.856,
+            "dip_buys_fired": 0
+          },
+          "ETH": {
+            "invested": 922.5,
+            "unrealized_pnl": -85.4546,
+            "roi_pct": -9.2634,
+            "dip_buys_fired": 1
+          },
+          "SOL": {
+            "invested": 915.0,
+            "unrealized_pnl": -113.4284,
+            "roi_pct": -12.3965,
+            "dip_buys_fired": 0
+          },
+          "BNB": {
+            "invested": 922.5,
+            "unrealized_pnl": -41.2406,
+            "roi_pct": -4.4705,
+            "dip_buys_fired": 1
+          },
+          "XRP": {
+            "invested": 930.0,
+            "unrealized_pnl": -94.8912,
+            "roi_pct": -10.2034,
+            "dip_buys_fired": 2
+          },
+          "LINK": {
+            "invested": 952.5,
+            "unrealized_pnl": -83.9091,
+            "roi_pct": -8.8094,
+            "dip_buys_fired": 5
+          },
+          "DOGE": {
+            "invested": 945.0,
+            "unrealized_pnl": -115.3441,
+            "roi_pct": -12.2057,
+            "dip_buys_fired": 4
+          },
+          "ADA": {
+            "invested": 952.5,
+            "unrealized_pnl": -136.2263,
+            "roi_pct": -14.302,
+            "dip_buys_fired": 5
+          }
+        },
+        "avg_roi_pct": -9.4384,
+        "total_invested": 7455.0,
+        "total_dips": 18
+      }
+    },
+    "off": {
+      "older": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 1365.0,
+            "unrealized_pnl": -186.7805,
+            "roi_pct": -13.6836,
+            "dip_buys_fired": 0
+          },
+          "ETH": {
+            "invested": 1365.0,
+            "unrealized_pnl": -255.681,
+            "roi_pct": -18.7312,
+            "dip_buys_fired": 0
+          },
+          "SOL": {
+            "invested": 1365.0,
+            "unrealized_pnl": -274.1716,
+            "roi_pct": -20.0858,
+            "dip_buys_fired": 0
+          },
+          "BNB": {
+            "invested": 1365.0,
+            "unrealized_pnl": -70.8383,
+            "roi_pct": -5.1896,
+            "dip_buys_fired": 0
+          },
+          "XRP": {
+            "invested": 1365.0,
+            "unrealized_pnl": -216.2651,
+            "roi_pct": -15.8436,
+            "dip_buys_fired": 0
+          },
+          "LINK": {
+            "invested": 1365.0,
+            "unrealized_pnl": -189.3237,
+            "roi_pct": -13.8699,
+            "dip_buys_fired": 0
+          },
+          "DOGE": {
+            "invested": 1365.0,
+            "unrealized_pnl": -145.1403,
+            "roi_pct": -10.633,
+            "dip_buys_fired": 0
+          },
+          "ADA": {
+            "invested": 1365.0,
+            "unrealized_pnl": -418.4143,
+            "roi_pct": -30.6531,
+            "dip_buys_fired": 0
+          }
+        },
+        "avg_roi_pct": -16.0862,
+        "total_invested": 10920.0,
+        "total_dips": 0
+      },
+      "train": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 1365.0,
+            "unrealized_pnl": 247.4988,
+            "roi_pct": 18.1318,
+            "dip_buys_fired": 0
+          },
+          "ETH": {
+            "invested": 1365.0,
+            "unrealized_pnl": 383.5927,
+            "roi_pct": 28.102,
+            "dip_buys_fired": 0
+          },
+          "SOL": {
+            "invested": 1365.0,
+            "unrealized_pnl": 409.3414,
+            "roi_pct": 29.9884,
+            "dip_buys_fired": 0
+          },
+          "BNB": {
+            "invested": 1365.0,
+            "unrealized_pnl": 204.6837,
+            "roi_pct": 14.9951,
+            "dip_buys_fired": 0
+          },
+          "XRP": {
+            "invested": 1365.0,
+            "unrealized_pnl": 262.0981,
+            "roi_pct": 19.2013,
+            "dip_buys_fired": 0
+          },
+          "LINK": {
+            "invested": 1365.0,
+            "unrealized_pnl": 410.87,
+            "roi_pct": 30.1004,
+            "dip_buys_fired": 0
+          },
+          "DOGE": {
+            "invested": 1365.0,
+            "unrealized_pnl": 86.8101,
+            "roi_pct": 6.3597,
+            "dip_buys_fired": 0
+          },
+          "ADA": {
+            "invested": 1365.0,
+            "unrealized_pnl": 210.2638,
+            "roi_pct": 15.4039,
+            "dip_buys_fired": 0
+          }
+        },
+        "avg_roi_pct": 20.2853,
+        "total_invested": 10920.0,
+        "total_dips": 0
+      },
+      "test": {
+        "per_symbol": {
+          "BTC": {
+            "invested": 915.0,
+            "unrealized_pnl": -35.2821,
+            "roi_pct": -3.856,
+            "dip_buys_fired": 0
+          },
+          "ETH": {
+            "invested": 915.0,
+            "unrealized_pnl": -85.115,
+            "roi_pct": -9.3022,
+            "dip_buys_fired": 0
+          },
+          "SOL": {
+            "invested": 915.0,
+            "unrealized_pnl": -113.4284,
+            "roi_pct": -12.3965,
+            "dip_buys_fired": 0
+          },
+          "BNB": {
+            "invested": 915.0,
+            "unrealized_pnl": -41.2674,
+            "roi_pct": -4.5101,
+            "dip_buys_fired": 0
+          },
+          "XRP": {
+            "invested": 915.0,
+            "unrealized_pnl": -93.3749,
+            "roi_pct": -10.2049,
+            "dip_buys_fired": 0
+          },
+          "LINK": {
+            "invested": 915.0,
+            "unrealized_pnl": -80.648,
+            "roi_pct": -8.814,
+            "dip_buys_fired": 0
+          },
+          "DOGE": {
+            "invested": 915.0,
+            "unrealized_pnl": -111.0401,
+            "roi_pct": -12.1355,
+            "dip_buys_fired": 0
+          },
+          "ADA": {
+            "invested": 915.0,
+            "unrealized_pnl": -128.8328,
+            "roi_pct": -14.0801,
+            "dip_buys_fired": 0
+          }
+        },
+        "avg_roi_pct": -9.4124,
+        "total_invested": 7320.0,
+        "total_dips": 0
+      }
+    }
+  },
+  "anchor": "2026-11-02"
+}
