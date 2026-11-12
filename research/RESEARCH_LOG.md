@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**93 runs, ~395+ configs, one standing positive finding (DCA dip-buy,
+**94 runs, ~395+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-88 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 89-93 are below in full. The
+archived" stub sections below); Run 89-94 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -870,6 +870,85 @@ already folded into DISTILLED LEARNINGS).
 remains **2026-11-13 or later**, unchanged from Run 92. The next run
 should default to the self-correction protocol once due, or defer again
 with a brief no-op note if fired earlier.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
+section only). No other files changed; no files changed in `backend/`.
+
+---
+
+## 2026-11-12 — Run 94 (before-schedule deferred no-op; detached-HEAD recovery)
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 93's commit (`8ec3c86`), with local `main` sitting 6 commits behind
+(stale at Run 87's commit, `f7c09d4`) — the same detached-HEAD-commits-
+not-landing-on-local-`main` pattern flagged in Run 91/93 (Run 88 through
+93 had all committed on detached `HEAD` across successive containers).
+`git fetch origin main` confirmed `origin/main` was already at `8ec3c86`
+(every one of Run 88-93's commits had in fact landed on `origin/main`
+correctly — only the local branch pointer was stale on each fresh
+container) — `git update-ref refs/heads/main 8ec3c86 && git checkout main`
+fast-forwarded local `main` with no commits lost and no push needed
+(`git push` confirmed "Everything up-to-date"). Backend venv rebuilt from
+scratch (`python3 -m venv .venv && .venv/bin/pip install -q -r
+requirements.txt`), no behavior change.
+
+**Question.** Run 92 (2026-11-11) performed the on-schedule DCA
+self-correction re-check and set the next actionable date at
+**2026-11-13 or later**; Run 93 (same day) deferred again. This firing is
+2026-11-12 — still one day before the actionable date. Per the standing
+protocol (top-of-file SELF-CORRECTION mandate, "Going forward" notes
+carried since Run 78, and the DISTILLED LEARNINGS instruction not to
+invent recombinations of already-closed axes to manufacture the
+appearance of progress), this run defers the check again rather than
+re-running it a day early or fabricating a new backtest sweep.
+
+**Fresh-idea check.** Re-listed `backend/app/strategies/`,
+`backend/app/risk/`, and `backend/app/backtest/` — still exactly the same
+4 registered strategy classes (`dca`, `grid`, `mean_reversion`,
+`trend_momentum`), unchanged since Run 76-93; `git log --oneline -- backend/app/`
+shows the short-selling capability addition (Run 65/66 era) as the most
+recent production-code commit, nothing newer. Re-read the DISTILLED
+LEARNINGS block end to end — every concretely-scoped strategy/signal/
+gate/construction axis remains closed (last reopened: pairs
+mean-reversion shorts, Run 66); futures/funding data remains geo-blocked
+(unchanged, confirmed Run 31). No new axis to test honestly without
+recombining already-closed items.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
+two progress lines, no summary line printed, consistent with every run
+since Run 68), exit code 0 — matching the count across a twenty-seventh
+independent fresh-container rebuild. Security re-check: no `.vscode/`
+directory anywhere in the repo, no `tasks.json`, no stray `eval(` under
+`public/`, every `public/fonts/*` file a legitimate FontAwesome asset
+(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
+`fa-regular-400`, plus `README.md`) — Run 37 incident remains
+remediated. No production code touched; no decision logged to
+`decisions.jsonl` (no backtest run this fire, consistent with every prior
+before-schedule deferred no-op).
+
+**Memory hygiene.** `decisions.jsonl` unchanged at 218 active entries,
+well under the 250 rotation threshold — `rotate_archive.py` not needed
+this fire. `RESEARCH_LOG.md` sits at ~56KB with 6 full run sections (Run
+89-94) before this append, over the ~40KB soft guideline, but under the
+"keep the last ~15 runs" floor from the top-of-file memory-management
+rule — no archive pass performed this run; next run with more full
+research sections accumulated (approaching ~15) should revisit archiving
+Run 89-91 (all no-op/self-correction detail already folded into
+DISTILLED LEARNINGS).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-13 or later**, unchanged from Run 92. The next run
+should default to the self-correction protocol once due, or defer again
+with a brief no-op note if fired earlier. The detached-HEAD-on-fresh-
+container pattern (flagged Run 91, recurred Run 93, recurred again this
+run) looks structural to how this environment starts containers rather
+than a one-off: every occurrence so far has been harmless because
+`origin/main` already held the correct commits and only the local branch
+pointer was stale, but future runs should keep checking `git fetch origin
+main` against local `HEAD`/`main` before trusting local branch state, and
+should flag to the human operator if a future occurrence ever finds
+`origin/main` actually missing commits (unlike every case so far).
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
