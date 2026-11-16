@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**99 runs, ~396+ configs, one standing positive finding (DCA dip-buy,
+**100 runs, ~397+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-91 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 92-99 are below in full. The
+archived" stub sections below); Run 92-100 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -324,14 +324,29 @@ Run 92's +0.0595), continuing the mirror-image pattern vs the pre-Run-88
 seven-run negative streak — read, per Run 60, as further evidence sign is
 not reliably tied to regime, since magnitude stays in the same sub-0.2pp
 band every one of the 20 checks has now shown. No reversal; shipped
-default kept unchanged. Next actionable date: 2026-11-15 or later. See Run
-46/50/54/58/60/64/68/72/76/78/82/86/88/92/96 sections (67-75 archived to
+default kept unchanged. Run 100 (2026-11-16) repeated the check a further
++3 days forward: the older window's dip-buy count dropped (31 -> 27) and
+its delta shrank in lockstep (+0.1790pp -> +0.1644pp), a fifth confirmation
+of Run 88's dip-buy-count mechanism. The train window (rally) produced a
+fifth consecutive small NEGATIVE delta (-0.0535pp, after Run 86 -0.0143,
+Run 88 -0.0133, Run 92 -0.0400, Run 96 -0.0366), still well inside the
+sub-0.1pp band for that window. The test window (decline, OFF -24.82%, the
+**deepest OOS decline sampled in this protocol**) produced a fourth
+consecutive POSITIVE delta and a new test-window high-water mark
+(+0.2179pp, roughly 5x Run 96's +0.0442pp), tracking a jump in dip-buy
+count (25 -> 32) — the same deeper-decline-more-dip-buys mechanism already
+validated for the older window in Run 82/86/88, now showing up at this
+scale on the test window for the first time, in the *same* direction (ON
+beats OFF) the shipped default was built on, and still a one-time,
+non-compounding 0.22% of invested capital. No reversal; shipped default
+kept unchanged. Next actionable date: 2026-11-18 or later. See Run
+46/50/54/58/60/64/68/72/76/78/82/86/88/92/96/100 sections (67-75 archived to
 `research/archive/log-2026-10-22_to_2026-10-27_run67-75.md.gz` in Run 76,
 76-80 archived to `research/archive/log-2026-10-28_to_2026-10-31_run76-80.md.gz`
 in Run 87, 86-88 archived to
 `research/archive/log-2026-11-04_to_2026-11-09_run86-88.md.gz` in Run 92,
 89-91 archived to `research/archive/log-2026-11-09_to_2026-11-10_run89-91.md.gz`
-in Run 96; Run 92-96 are below in full).
+in Run 96; Run 92-100 are below in full).
 
 ### Where this programme stands
 Every concretely-scoped axis — 8 strategy families, 5 signal-source
@@ -1194,3 +1209,117 @@ treat it as resolved.
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
+
+---
+
+## 2026-11-16 — Run 100 (DCA self-correction, on schedule, no reversal)
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 99's commit (`9631ece`), with local `main` stale at Run 87's commit
+(`f7c09d4`, 12 commits behind) — the same recurring detached-HEAD-on-
+fresh-container pattern flagged every run since Run 91 (every one of Run
+88-99's commits had already landed on `origin/main`; only the local
+branch pointer was stale). `git fetch` confirmed `origin/main` already at
+`9631ece` with no divergence, so `git checkout main` (already in sync
+with `origin/main`) resolved it with no commits lost and nothing to push
+for this step. Backend venv rebuilt from scratch (`python3 -m venv .venv
+&& .venv/bin/pip install -q -r requirements.txt`), no behavior change.
+
+**Question.** Run 96 (2026-11-13) set the next actionable date for the
+DCA self-correction check at **2026-11-15 or later**; Run 97/98/99
+(all same-day/before-schedule) deferred. Today is 2026-11-16, past the
+actionable date — the bar is met, so this run performs the genuine
+re-check rather than another deferral.
+
+**Re-check performed.** `research/experiments/dca_self_correction_run100.py`
+(copied from Run 96's script, window dates shifted +3 days), same
+capital-normalized ROI methodology (DCA has no round-trip trades, so
+PF/win-rate/trade-count don't apply): average ROI across the 8-symbol
+universe, `dip_enabled=True` (shipped) vs `dip_enabled=False` (control),
+across 3 non-overlapping windows (older 2026-03-21..2026-06-19, train
+2026-06-19..2026-09-17, test 2026-09-17..2026-11-16, anchor=today).
+Market regime per window: older -15.11% (decline, OFF), train +15.66%
+(rally, OFF), test -24.82% (decline, OFF — the deepest OOS decline
+sampled anywhere in this protocol).
+
+Results:
+- **Older window:** ON avg ROI -14.9439%, OFF -15.1083%, delta
+  **+0.1644pp**, 8/8 symbols favoring ON, 27 dip-buys fired (down from
+  Run 96's 31). The delta shrank in lockstep with the dip-buy count —
+  the fifth consecutive confirmation of Run 88's mechanical explanation
+  (delta tracks dip-buy count).
+- **Train window:** ON +15.6055%, OFF +15.6590%, delta **-0.0535pp**
+  (small negative). A fifth consecutive negative-in-rally reading (Run
+  86 -0.0143, Run 88 -0.0133, Run 92 -0.0400, Run 96 -0.0366, Run 100
+  -0.0535pp) — the largest-magnitude of the five, but still well inside
+  the sub-0.1pp band this window has shown since Run 86, continuing the
+  clear break from the earlier Run 72/76/78/82 positive-in-rally run.
+- **Test window:** ON -24.6019%, OFF -24.8198%, delta **+0.2179pp**
+  (positive) — a fourth consecutive positive-in-decline test-window
+  reading (Run 88 +0.0389, Run 92 +0.0595, Run 96 +0.0442, Run 100
+  +0.2179pp) and a new test-window high-water mark, roughly 5x Run 96's
+  magnitude. Dip-buy count jumped in step (25 -> 32), and this is by far
+  the deepest OOS decline window sampled in the whole protocol (-24.82%
+  vs Run 96's -17.68%) — the same deeper-decline-fires-more-dip-buys
+  mechanism already validated for the *older* window in Run 82/86/88 is
+  now showing up on the *test* window for the first time at this scale.
+
+**Honest read:** no reversal. The older and train windows continue
+exactly the patterns established since Run 86/88 (dip-buy-count-tracking
+magnitude, negative-in-rally sign). The test window's new high-water mark
+is the one genuinely new reading this run, but it has an immediate,
+already-validated mechanical explanation (it is the deepest decline
+sampled, more real 24h dips fired, and the delta moved in the *same*
+direction — ON beats OFF — the shipped default's causal story predicts),
+not a sign flip or a magnitude explosion disconnected from the mechanism.
+It remains a one-time, non-compounding 0.22% of invested capital — not
+economically meaningful even at this new high. Bar for a revert (a clear,
+economically meaningful, compounding reversal) is not met. Shipped
+default (`dip_threshold_pct=5.0, dip_multiplier=1.5`) kept unchanged.
+Logged to `decisions.jsonl`.
+
+**Fresh-idea check.** Re-listed `backend/app/strategies/` and
+`registry.py` — still exactly the same 4 registered strategy classes
+(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
+76-99. Re-read the DISTILLED LEARNINGS block end to end — every
+concretely-scoped strategy/signal/gate/construction axis remains closed
+(last reopened: pairs mean-reversion shorts, Run 66); futures/funding
+data remains geo-blocked (unchanged, confirmed Run 31). No new axis to
+test honestly without recombining already-closed items.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
+two progress lines, no summary line printed, consistent with every run
+since Run 68), exit code 0 — a thirty-third independent fresh-container
+rebuild confirming the same count. Security re-check: no `.vscode/`
+directory anywhere in the repo, no `tasks.json`, no stray `eval(` under
+`public/`, every `public/fonts/*` file a legitimate FontAwesome asset
+(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
+`fa-regular-400`, plus `README.md`) — Run 37 incident remains
+remediated. No production code touched beyond the research script.
+
+**Memory hygiene.** `decisions.jsonl` now at 220 active entries (+1 this
+run), still under the 250 rotation threshold — `rotate_archive.py` not
+needed. `RESEARCH_LOG.md` sits at ~73KB with 9 full run sections (Run
+92-100) before/including this append, over the ~40KB soft guideline but
+at the "keep the last ~15 runs" floor from the top-of-file
+memory-management rule — holding off the archive pass again this run,
+consistent with Run 98/99's note; it should be revisited once active
+sections approach ~15 or the file keeps growing materially.
+
+**Going forward:** next actionable date for the DCA self-correction check
+is **2026-11-18 or later** (2+ days past today's anchor). The next run
+should default to the self-correction protocol once due, or defer again
+with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
+fresh-container pattern (flagged Run 91, recurred every run since,
+including this one) remains harmless every time so far (`origin/main` has
+always already held every commit) — continuing to flag it rather than
+treat it as resolved.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line,
+DISTILLED LEARNINGS DCA paragraph, this section).
+`research/decisions.jsonl` (+1 entry).
+`research/experiments/dca_self_correction_run100.py` (new, research-only,
+copied from Run 96's script with window dates shifted),
+`research/experiments/dca_self_correction_run100_output.json` (new, raw
+results). No files changed in `backend/`.
