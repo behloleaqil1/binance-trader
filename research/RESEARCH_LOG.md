@@ -12,7 +12,7 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**105 runs, ~398+ configs, one standing positive finding (DCA dip-buy,
+**106 runs, ~398+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-91 is archived (see the archive-index paragraph and the "Run N-M —
 archived" stub sections below); Run 92-105 are below in full. The
@@ -1673,6 +1673,76 @@ fresh-container pattern (flagged Run 91, recurred most runs since,
 including this one) remains harmless every time so far (`origin/main` has
 always already held every commit) — continuing to flag it rather than
 treat it as resolved.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
+section only). No other files changed; no files changed in `backend/`.
+
+---
+
+## Run 106 — 2026-11-19, before-schedule deferred no-op; detached-HEAD recovery
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 105's commit (`f382250`), with local `main` stale one commit behind
+at Run 104's commit (`c8f4a9d`) — the same recurring detached-HEAD-on-
+fresh-container pattern flagged every run since Run 91. `git fetch origin
+main` confirmed `origin/main` already at `f382250` (Run 105's commit had
+landed correctly), so `git checkout main && git merge --ff-only
+origin/main` fast-forwarded local `main` with no commits lost; nothing to
+push for this step (confirmed clean working tree after the merge).
+Backend venv rebuilt from scratch (`python3 -m venv .venv &&
+.venv/bin/pip install -q -r requirements.txt`), no behavior change.
+
+**Question.** Run 104 (2026-11-18) performed the on-schedule DCA
+self-correction re-check and set the next actionable date to
+**2026-11-20 or later**; Run 105 (same day) deferred again. This fire is
+2026-11-19 — still one day before the actionable date. Per the standing
+protocol (top-of-file SELF-CORRECTION mandate, "Going forward" notes
+carried since Run 78, and the DISTILLED LEARNINGS instruction not to
+invent recombinations of already-closed axes to manufacture the
+appearance of progress), this run defers the check again rather than
+re-running it a day early or fabricating a new backtest sweep.
+
+**Fresh-idea check.** Re-listed `backend/app/strategies/` and
+`registry.py` — still exactly the same 4 registered strategy classes
+(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
+76-105; `git log --oneline -- backend/app/` shows the short-selling
+capability addition (Run 65/66 era) as the most recent production-code
+commit, nothing newer. Re-read the DISTILLED LEARNINGS block end to end
+— every concretely-scoped strategy/signal/gate/construction axis remains
+closed (last reopened: pairs mean-reversion shorts, Run 66); futures/
+funding data remains geo-blocked (unchanged, confirmed Run 31). No new
+axis to test honestly without recombining already-closed items.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
+two progress lines), exit code 0 — a thirty-ninth independent fresh-
+container rebuild confirming the same count. Security re-check: no
+`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
+`eval(` under `public/` — Run 37 incident remains remediated. No
+production code touched; no decision logged to `decisions.jsonl` (no
+backtest run this fire, consistent with every prior same-day/before-
+schedule deferred no-op).
+
+**Memory hygiene.** `decisions.jsonl` unchanged at 221 active entries,
+well under the 250 rotation threshold — `rotate_archive.py` not needed
+this fire. `RESEARCH_LOG.md` now holds 15 full run sections (Run 92-106)
+— at the "keep the last ~15 runs" floor flagged by Run 104/105 as the
+point to revisit archiving. Deferring the actual archive pass to the
+next run with a full research section (expected around the 2026-11-20
+self-correction re-check) so the pass can fold that run's fresh content
+in at the same time, rather than archiving on a no-op fire.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-20 or later**, unchanged from Run 104. The next run
+should default to the self-correction protocol once due, or defer again
+with a brief no-op note if fired earlier, and should also perform the
+now-due archive pass (fold Run 92-97 or so into
+`research/archive/log-...-run9X-9Y.md.gz`, keeping the last ~15 sections
+plus the DISTILLED LEARNINGS block). The recurring detached-HEAD-on-
+fresh-container pattern (flagged Run 91, recurred most runs since,
+including this one) remains harmless every time so far (`origin/main`
+has always already held every commit) — continuing to flag it rather
+than treat it as resolved.
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
