@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**107 runs, ~398+ configs, one standing positive finding (DCA dip-buy,
+**108 runs, ~399+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-97 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 98-107 are below in full. The
+archived" stub sections below); Run 98-108 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -1343,3 +1343,104 @@ treat it as resolved.
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, archive
 pointer, archive-index note, this section). `research/archive/log-2026-11-11_to_2026-11-14_run92-97.md.gz`
 added. No other files changed; no files changed in `backend/`.
+
+---
+
+## Run 108 — 2026-11-20, on-schedule DCA self-correction re-check, no reversal
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 107's commit (`0828dde`), with local `main` stale three commits behind
+at Run 103's commit (`2459ec1`) — the same recurring detached-HEAD-on-
+fresh-container pattern flagged every run since Run 91. `git fetch origin
+main` confirmed `origin/main` already at `0828dde` (Run 105-107's commits
+had all landed correctly), so `git checkout main && git merge --ff-only
+origin/main` fast-forwarded local `main` with no commits lost. Backend
+venv rebuilt from scratch (`python3 -m venv .venv && .venv/bin/pip
+install -q -r requirements.txt`), no behavior change.
+
+**Question.** Run 104 (2026-11-18) performed the on-schedule DCA
+self-correction re-check and set the next actionable date to
+**2026-11-20 or later**; Run 105/106/107 (same day / before-schedule)
+all deferred. This fire is 2026-11-20 — exactly on the actionable date,
+so the bar is met and this run performs the genuine re-check.
+
+**Re-check.** `research/experiments/dca_self_correction_run108.py`:
+same methodology as every prior check (capital-normalized average ROI,
+dip_enabled ON vs OFF, 8-symbol universe, 1h, 3 non-overlapping 90d/90d/60d
+windows), windows shifted +2 days vs Run 104, anchored on today's close:
+older 2026-03-25..2026-06-23, train 2026-06-23..2026-09-21, test
+2026-09-21..2026-11-20.
+
+| window | regime | ON avg ROI% | OFF avg ROI% | delta(pp) | dips |
+|---|---|---|---|---|---|
+| older | decline -14.29% | -14.1398 | -14.2904 | **+0.1506** | 27 |
+| train | rally +27.68% | +27.6159 | +27.6838 | **-0.0679** | 8 |
+| test | decline -24.58% | -24.4104 | -24.5758 | **+0.1654** | 32 |
+
+Older window: delta +0.1506pp, 8/8 symbols favoring ON, dips=27 — identical
+dip-count to Run 104's older window (27), delta essentially flat vs Run
+104's +0.1585pp (slightly down). A sixth check now (Run 88, 92, 96, 100,
+104, 108) confirming the Run-88 dip-buy-count mechanism: same dip count,
+near-identical delta.
+
+Train window: delta -0.0679pp (small negative) — a seventh consecutive
+negative-in-rally reading (Run 86 -0.0143, 88 -0.0133, 92 -0.0400, 96
+-0.0366, 100 -0.0535, 104 -0.0545, 108 -0.0679), the largest magnitude yet
+but still two orders of magnitude below anything economically meaningful.
+Notably, dip-count for this window actually *fell* (9 -> 8) while the
+delta magnitude grew slightly — a minor deviation from the pure
+dip-buy-count story, but at hundredths-of-a-pp scale this is not
+distinguishable from noise around an already-tiny number; continues to
+confirm Run 60's framing that sign is not reliably tied to regime alone.
+
+Test window: delta +0.1654pp (positive), dips=32 — identical dip-count to
+Run 104's test window (32), delta essentially flat vs Run 104's +0.1993pp
+(slightly down). Directly confirms the dip-buy-count mechanism again: same
+count, near-identical reading rather than continued growth. A sixth
+consecutive positive-in-decline test-window reading (Run 88 +0.0389, 92
++0.0595, 96 +0.0442, 100 +0.2179, 104 +0.1993, 108 +0.1654), extending the
+post-Run-86 mirror-image pattern vs the original seven-run negative streak
+(Run 64-86).
+
+**No reversal of substance.** Every delta still favors ON or is trivially
+against it, both high-water-mark-adjacent readings (older, test) ticked
+down this check exactly as the dip-buy-count mechanism predicts, and every
+magnitude stays within the already-described sub-0.22pp band — a one-time,
+non-compounding fraction of invested capital. Bar for a revert (per the
+top-of-file self-correction mandate) is not met. Shipped default
+(`dip_threshold_pct=5.0`, `dip_multiplier=1.5`) kept unchanged.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest -q` on the freshly rebuilt venv — **107 passed**, exit code 0 —
+a forty-first independent fresh-container rebuild confirming the same
+count. Security re-check: no `.vscode/` directory anywhere in the repo, no
+`tasks.json`, no stray `eval(` under `public/` — Run 37 incident remains
+remediated.
+
+**Decision logged.** Appended to `research/decisions.jsonl` (now 222
+active entries, well under the 250 rotation threshold — `rotate_archive.py`
+not needed this fire): `decision: "noise"`, `evolved_from:
+"dca_self_correction_run104 (2026-11-18)"`.
+
+**Memory hygiene.** `RESEARCH_LOG.md` is now ~82KB with Run 98-108 (11
+full sections) retained — over the ~40KB soft-size guideline but still
+under the explicit "keep the last ~15 runs" floor that Run 104-107
+established takes precedence over raw byte count; deferring the next
+archive pass until the section count approaches ~15 or the file becomes
+unwieldy to read in full.
+
+**Going forward:** per the pattern since Run 46 (checks every ~2-5 days as
+new data accumulates, with each delta this small and non-compounding), the
+next actionable date for the DCA self-correction check is **2026-11-22 or
+later**. The next run should default to the self-correction protocol once
+due, or defer again with a brief no-op note if fired earlier. The recurring
+detached-HEAD-on-fresh-container pattern (flagged Run 91, recurred every
+run since, including this one) remains harmless every time so far
+(`origin/main` has always already held every commit) — continuing to flag
+it rather than treat it as resolved.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
+section). `research/experiments/dca_self_correction_run108.py` and
+`research/experiments/dca_self_correction_run108_output.json` added.
+`research/decisions.jsonl` appended (1 entry). No other files changed; no
+files changed in `backend/`.
