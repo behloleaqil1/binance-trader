@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**109 runs, ~399+ configs, one standing positive finding (DCA dip-buy,
+**110 runs, ~400+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-97 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 98-109 are below in full. The
+archived" stub sections below); Run 98-110 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -351,9 +351,40 @@ inside the sub-0.1pp band for that window. The test window (decline, OFF
 POSITIVE delta (+0.1993pp) — with dip-buy count IDENTICAL to Run 100's
 (32 -> 32), the delta tracked flat (not a new high-water mark), directly
 confirming that Run 100's +0.2179pp peak was dip-count-driven rather than
-a runaway trend. No reversal; shipped default kept unchanged. Next
-actionable date: 2026-11-20 or later. See Run
-46/50/54/58/60/64/68/72/76/78/82/86/88/92/96/100/104 sections (67-75
+a runaway trend. No reversal; shipped default kept unchanged. Run 108
+(2026-11-20) repeated the check a further +2 days forward: the older
+window's dip-buy count was IDENTICAL to Run 104's (27 -> 27) and its
+delta tracked flat (+0.1585pp -> +0.1506pp), a seventh confirmation of
+the dip-buy-count mechanism. The train window (rally, OFF +27.68%)
+produced a seventh consecutive small NEGATIVE delta (-0.0679pp, the
+largest-magnitude yet but still two orders of magnitude below anything
+meaningful), with dip-count actually falling slightly (9 -> 8) while the
+magnitude grew a touch — a minor deviation from the pure dip-count story,
+not distinguishable from noise at this scale. The test window (decline,
+OFF -24.58%, tying Run 100's depth record) produced a sixth consecutive
+POSITIVE delta (+0.1654pp) with dip-count IDENTICAL to Run 104's (32 ->
+32) — delta tracked flat again, not a new high-water mark. No reversal;
+shipped default kept unchanged. Run 110 (2026-11-23) repeated the check a
+further +3 days forward and set a **new test-window high-water mark**:
+older window (OFF -20.30%, the deepest older-window decline sampled)
+delta +0.1328pp with dip-count 28 (up from 27) — the delta actually
+ticked down slightly despite a deeper decline and more dips, a mild
+deviation from the clean dip-count story but within window-to-window
+noise since each check samples disjoint historical data. Train window
+(rally, OFF +28.21%) delta -0.0604pp, an EIGHTH consecutive
+negative-in-rally reading, magnitude ticking down for the first time in
+that streak. Test window (decline, OFF -25.20%, a new depth record)
+delta **+0.3771pp** — roughly 2.3x Run 100's prior record (+0.2179pp) and
+the largest single reading in the whole 10-check protocol, tracking a
+jump in dip-buy count (32 -> 37, also a new record). Same direction (ON
+beats OFF) the shipped default was built on, still a one-time,
+non-compounding 0.38% of invested capital — read as the dip-count
+mechanism scaling with an unusually deep decline, not a reversal, but
+flagged to watch: a second consecutive-record jump (after Run 100's)
+warrants checking whether Run 114's dip-count/delta pairing stays in
+step. No reversal; shipped default kept unchanged. Next
+actionable date: 2026-11-25 or later. See Run
+46/50/54/58/60/64/68/72/76/78/82/86/88/92/96/100/104/108/110 sections (67-75
 archived to
 `research/archive/log-2026-10-22_to_2026-10-27_run67-75.md.gz` in Run 76,
 76-80 archived to `research/archive/log-2026-10-28_to_2026-10-31_run76-80.md.gz`
@@ -1512,3 +1543,117 @@ flag it rather than treat it as resolved.
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
+
+## Run 110 — 2026-11-23, on-schedule DCA self-correction re-check, no reversal
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 109's commit (`95d7eba`), with local `main` stale six commits behind
+at Run 103's commit (`2459ec1`) — the same recurring detached-HEAD-on-
+fresh-container pattern flagged every run since Run 91. `git fetch origin
+main` confirmed `origin/main` already at `95d7eba` (Run 104-109's commits
+had all landed correctly), so `git checkout main && git merge --ff-only
+origin/main` fast-forwarded local `main` six commits with no commits
+lost. Backend venv rebuilt from scratch (`python3 -m venv .venv &&
+pip install -q -r requirements.txt`), no behavior change.
+
+**Question.** Run 108 (2026-11-20) performed the on-schedule DCA
+self-correction re-check and set the next actionable date to
+**2026-11-22 or later**. Run 109 (2026-11-20, same day) deferred. Today
+is 2026-11-23, past the actionable date — the bar is met, so this run
+performs the genuine re-check.
+
+**Re-check performed.** `research/experiments/dca_self_correction_run110.py`
+— same methodology as Run 88-108 (capital-normalized avg ROI, ON
+dip_threshold_pct=5.0/dip_multiplier=1.5 vs OFF, 3 non-overlapping
+windows shifted +3 days vs Run 108, test-window anchor = today
+2026-11-23). Results:
+
+| window | regime (OFF avg ROI) | ON avg ROI% | OFF avg ROI% | delta pp | dip-buys |
+|---|---|---|---|---|---|
+| older | -20.30% decline (new depth record) | -20.1679 | -20.3007 | **+0.1328** | 28 |
+| train | +28.21% rally | +28.1512 | +28.2116 | **-0.0604** | 8 |
+| test | -25.20% decline (new depth record) | -24.8252 | -25.2023 | **+0.3771** | 37 |
+
+Older window: delta +0.1328pp, 7/8 symbols favoring ON, dip-count 28 (up
+from Run 108's 27) — the delta actually ticked down slightly from Run
+108's +0.1506pp despite a deeper decline and more dips, a mild deviation
+from the clean dip-count-tracks-delta story established since Run 88, but
+each check samples disjoint historical data so window-to-window noise in
+that relationship is expected; still same direction (ON beats OFF).
+
+Train window (rally, OFF +28.2116%): delta -0.0604pp, an **eighth
+consecutive negative-in-rally reading** (Run 86 -0.0143, 88 -0.0133, 92
+-0.0400, 96 -0.0366, 100 -0.0535, 104 -0.0545, 108 -0.0679, 110 -0.0604) —
+the first time in that streak the magnitude ticked *down* rather than up,
+still an order of magnitude below anything economically meaningful.
+
+Test window (decline, OFF -25.2023%, a new depth record surpassing Run
+100's -24.8198%): delta **+0.3771pp**, dip-count 37 (up from Run 108's
+32, also a new record) — a **new test-window high-water mark**, roughly
+2.3x Run 100's prior record (+0.2179pp) and the largest single delta
+reading across the entire 10-check protocol (Run 88-110). Same mechanism
+already validated for the older window in Run 82/86/88 (deeper real
+decline -> more real dip-buys fire -> larger same-direction ON-over-OFF
+delta), now transferring to the test window at a larger scale than Run
+100's transfer. Seventh consecutive positive-in-decline test-window
+reading (Run 88 +0.0389, 92 +0.0595, 96 +0.0442, 100 +0.2179, 104
++0.1993, 108 +0.1654, 110 +0.3771).
+
+**Honest read.** Every delta still favors or is trivially against ON, and
+both record-setting readings (older-window depth, test-window delta) have
+an immediate, already-validated mechanical explanation (deeper decline ->
+more real dip-buys -> larger delta in the same direction the shipped
+default was built on). The test-window delta is economically trivial in
+absolute terms (0.38% of invested capital, one-time, non-compounding —
+DCA has no round-trip trades to compound this through). **Flagged to
+watch, not acted on:** this is the second time a test-window reading has
+jumped meaningfully above the prior plateau (first was Run 100's
++0.2179pp vs Run 96's +0.0442pp; that one then plateaued for three checks
+before this jump). If Run 114 also sets a new record with a
+correspondingly higher dip-count, the mechanical read stands unchanged;
+if dip-count stays flat or falls while the delta keeps growing, that
+would need a fresh explanation rather than the dip-count story. Bar for a
+revert is **not met** — no reversal. Shipped default
+(`dip_threshold_pct=5.0, dip_multiplier=1.5`) kept unchanged. Decision
+logged to `decisions.jsonl` as `noise` (consistent with every prior
+self-correction check).
+
+**Fresh-idea check.** Re-listed `backend/app/strategies/` and
+`registry.py` — still exactly the same 4 registered strategy classes
+(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
+76-109. Re-read the DISTILLED LEARNINGS block end to end — every
+concretely-scoped strategy/signal/gate/construction axis remains closed
+(last reopened: pairs mean-reversion shorts, Run 66); futures/funding
+data remains geo-blocked (unchanged, confirmed Run 31). No new axis to
+test honestly without recombining already-closed items.
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest -q` on a fresh rebuilt venv — **107 passed**, exit code 0 — the
+42nd consecutive independent fresh-container rebuild confirming the same
+count. Security re-check: no `.vscode/` directory anywhere in the repo,
+no `tasks.json`, no stray `eval(` under `public/` — Run 37 incident
+remains remediated.
+
+**Memory hygiene.** `decisions.jsonl` grew from 222 to 223 active
+entries, well under the 250 rotation threshold — `rotate_archive.py` not
+needed this run. `RESEARCH_LOG.md` now holds 13 full run sections (Run
+98-110) — still under the "keep the last ~15 runs" floor established by
+Run 104-107, so no archive pass is due yet despite the file sitting over
+the ~40KB soft-size guideline (that floor takes precedence, per the same
+precedent); the next run or two should expect an archive pass once the
+count reaches ~15.
+
+**Going forward:** next actionable date for the DCA self-correction check
+is **2026-11-25 or later**. The next run should default to the
+self-correction protocol once due, or defer again with a brief no-op
+note if fired earlier. The recurring detached-HEAD-on-fresh-container
+pattern (flagged Run 91, recurred every run since, including this one)
+remains harmless every time so far (`origin/main` has always already
+held every commit) — continuing to flag it rather than treat it as
+resolved.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, DCA
+distilled paragraph, this section). `research/decisions.jsonl` appended
+(1 entry). `research/experiments/dca_self_correction_run110.py` and
+`dca_self_correction_run110_output.json` added. No files changed in
+production code under `backend/app/`.
