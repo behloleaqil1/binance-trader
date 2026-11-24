@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**111 runs, ~400+ configs, one standing positive finding (DCA dip-buy,
+**112 runs, ~410+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
-1-97 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 98-111 are below in full. The
+1-103 is archived (see the archive-index paragraph and the "Run N-M —
+archived" stub sections below); Run 104-112 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -37,7 +37,7 @@ below lives in `research/decisions.jsonl` (active + `research/archive/*.gz`)
 and the archived run-section prose; this block states conclusions only.
 
 ### Closed — strategy families (do not re-test without a materially new signal)
-All 8 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
+All 9 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
 for the first 3): **trend_momentum** (EMA-cross+RSI+MACD, best train PF ever
 0.99 @15m); **mean_reversion** (BB+RSI, chronic "test clears/train doesn't"
 regime-luck signature, reproduced on 10+ orthogonal levers since Run 16);
@@ -51,9 +51,16 @@ reject); **BB-width squeeze breakout** (volatility-contraction precondition
 — produced the programme's first TEST+3rd-window double-clear while TRAIN
 failed, resolved as noise via per-symbol breakdown, 3-18 trades/symbol);
 **Price-vs-RSI Bullish Divergence** (oscillator-divergence, 0/8 configs
-cleared both OOS bars). 1m/5m are catastrophic at any strategy (fee drag
-dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/mean_reversion on
-trade count; grid@1d has no economically meaningful return.
+cleared both OOS bars); **Ichimoku Cloud** (Run 112 — Tenkan/Kijun cross,
+optionally filtered by a forward-shifted Senkou cloud; the first
+3-lookback multi-line confluence construction tried. 10/10 configs
+rejected decisively on the TRAIN side alone — best train PF only 0.965
+@4h classic-params+cloud-filter, every other config train PF 0.41-0.90 —
+so none reached a test-side or 3rd-window check at all; worse than every
+prior family's closest near-miss). 1m/5m are catastrophic at any strategy
+(fee drag dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/
+mean_reversion on trade count; grid@1d has no economically meaningful
+return.
 
 ### Closed — gates / confirmation mechanisms (do not re-tune)
 **ADX(14)** floor/ceiling gate (both directions tried); **relative-volume**
@@ -392,11 +399,15 @@ in Run 87, 86-88 archived to
 `research/archive/log-2026-11-04_to_2026-11-09_run86-88.md.gz` in Run 92,
 89-91 archived to `research/archive/log-2026-11-09_to_2026-11-10_run89-91.md.gz`
 in Run 96, 92-97 archived to `research/archive/log-2026-11-11_to_2026-11-14_run92-97.md.gz`
-in Run 107; Run 98-107 are below in full).
+in Run 107, 98-103 archived to
+`research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz` in Run 112;
+Run 104-112 are below in full).
 
 ### Where this programme stands
-Every concretely-scoped axis — 8 strategy families, 5 signal-source
-categories, 3 confirmation gates (+ 1 stacked combo), 2 cross-symbol
+Every concretely-scoped axis — 9 strategy families (Ichimoku Cloud closed
+Run 112, a 3-lookback multi-line confluence construction, mechanically
+distinct from all 8 prior families), 5 signal-source categories, 3
+confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
 sizing, exit mechanism, cost level, symbol universe, TF range, historical
 era, and now DCA's dip-buy trend-conditioning — is closed with zero
@@ -637,443 +648,9 @@ guideline).
 ---
 
 
-## 2026-11-14 — Run 98 (before-schedule deferred no-op; detached-HEAD recovery)
+## Run 98-103 — archived
 
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 97's commit (`10fcf34`), with local `main` stale at Run 87's commit
-(`f7c09d4`, 10 commits behind) — the same recurring detached-HEAD-on-
-fresh-container pattern flagged every run since Run 91 (every one of Run
-88-97's commits had already landed on `origin/main`; only the local
-branch pointer was stale). `git fetch origin main` showed `origin/main`
-already at `10fcf34` with no divergence; `git merge-base --is-ancestor
-origin/main HEAD` confirmed ancestry, so `git branch -f main 10fcf34 &&
-git checkout main` fast-forwarded local `main` with no commits lost, and
-`git push` confirmed "Everything up-to-date". Backend venv rebuilt from
-scratch (`python3 -m venv .venv --clear && .venv/bin/pip install -q -r
-requirements.txt`), no behavior change.
-
-**Question.** Run 96 (2026-11-13) performed the on-schedule DCA
-self-correction re-check and set the next actionable date at
-**2026-11-15 or later**; Run 97 (same day) deferred again. This firing is
-2026-11-14 — still one day before the actionable date. Per the standing
-protocol (top-of-file SELF-CORRECTION mandate, "Going forward" notes
-carried since Run 78, and the DISTILLED LEARNINGS instruction not to
-invent recombinations of already-closed axes to manufacture the
-appearance of progress), this run defers the check again rather than
-re-running it a day early or fabricating a new backtest sweep.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-97. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed
-(last reopened: pairs mean-reversion shorts, Run 66); futures/funding
-data remains geo-blocked (unchanged, confirmed Run 31). No new axis to
-test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines, no summary line printed, consistent with every run
-since Run 68), exit code 0 — a thirty-first independent fresh-container
-rebuild confirming the same count. Security re-check: no `.vscode/`
-directory anywhere in the repo, no `tasks.json`, no stray `eval(` under
-`public/`, every `public/fonts/*` file a legitimate FontAwesome asset
-(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
-`fa-regular-400`, plus `README.md`) — Run 37 incident remains
-remediated. No production code touched; no decision logged to
-`decisions.jsonl` (no backtest run this fire, consistent with every prior
-before-schedule deferred no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 219 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` sits at ~61KB with 6 full run sections (Run
-92-97) before this append, over the ~40KB soft guideline but under the
-"keep the last ~15 runs" floor from the top-of-file memory-management
-rule — no archive pass performed this run; next run with more full
-research sections accumulated (approaching ~15), or the next on-schedule
-self-correction check, should revisit archiving Run 92-95 (all
-self-correction/no-op detail already folded into DISTILLED LEARNINGS).
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-15 or later**, unchanged from Run 96. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
-
----
-
-
-## 2026-11-14 — Run 99 (same-day deferred no-op, 2nd fire; detached-HEAD recovery)
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 98's commit (`3654619`), with local `main` stale at Run 87's commit
-(`f7c09d4`, 11 commits behind) — the same recurring detached-HEAD-on-
-fresh-container pattern flagged every run since Run 91 (every one of Run
-88-98's commits had already landed on `origin/main`; only the local
-branch pointer was stale). `git fetch origin main` showed `origin/main`
-already at `3654619` with no divergence; `git merge-base --is-ancestor
-origin/main HEAD` confirmed ancestry, so `git branch -f main 3654619 &&
-git checkout main` fast-forwarded local `main` with no commits lost, and
-`git push` confirmed "Everything up-to-date". Backend venv rebuilt from
-scratch (`python3 -m venv .venv --clear && .venv/bin/pip install -q -r
-requirements.txt`), no behavior change.
-
-**Question.** Run 96 (2026-11-13) performed the on-schedule DCA
-self-correction re-check and set the next actionable date at
-**2026-11-15 or later**; Run 97 and Run 98 (both same/before-schedule)
-deferred again. This firing is 2026-11-14, ~12h after Run 98
-(02:04 UTC vs this fire at 14:05 UTC) — same calendar day, still one day
-before the actionable date. Per the standing protocol (top-of-file
-SELF-CORRECTION mandate, "Going forward" notes carried since Run 78, and
-the DISTILLED LEARNINGS instruction not to invent recombinations of
-already-closed axes to manufacture the appearance of progress), this run
-defers the check again rather than re-running it a day early or
-fabricating a new backtest sweep.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-98. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed
-(last reopened: pairs mean-reversion shorts, Run 66); futures/funding
-data remains geo-blocked (unchanged, confirmed Run 31). No new axis to
-test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines, no summary line printed, consistent with every run
-since Run 68), exit code 0 — a thirty-second independent fresh-container
-rebuild confirming the same count. Security re-check: no `.vscode/`
-directory anywhere in the repo, no `tasks.json`, no stray `eval(` under
-`public/`, every `public/fonts/*` file a legitimate FontAwesome asset
-(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
-`fa-regular-400`, plus `README.md`) — Run 37 incident remains
-remediated. No production code touched; no decision logged to
-`decisions.jsonl` (no backtest run this fire, consistent with every prior
-same-day/before-schedule deferred no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 219 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` sits at ~66KB with 7 full run sections (Run
-92-98) before this append, over the ~40KB soft guideline but under the
-"keep the last ~15 runs" floor from the top-of-file memory-management
-rule — no archive pass performed this run; the next run with full
-sections approaching ~15, or the next on-schedule self-correction check,
-should revisit archiving Run 92-95 (all self-correction/no-op detail
-already folded into DISTILLED LEARNINGS).
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-15 or later**, unchanged from Run 96. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
-
----
-
-## 2026-11-16 — Run 100 (DCA self-correction, on schedule, no reversal)
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 99's commit (`9631ece`), with local `main` stale at Run 87's commit
-(`f7c09d4`, 12 commits behind) — the same recurring detached-HEAD-on-
-fresh-container pattern flagged every run since Run 91 (every one of Run
-88-99's commits had already landed on `origin/main`; only the local
-branch pointer was stale). `git fetch` confirmed `origin/main` already at
-`9631ece` with no divergence, so `git checkout main` (already in sync
-with `origin/main`) resolved it with no commits lost and nothing to push
-for this step. Backend venv rebuilt from scratch (`python3 -m venv .venv
-&& .venv/bin/pip install -q -r requirements.txt`), no behavior change.
-
-**Question.** Run 96 (2026-11-13) set the next actionable date for the
-DCA self-correction check at **2026-11-15 or later**; Run 97/98/99
-(all same-day/before-schedule) deferred. Today is 2026-11-16, past the
-actionable date — the bar is met, so this run performs the genuine
-re-check rather than another deferral.
-
-**Re-check performed.** `research/experiments/dca_self_correction_run100.py`
-(copied from Run 96's script, window dates shifted +3 days), same
-capital-normalized ROI methodology (DCA has no round-trip trades, so
-PF/win-rate/trade-count don't apply): average ROI across the 8-symbol
-universe, `dip_enabled=True` (shipped) vs `dip_enabled=False` (control),
-across 3 non-overlapping windows (older 2026-03-21..2026-06-19, train
-2026-06-19..2026-09-17, test 2026-09-17..2026-11-16, anchor=today).
-Market regime per window: older -15.11% (decline, OFF), train +15.66%
-(rally, OFF), test -24.82% (decline, OFF — the deepest OOS decline
-sampled anywhere in this protocol).
-
-Results:
-- **Older window:** ON avg ROI -14.9439%, OFF -15.1083%, delta
-  **+0.1644pp**, 8/8 symbols favoring ON, 27 dip-buys fired (down from
-  Run 96's 31). The delta shrank in lockstep with the dip-buy count —
-  the fifth consecutive confirmation of Run 88's mechanical explanation
-  (delta tracks dip-buy count).
-- **Train window:** ON +15.6055%, OFF +15.6590%, delta **-0.0535pp**
-  (small negative). A fifth consecutive negative-in-rally reading (Run
-  86 -0.0143, Run 88 -0.0133, Run 92 -0.0400, Run 96 -0.0366, Run 100
-  -0.0535pp) — the largest-magnitude of the five, but still well inside
-  the sub-0.1pp band this window has shown since Run 86, continuing the
-  clear break from the earlier Run 72/76/78/82 positive-in-rally run.
-- **Test window:** ON -24.6019%, OFF -24.8198%, delta **+0.2179pp**
-  (positive) — a fourth consecutive positive-in-decline test-window
-  reading (Run 88 +0.0389, Run 92 +0.0595, Run 96 +0.0442, Run 100
-  +0.2179pp) and a new test-window high-water mark, roughly 5x Run 96's
-  magnitude. Dip-buy count jumped in step (25 -> 32), and this is by far
-  the deepest OOS decline window sampled in the whole protocol (-24.82%
-  vs Run 96's -17.68%) — the same deeper-decline-fires-more-dip-buys
-  mechanism already validated for the *older* window in Run 82/86/88 is
-  now showing up on the *test* window for the first time at this scale.
-
-**Honest read:** no reversal. The older and train windows continue
-exactly the patterns established since Run 86/88 (dip-buy-count-tracking
-magnitude, negative-in-rally sign). The test window's new high-water mark
-is the one genuinely new reading this run, but it has an immediate,
-already-validated mechanical explanation (it is the deepest decline
-sampled, more real 24h dips fired, and the delta moved in the *same*
-direction — ON beats OFF — the shipped default's causal story predicts),
-not a sign flip or a magnitude explosion disconnected from the mechanism.
-It remains a one-time, non-compounding 0.22% of invested capital — not
-economically meaningful even at this new high. Bar for a revert (a clear,
-economically meaningful, compounding reversal) is not met. Shipped
-default (`dip_threshold_pct=5.0, dip_multiplier=1.5`) kept unchanged.
-Logged to `decisions.jsonl`.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-99. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed
-(last reopened: pairs mean-reversion shorts, Run 66); futures/funding
-data remains geo-blocked (unchanged, confirmed Run 31). No new axis to
-test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines, no summary line printed, consistent with every run
-since Run 68), exit code 0 — a thirty-third independent fresh-container
-rebuild confirming the same count. Security re-check: no `.vscode/`
-directory anywhere in the repo, no `tasks.json`, no stray `eval(` under
-`public/`, every `public/fonts/*` file a legitimate FontAwesome asset
-(woff/woff2/ttf/eot/svg for `fa-solid-900`, `fa-brands-400`,
-`fa-regular-400`, plus `README.md`) — Run 37 incident remains
-remediated. No production code touched beyond the research script.
-
-**Memory hygiene.** `decisions.jsonl` now at 220 active entries (+1 this
-run), still under the 250 rotation threshold — `rotate_archive.py` not
-needed. `RESEARCH_LOG.md` sits at ~73KB with 9 full run sections (Run
-92-100) before/including this append, over the ~40KB soft guideline but
-at the "keep the last ~15 runs" floor from the top-of-file
-memory-management rule — holding off the archive pass again this run,
-consistent with Run 98/99's note; it should be revisited once active
-sections approach ~15 or the file keeps growing materially.
-
-**Going forward:** next actionable date for the DCA self-correction check
-is **2026-11-18 or later** (2+ days past today's anchor). The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line,
-DISTILLED LEARNINGS DCA paragraph, this section).
-`research/decisions.jsonl` (+1 entry).
-`research/experiments/dca_self_correction_run100.py` (new, research-only,
-copied from Run 96's script with window dates shifted),
-`research/experiments/dca_self_correction_run100_output.json` (new, raw
-results). No files changed in `backend/`.
-
----
-
-## 2026-11-16 — Run 101 (before-schedule deferred no-op; detached-HEAD recovery)
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 100's commit (`bc0b872`), with local `main` stale at Run 99's commit
-(`9631ece`, 1 commit behind) — the same recurring detached-HEAD-on-fresh-
-container pattern flagged every run since Run 91. `git fetch origin`
-confirmed `origin/main` already at `bc0b872` (Run 100 had already landed
-there from an earlier fire today), so `git checkout main` +
-`git merge --ff-only origin/main` resolved it cleanly, no commits lost,
-nothing new to push for this step. Backend venv rebuilt from scratch
-(`python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt`),
-no behavior change.
-
-**Question.** Run 100 (2026-11-16, same calendar day) just performed the
-on-schedule DCA self-correction re-check and set the next actionable date
-to **2026-11-18 or later**. This fire is the same day, before that date —
-deferring again rather than re-running the check a second time with no
-new data to add.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-100. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed;
-futures/funding data remains geo-blocked (unchanged, confirmed Run 31).
-No new axis to test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines), exit code 0 — a thirty-fourth independent fresh-
-container rebuild confirming the same count. Security re-check: no
-`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
-`eval(` under `public/`, every `public/fonts/*` file a legitimate
-FontAwesome asset — Run 37 incident remains remediated. No production
-code touched; no decision logged to `decisions.jsonl` (no backtest run
-this fire, consistent with every prior same-day/before-schedule deferred
-no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 220 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` sits at ~77KB with 10 full run sections (Run
-92-101) before/including this append — over the ~40KB soft guideline but
-at the "keep the last ~15 runs" floor from the top-of-file memory-
-management rule — holding off the archive pass again this run; it should
-be revisited once active sections approach ~15 or the file keeps growing
-materially.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-18 or later**, unchanged from Run 100. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
-
----
-
-## Run 102 — 2026-11-17, before-schedule deferred no-op
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 101's commit (`33ad660`), with local `main` stale at Run 99's commit
-(`9631ece`, 2 commits behind) — the same recurring detached-HEAD-on-fresh-
-container pattern flagged every run since Run 91. `git fetch origin`
-confirmed `origin/main` already at `33ad660` (Run 100+101 had already
-landed there), so `git checkout main` + `git reset --hard origin/main`
-resolved it cleanly, no commits lost, nothing new to push for this step.
-Backend venv rebuilt from scratch (`rm -rf .venv && python3 -m venv .venv
-&& .venv/bin/pip install -q -r requirements.txt`), no behavior change.
-
-**Question.** Run 100 (2026-11-16) set the next actionable date for the
-DCA self-correction re-check to **2026-11-18 or later**; Run 101 (same
-day) deferred again. Today, 2026-11-17, is still one day before that
-date — deferring again rather than re-running the check early with
-windows that would barely have shifted.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-101. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed;
-futures/funding data remains geo-blocked (unchanged, confirmed Run 31).
-No new axis to test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines), exit code 0 — a thirty-fifth independent fresh-
-container rebuild confirming the same count. Security re-check: no
-`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
-`eval(` under `public/`, every `public/fonts/*` file a legitimate
-FontAwesome asset — Run 37 incident remains remediated. No production
-code touched; no decision logged to `decisions.jsonl` (no backtest run
-this fire, consistent with every prior same-day/before-schedule deferred
-no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 220 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` now holds 11 full run sections (Run 92-102)
-— over the ~40KB soft guideline but at the "keep the last ~15 runs"
-floor from the top-of-file memory-management rule — holding off the
-archive pass again this run; it should be revisited once active sections
-approach ~15 or the file keeps growing materially.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-18 or later**, unchanged from Run 100. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
-
----
-
-## Run 103 — 2026-11-17, before-schedule deferred no-op; detached-HEAD recovery
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 102's commit (`1dfc6c2`), with local `main` stale at Run 99's commit
-(`9631ece`, 3 commits behind) — the same recurring detached-HEAD-on-fresh-
-container pattern flagged every run since Run 91. `git fetch origin main`
-confirmed `origin/main` already at `1dfc6c2` (Run 102 had already landed
-there), so `git checkout main` + `git merge --ff-only origin/main`
-resolved it cleanly, no commits lost, nothing new to push for this step.
-Backend venv rebuilt from scratch (`rm -rf .venv && python3 -m venv .venv
-&& .venv/bin/pip install -q -r requirements.txt`), no behavior change.
-
-**Question.** Run 100 (2026-11-16) set the next actionable date for the
-DCA self-correction re-check to **2026-11-18 or later**; Run 101/102
-(same and following day, both before that date) deferred again. Today,
-2026-11-17, is still one day before that date — deferring again rather
-than re-running the check early with windows that would barely have
-shifted since Run 100.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-102. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed;
-futures/funding data remains geo-blocked (unchanged, confirmed Run 31).
-No new axis to test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines), exit code 0 — a thirty-sixth independent fresh-
-container rebuild confirming the same count. Security re-check: no
-`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
-`eval(` under `public/`, every `public/fonts/*` file a legitimate
-FontAwesome asset — Run 37 incident remains remediated. No production
-code touched; no decision logged to `decisions.jsonl` (no backtest run
-this fire, consistent with every prior same-day/before-schedule deferred
-no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 220 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` now holds 12 full run sections (Run 92-103)
-— over the ~40KB soft guideline but at the "keep the last ~15 runs"
-floor from the top-of-file memory-management rule — holding off the
-archive pass again this run; it should be revisited once active sections
-approach ~15 or the file keeps growing materially (next run or two is a
-reasonable point to do that pass).
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-18 or later**, unchanged from Run 100. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred every run since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
+See `research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz` (before-schedule deferred no-ops Run 98/99, DCA self-correction re-check Run 100, before-schedule deferred no-op Run 101, before-schedule deferred no-op Run 102, before-schedule deferred no-op + detached-HEAD recovery Run 103 — zero decisions logged, no reversal, no production-code changes across all 6; every conclusion already folded into the DISTILLED LEARNINGS block above).
 
 ---
 
@@ -1721,3 +1298,135 @@ flag it rather than treat it as resolved.
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
+
+---
+
+## Run 112 — 2026-11-24, new strategy family (Ichimoku Cloud), decisive reject; archive pass
+
+**Housekeeping.** Fresh container; `git status` clean, local `main`
+already at `origin/main`'s tip (Run 111's commit `7c8abef`) — no
+detached-HEAD recovery needed this fire, breaking the recurring pattern
+flagged every run since Run 91 (not treated as resolved — just didn't
+recur this time). Backend venv rebuilt from scratch (`python3 -m venv
+.venv && .venv/bin/pip install -q -r requirements.txt`), no behavior
+change. `cd backend && PYTHONPATH=. .venv/bin/python -m pytest -q` on the
+fresh venv — **107 passed**, exit code 0 — confirming baseline before any
+research.
+
+**Question.** Run 110 set the next DCA self-correction actionable date to
+**2026-11-25 or later**; Run 111 (same day) deferred. Today is 2026-11-24
+— still one day before the actionable date, so the self-correction check
+correctly stays deferred this fire too. Rather than log a third
+consecutive no-op, this run used the time to pursue genuinely new
+research: re-read the DISTILLED LEARNINGS block end to end and confirmed
+every concretely-scoped strategy/signal/gate/cross-symbol/non-signal-lever
+/scope axis tried so far (9 strategy families as of this run, 5
+signal-source categories, 3 confirmation gates + 1 stacked combo, 2
+cross-symbol constructions, sizing/exit/cost/universe/TF/era) is closed.
+Looked for a mechanically distinct construction not yet tried rather than
+recombining closed items: **Ichimoku Cloud** — unlike any prior family, it
+combines three rolling high/low-midpoint lines at three different
+lookbacks (Tenkan 9, Kijun 26, Senkou B 52 by default) into a
+forward-projected "cloud" band, with entry gated on both a Tenkan/Kijun
+cross AND price position relative to that cloud. This is a genuinely new
+multi-line confluence construction, distinct from trend_momentum's 2-EMA
+cross, Supertrend's single ATR-adaptive line, and every already-closed
+confirmation gate (the cloud filter line is itself forward-shifted in
+time via `shift(kijun_period)`, not a same-bar confirmation signal).
+
+**Implementation.** `research/experiments/ichimoku_cloud.py` —
+standalone `IchimokuCloudStrategy(Strategy)`, NOT registered in
+`app/strategies/registry.py`, NOT touching any production file. No
+lookahead: Senkou Span A/B computed from data up to bar `t -
+kijun_period`, then `.shift(kijun_period)` forward so the cloud value
+visible at bar `t` was fully knowable `kijun_period` bars earlier;
+`decide()` reads only rows `i` and `i-1`. Long-only (matches Supertrend's
+precedent — engine's `allow_short` capability exists but adding it here
+would be a second new axis conflated with the first; left for a future
+run if Ichimoku ever clears the base long-only bar). Entry: Tenkan
+crosses above Kijun, optionally gated on close above the cloud top. Exit:
+opposite cross, or (if gated) close below the cloud bottom.
+
+**Methodology.** Same train/test convention as every prior run: TRAIN
+2026-06-27 to 2026-09-26 (150d-60d ago), TEST 2026-09-26 to 2026-11-24
+(60d-0d ago, today's anchor), fees 7.5bps + slippage 4bps, $10,000/symbol,
+unchanged RiskConfig defaults (2%/4% SL/TP, daily-loss halt, drawdown
+kill switch, position caps — never loosened), all 8 universe symbols.
+Swept 10 configs: classic (9/26/52), crypto-adjusted (10/30/60), and
+faster (7/22/44) Tenkan/Kijun/Senkou-B periods, each with and without the
+cloud filter (faster variant only with filter, to keep the sweep to 10),
+at 1h and 4h.
+
+**Results — decisive reject, 10/10 configs:**
+
+| config | TF | TRAIN pf / win% / n | TEST pf / win% / n |
+|---|---|---|---|
+| classic, filtered | 1h | 0.484 / 18.3% / 71 | 0.239 / 13.3% / 60 |
+| classic, unfiltered | 1h | 0.842 / 30.2% / 129 | 0.156 / 18.7% / 91 |
+| crypto(10/30/60), filtered | 1h | 0.764 / 27.8% / 90 | 0.251 / 12.5% / 48 |
+| crypto(10/30/60), unfiltered | 1h | 0.854 / 30.9% / 97 | 0.220 / 14.7% / 75 |
+| fast(7/22/44), filtered | 1h | 0.807 / 28.2% / 103 | 0.192 / 19.0% / 79 |
+| classic, filtered | 4h | 0.965 / 34.2% / 41 | 0.445 / 27.8% / 18 |
+| classic, unfiltered | 4h | 0.901 / 33.0% / 94 | 0.565 / 31.3% / 67 |
+| crypto(10/30/60), filtered | 4h | 0.824 / 34.1% / 44 | 0.445 / 33.3% / 9 |
+| crypto(10/30/60), unfiltered | 4h | 0.802 / 31.7% / 79 | 0.408 / 24.5% / 53 |
+| fast(7/22/44), filtered | 4h | 0.411 / 23.3% / 43 | 0.230 / 9.1% / 22 |
+
+Best train-side PF across all 10 configs is **0.965** (4h, classic
+params + cloud filter) — never crosses 1.0, let alone the 1.1 bar, so
+**none of the 10 configs reach a test-side or 3rd-window check at all**
+per the anti-noise protocol (train must clear 1.1 before the OOS test
+result means anything). Best test-side PF is 0.565 (4h, classic,
+unfiltered, 67 trades) — would clear the trade-count floor but the PF is
+decisively below 1.1 regardless, and its train PF (0.901) already fails.
+This is a cleaner, more decisive reject than any prior family's closest
+near-miss (BB-width squeeze's TEST+3rd-window double-clear, or the MTF
+gate's 20/50 EMA near-miss) — every single config fails on the train side
+alone, with no ambiguity to resolve via per-symbol breakdown.
+
+**Decision.** All 10 configs logged to `decisions.jsonl` as `reject`
+(strategy `ichimoku_cloud`, full params + train/test metrics +
+`usd_pnl_100`/`usd_pnl_1000` from test-window `ret_pct` + rationale per
+the standard schema). `evolved_from: null` (first attempt at this
+family, not an evolution of a prior config). `rotate_archive.py` run
+after appending — 233 active entries, well under the 250 threshold, no
+rotation performed. **Ichimoku Cloud is now closed** as the 9th strategy
+family, added to the DISTILLED LEARNINGS "Closed — strategy families"
+bullet and the "Where this programme stands" summary.
+
+**Memory hygiene (archive pass, now performed).** `RESEARCH_LOG.md` had
+grown to ~100KB with 14 full run sections (Run 98-111), at the threshold
+Run 107/111 flagged as due for the next archive pass once the count
+reached ~15 (adding this Run 112 section would make 15). Archived Run
+98-103 (before-schedule deferred no-ops Run 98/99/101/102, DCA
+self-correction re-check Run 100, deferred no-op + detached-HEAD recovery
+Run 103 — zero decisions logged, no reversal, no production-code changes
+across all 6) verbatim to
+`research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz` (gzip, no
+conclusions dropped — every numeric result already folded into the
+DISTILLED LEARNINGS block). File now retains Run 104-112 (9 full
+sections) in full, back under the "keep the last ~15 runs" floor.
+Archive-index paragraph and top summary line updated (111→112 runs,
+~400+→~410+ configs, Run 1-97→1-103 archived).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-25 or later**, unchanged from Run 110. This run shows
+fresh-idea research is still possible without recombining closed axes —
+future runs should keep checking for mechanically distinct constructions
+(e.g. Ichimoku's Chikou-span lagging-line confirmation was deliberately
+left untested here to isolate one new variable at a time; a possible
+next candidate if this family is ever revisited, though the train-side
+reject here is decisive enough that doing so is low-priority) before
+falling back to self-correction-only cycles. The recurring
+detached-HEAD-on-fresh-container pattern did not recur this fire — still
+not treated as resolved, just absent this time.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line,
+archive-index paragraph, "Where this programme stands", DISTILLED
+LEARNINGS strategy-families bullet, Run 98-103 replaced with an archived
+stub, this section added). `research/decisions.jsonl` appended (10
+entries, 223→233). `research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz`
+added. `research/experiments/ichimoku_cloud.py` added (research-only, not
+registered). No files changed under `backend/app/` — no production code
+or default params touched; bar for auto-improve not met (decisive
+reject, no promising candidate).
