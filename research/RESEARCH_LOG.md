@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**112 runs, ~410+ configs, one standing positive finding (DCA dip-buy,
+**113 runs, ~450+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-103 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 104-112 are below in full. The
+archived" stub sections below); Run 104-113 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -57,7 +57,21 @@ optionally filtered by a forward-shifted Senkou cloud; the first
 rejected decisively on the TRAIN side alone — best train PF only 0.965
 @4h classic-params+cloud-filter, every other config train PF 0.41-0.90 —
 so none reached a test-side or 3rd-window check at all; worse than every
-prior family's closest near-miss). 1m/5m are catastrophic at any strategy
+prior family's closest near-miss); **VWAP Band Reversion** (Run 113 —
+rolling volume-weighted VWAP + volume-weighted deviation band, buy below
+the lower band / exit on reversion to the VWAP mid-line; the first
+construction to weight the price level itself by volume rather than
+applying a volume *gate* on top of a price signal. Swept vwap_period
+{20,50} x band_mult {1.5,2.0,2.5} x optional SMA(100) trend filter across
+15m/1h/4h, 36 configs. 0/36 cleared both OOS bars; the one config with
+adequate sample on both sides (4h, vwap_period=20, band_mult=1.5, no
+filter: train PF 1.702/73 trades, test PF 0.547/109 trades) is a clean
+train-clears/test-fails divergence — the same regime-luck signature as
+mean_reversion's chronic failure mode, just with VWAP in place of SMA.
+14/36 configs had adequate sample for a decisive reject; the other 22
+were too thin, mostly <30 trades from the trend filter + wide-band
+combination starving entries, to be anything but noise). 1m/5m are
+catastrophic at any strategy
 (fee drag dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/
 mean_reversion on trade count; grid@1d has no economically meaningful
 return.
@@ -164,249 +178,64 @@ drag otherwise, never a big loss). Both parameters now independently
 isolated and closed: **dip_multiplier magnitude** (Run 27: 1.5-2.5x, effect
 <0.35pp, sign flips with regime) and **dip_threshold_pct** (Run 35: 3-10%,
 same monotonic sign-flipping pattern, shipped 5.0 sits at a reasonable
-middle point). **Trend-conditioned dip-buy gate** (Run 36: only widen the
-buy when price is below/above its own rolling SMA(50/100/200) — the first
-test conditioning the dip trigger on a second signal) is also closed: nearly
-all 24h-drop dips already occur below a multi-day SMA by construction (gate
-barely changes which buys fire), and deltas stay within noise of the
-ungated baseline in every window. `interval=daily` beats hourly (no
-benefit, more orders) and weekly (worse, small unrepresentative samples).
-`dip-rebuy cap` (Run 14, capping the count of dip-multiplied buys) strictly
-hurts or ties — more dip-buying in a decline lowers cost basis further, cap
-only removes the buys that would've helped most. **DCA is now fully closed
-on every concretely-scoped parameter axis; standing self-correction protocol
-(re-check ON vs OFF on rolling-forward windows) is the only recommended
-periodic check, not further parameter tuning.** Run 46 (2026-10-07) repeated
-this check on windows shifted +2 days vs Run 42 and reproduced the identical
-regime-dependent sign pattern (positive in decline/chop, negative in a
-strong rally, all deltas <=0.13pp); Run 50 (2026-10-12) repeated it again on
-windows shifted +5 more days — deltas shrank further (all <=0.10pp, the
-smallest set yet) and the decline-window sign flipped negative for the
-first time at trivial magnitude (-0.02pp, 3/8 symbols); Run 54 (2026-10-14)
-repeated it a further +2 days forward — deltas stayed at the same tiny
-scale (max |delta| 0.0864pp) and the decline-window sign stayed negative a
-second consecutive run (-0.0168pp, 3/8 symbols), essentially matching Run
-50's magnitude; Run 58 (2026-10-16) repeated it a further +2 days forward —
-the decline-window delta went negative a *third* consecutive run, but
-shrinking each time (-0.0179 -> -0.0168 -> -0.0099pp, 3/8 symbols), the
-smallest decline-window reading on record. Read together, the three-in-a-row
-negative sign plus the monotonically shrinking magnitude looks like the
-effect converging toward zero from the negative side, not a compounding
-reversal — all three readings remain an order of magnitude inside the
-<=0.40pp noise envelope — read as the effect having settled at (not
-reversing through) the noise floor, not a reversal of the shipped default.
-Run 60 (2026-10-19) repeated it a further +3 days forward and **revises
-the "regime-dependent sign" framing itself**: for the first time, the
-train and test windows' own regimes swapped — train flipped from decline
-to a +9.82% rally, test flipped from the mild rallies seen in every prior
-check to the first genuine OOS *decline* (-3.08%) — yet the test-window
-delta stayed negative (-0.0290pp) rather than flipping positive as the
-"positive in decline" story would predict. Read honestly, the
-decline-implies-positive / rally-implies-negative pattern asserted in Run
-42-58 looks like it was an artifact of those runs' test windows always
-happening to be rallies and train windows always happening to be
-declines — not a mechanism tied to the train/test split. The more honest
-characterization going forward: the dip-buy ON/OFF delta is a small, noisy
-effect (every single reading across 12 checks has had |delta| < 0.1pp)
-whose sign is not reliably predictable from regime alone, and which stays
-economically trivial regardless of sign. This does not change the shipped
-default (still net-neutral-to-slightly-helpful and never a meaningful
-drag) — it only corrects how the effect's sign behavior should be
-described. Run 64 (2026-10-21) repeated the check a further +2 days
-forward and strongly confirmed the revised framing: the train window was a
-strong +28.07% rally yet produced a POSITIVE delta (+0.0307pp), and the
-test window was a mild decline yet produced a NEGATIVE delta (-0.0185pp)
-— both breaking the pre-Run-60 "positive in decline / negative in rally"
-story outright, exactly as the revised characterization predicts. All
-three Run 64 deltas (max |delta|=0.0535pp) are the smallest-magnitude set
-on record, continuing the contraction toward the noise floor. Run 68
-(2026-10-23) repeated the check a further +2 days forward: train window a
-strong +27.62% rally produced a near-zero NEGATIVE delta (-0.0060pp, the
-smallest-magnitude single-window reading in the whole protocol), and test
-window a deeper -4.36% decline (vs Run 64's -1.62%) again produced a
-NEGATIVE delta (-0.0196pp) — the same sign as Run 64's declining test
-window, now two consecutive checks where a declining test window yields a
-negative delta rather than the pre-Run-60 "positive in decline" story.
-Max |delta| this run (0.0550pp) stays in the same sub-0.1pp band every
-check has shown since the protocol began (14 checks now). Run 72
-(2026-10-26) repeated the check a further +3 days forward: the train
-window (a strong +25.43% rally) produced a small POSITIVE delta
-(+0.0095pp), breaking Run 64/68's near-zero/negative pattern for rally
-windows; the test window (a -6.40% decline) produced a NEGATIVE delta
-(-0.0234pp) — now **three consecutive checks (Run 64, 68, 72) where a
-declining test window yields a negative delta**, the opposite of the
-pre-Run-60 "positive in decline" story and consistent with Run 60's
-conclusion that sign is not reliably tied to regime. Max |delta| this run
-(0.0234pp) is among the smallest of all 15 checks, still well inside the
-sub-0.1pp noise band. Run 76 (2026-10-28) repeated the check a further +2
-days forward: the train window (a strong +23.84% rally) produced a small
-POSITIVE delta (+0.0151pp), consistent with Run 72's sign; the test window
-(a -5.26% decline) produced a NEGATIVE delta (-0.0280pp) — now **four
-consecutive checks (Run 64, 68, 72, 76) where a declining test window
-yields a negative delta**, continuing to support Run 60's revised framing
-over the pre-Run-60 "positive in decline" story. Max |delta| this run
-(0.0280pp) stays well inside the sub-0.1pp noise band every one of the 16
-checks has now shown. Run 78 (2026-10-30) repeated the check a further +2
-days forward: the train window (a strong +21.65% rally) produced a small
-POSITIVE delta (+0.0180pp), consistent with Run 72/76's sign; the test
-window (a sharp -11.63% decline) produced a NEGATIVE delta (-0.0272pp) —
-now **five consecutive checks (Run 64, 68, 72, 76, 78) where a declining
-test window yields a negative delta**, continuing to support Run 60's
-revised framing over the pre-Run-60 "positive in decline" story. Max
-|delta| this run (0.0272pp) stays well inside the sub-0.1pp noise band
-every one of the 17 checks has now shown. Run 82 (2026-11-02, first fire of
-the day) repeated the
-check a further +3 days forward: the older window (a deep -16.09% decline,
-the sharpest decline window yet sampled) produced delta +0.1016pp, 8/8
-symbols favoring ON — the single largest-magnitude window reading in the
-whole protocol, marginally over the prior sub-0.1pp band, but still
-economically trivial (0.10% of invested capital, non-compounding since DCA
-has no round-trip trades) and in the *same* direction (ON helps in
-decline) the shipped default was built on, so a new high-water mark, not a
-reversal; the train window (a strong +20.30% rally) produced a small
-POSITIVE delta (+0.0186pp), consistent with Run 72/76/78's sign; the test
-window (a -9.44% decline) produced a NEGATIVE delta (-0.0260pp) — now
-**six consecutive checks (Run 64, 68, 72, 76, 78, 82) where a declining
-test window yields a negative delta**, continuing to support Run 60's
-revised framing over the pre-Run-60 "positive in decline" story. Run 86
-(2026-11-04) repeated the check a further +2 days forward: the older
-window (a deeper -21.77% decline, the sharpest decline window yet sampled,
-surpassing Run 82's) produced delta **+0.1684pp**, 8/8 symbols favoring
-ON — a second consecutive new high-water mark (0.1016pp -> 0.1684pp),
-now clearly above the pre-Run-82 sub-0.1pp band, but still same-direction
-(ON beats OFF in deep decline, via more real dip-buys — 30 fired vs 25 in
-Run 82 — landing at a lower cost basis) and still economically trivial in
-absolute terms (0.17% of invested capital, one-time, non-compounding); the
-train window (a strong +24.32% rally) produced a small NEGATIVE delta
-(-0.0143pp), *breaking* Run 72/76/78/82's small-positive-in-rally pattern
-and reinforcing that sign is not reliably tied to regime even across
-consecutive same-labeled windows; the test window (a -10.44% decline)
-produced a NEGATIVE delta (-0.0290pp) — now **seven consecutive checks
-(Run 64, 68, 72, 76, 78, 82, 86) where a declining test window yields a
-negative delta**. Honest read: no reversal (the shipped mechanism's
-causal story — more dip-buys land at better prices in a real decline —
-still explains the one growing reading), but the older-window band is
-trending upward across the last two checks and is now flagged to watch
-rather than dismiss if a third consecutive run extends it further. Run 88
-(2026-11-09) repeated the check a further +5 days forward and **resolves
-that flag**: the older window produced a THIRD consecutive high-water
-mark (+0.1850pp, vs 0.1016/0.1684 in Run 82/86), but this window's decline
-(-16.15%) was shallower than Run 86's (-21.77%), ruling out "delta tracks
-decline depth" as the driver — what actually tracks it in lockstep is
-dip-buy count (25 -> 30 -> 31 across Run 82/86/88), the mechanism the
-shipped default was already built on, and the magnitude's own growth is
-decelerating (+0.0668pp then +0.0166pp), the opposite of a runaway
-structural trend. Also notable: the test window's delta flipped POSITIVE
-(+0.0389pp) for the first time in 8 checks, **breaking the seven-run
-negative-in-decline streak** (Run 64-86) outright — further confirmation
-of Run 60's point that sign is not reliably tied to regime. No reversal;
-shipped default kept unchanged; the "watch the older-window trend"
-flag is now closed (mechanically explained, decelerating). Run 92
-(2026-11-11) repeated the check a further +2 days forward and confirmed
-the Run 88 resolution directly: the older window held an **identical**
-dip-buy count (31, same as Run 88) and produced a delta that was flat-to-
-slightly-down (+0.1794pp vs Run 88's +0.1850pp) rather than a fourth
-high-water mark — exactly what "delta tracks dip-buy count, and its growth
-was decelerating" predicts when the count stops rising. The train window
-(rally) produced a third consecutive small NEGATIVE delta (-0.0400pp,
-after Run 86's -0.0143 and Run 88's -0.0133), now a clear break from the
-earlier positive-in-rally run (72/76/78/82). The test window (decline)
-produced a second consecutive POSITIVE delta (+0.0595pp, after Run 88's
-+0.0389), the mirror image of the old "negative in decline" streak —
-read, per Run 60, as further evidence sign is not reliably tied to
-regime rather than a reversion to the pre-Run-60 story, since magnitude
-stays in the same sub-0.2pp band. No reversal; shipped default kept
-unchanged. Run 96 (2026-11-13) repeated the check a further +2 days
-forward: the older window held an **identical** dip-buy count (31, same as
-Run 92) and produced a delta that was essentially flat (+0.1790pp vs Run
-92's +0.1794pp) — a SECOND consecutive plateau reading, continuing to
-confirm Run 88's dip-buy-count mechanism now across three checks (Run 88
-high-water, Run 92 plateau, Run 96 plateau). The train window (rally)
-produced a fourth consecutive small NEGATIVE delta (-0.0366pp, after Run
-86 -0.0143, Run 88 -0.0133, Run 92 -0.0400), now a well-established
-negative-in-rally regime since Run 86, decisively breaking the earlier
-positive-in-rally run (72/76/78/82). The test window (decline) produced a
-third consecutive POSITIVE delta (+0.0442pp, after Run 88's +0.0389 and
-Run 92's +0.0595), continuing the mirror-image pattern vs the pre-Run-88
-seven-run negative streak — read, per Run 60, as further evidence sign is
-not reliably tied to regime, since magnitude stays in the same sub-0.2pp
-band every one of the 20 checks has now shown. No reversal; shipped
-default kept unchanged. Run 100 (2026-11-16) repeated the check a further
-+3 days forward: the older window's dip-buy count dropped (31 -> 27) and
-its delta shrank in lockstep (+0.1790pp -> +0.1644pp), a fifth confirmation
-of Run 88's dip-buy-count mechanism. The train window (rally) produced a
-fifth consecutive small NEGATIVE delta (-0.0535pp, after Run 86 -0.0143,
-Run 88 -0.0133, Run 92 -0.0400, Run 96 -0.0366), still well inside the
-sub-0.1pp band for that window. The test window (decline, OFF -24.82%, the
-**deepest OOS decline sampled in this protocol**) produced a fourth
-consecutive POSITIVE delta and a new test-window high-water mark
-(+0.2179pp, roughly 5x Run 96's +0.0442pp), tracking a jump in dip-buy
-count (25 -> 32) — the same deeper-decline-more-dip-buys mechanism already
-validated for the older window in Run 82/86/88, now showing up at this
-scale on the test window for the first time, in the *same* direction (ON
-beats OFF) the shipped default was built on, and still a one-time,
-non-compounding 0.22% of invested capital. No reversal; shipped default
-kept unchanged. Run 104 (2026-11-18) repeated the check a further +2 days
-forward: the older window's dip-buy count was IDENTICAL to Run 100's
-(27 -> 27) and its delta tracked flat in lockstep (+0.1644pp -> +0.1585pp),
-a sixth confirmation of Run 88's dip-buy-count mechanism. The train window
-(rally, OFF +26.90%) produced a sixth consecutive small NEGATIVE delta
-(-0.0545pp, after Run 86 -0.0143, Run 88 -0.0133, Run 92 -0.0400, Run 96
--0.0366, Run 100 -0.0535), now a firmly established pattern, still well
-inside the sub-0.1pp band for that window. The test window (decline, OFF
--23.40%, second-deepest OOS decline sampled) produced a fifth consecutive
-POSITIVE delta (+0.1993pp) — with dip-buy count IDENTICAL to Run 100's
-(32 -> 32), the delta tracked flat (not a new high-water mark), directly
-confirming that Run 100's +0.2179pp peak was dip-count-driven rather than
-a runaway trend. No reversal; shipped default kept unchanged. Run 108
-(2026-11-20) repeated the check a further +2 days forward: the older
-window's dip-buy count was IDENTICAL to Run 104's (27 -> 27) and its
-delta tracked flat (+0.1585pp -> +0.1506pp), a seventh confirmation of
-the dip-buy-count mechanism. The train window (rally, OFF +27.68%)
-produced a seventh consecutive small NEGATIVE delta (-0.0679pp, the
-largest-magnitude yet but still two orders of magnitude below anything
-meaningful), with dip-count actually falling slightly (9 -> 8) while the
-magnitude grew a touch — a minor deviation from the pure dip-count story,
-not distinguishable from noise at this scale. The test window (decline,
-OFF -24.58%, tying Run 100's depth record) produced a sixth consecutive
-POSITIVE delta (+0.1654pp) with dip-count IDENTICAL to Run 104's (32 ->
-32) — delta tracked flat again, not a new high-water mark. No reversal;
-shipped default kept unchanged. Run 110 (2026-11-23) repeated the check a
-further +3 days forward and set a **new test-window high-water mark**:
-older window (OFF -20.30%, the deepest older-window decline sampled)
-delta +0.1328pp with dip-count 28 (up from 27) — the delta actually
-ticked down slightly despite a deeper decline and more dips, a mild
-deviation from the clean dip-count story but within window-to-window
-noise since each check samples disjoint historical data. Train window
-(rally, OFF +28.21%) delta -0.0604pp, an EIGHTH consecutive
-negative-in-rally reading, magnitude ticking down for the first time in
-that streak. Test window (decline, OFF -25.20%, a new depth record)
-delta **+0.3771pp** — roughly 2.3x Run 100's prior record (+0.2179pp) and
-the largest single reading in the whole 10-check protocol, tracking a
-jump in dip-buy count (32 -> 37, also a new record). Same direction (ON
-beats OFF) the shipped default was built on, still a one-time,
-non-compounding 0.38% of invested capital — read as the dip-count
-mechanism scaling with an unusually deep decline, not a reversal, but
-flagged to watch: a second consecutive-record jump (after Run 100's)
-warrants checking whether Run 114's dip-count/delta pairing stays in
-step. No reversal; shipped default kept unchanged. Next
-actionable date: 2026-11-25 or later. See Run
-46/50/54/58/60/64/68/72/76/78/82/86/88/92/96/100/104/108/110 sections (67-75
-archived to
-`research/archive/log-2026-10-22_to_2026-10-27_run67-75.md.gz` in Run 76,
-76-80 archived to `research/archive/log-2026-10-28_to_2026-10-31_run76-80.md.gz`
-in Run 87, 86-88 archived to
-`research/archive/log-2026-11-04_to_2026-11-09_run86-88.md.gz` in Run 92,
-89-91 archived to `research/archive/log-2026-11-09_to_2026-11-10_run89-91.md.gz`
-in Run 96, 92-97 archived to `research/archive/log-2026-11-11_to_2026-11-14_run92-97.md.gz`
-in Run 107, 98-103 archived to
-`research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz` in Run 112;
-Run 104-112 are below in full).
+middle point). **Trend-conditioned dip-buy gate** (Run 36) is also closed:
+nearly all 24h-drop dips already occur below a multi-day SMA by
+construction, deltas stay within noise of the ungated baseline.
+`interval=daily` beats hourly (no benefit, more orders) and weekly (worse,
+small unrepresentative samples). `dip-rebuy cap` (Run 14) strictly hurts or
+ties. **DCA is now fully closed on every concretely-scoped parameter axis;
+standing self-correction protocol (re-check ON vs OFF on rolling-forward
+windows, roughly every 2+ days of new data) is the only recommended
+periodic check, not further parameter tuning.**
+
+**Self-correction protocol history (condensed; full per-run numbers live in
+`research/decisions.jsonl` and the dated archives below).** Runs 46-58
+(2026-10-07 to 2026-10-16) reproduced the original "positive in
+decline/chop, negative in a rally" sign pattern on successive
+rolling-forward windows, all deltas shrinking toward a sub-0.1pp noise
+floor. **Run 60 (2026-10-19) revised that framing**: a window where
+train/test regimes swapped relative to every prior check showed the delta
+sign does NOT reliably track regime label — the earlier pattern was an
+artifact of train windows always sampling declines and test windows always
+sampling rallies, not a real mechanism. Runs 64-86 (2026-10-21 to
+2026-11-04) confirmed the revised framing seven consecutive times (a
+declining test window yielding a *negative* delta, the mirror of the
+original story) while every reading stayed inside a sub-0.1-0.2pp band.
+**Run 88 (2026-11-09) identified the actual driver**: the delta tracks
+*dip-buy count* (how many real 24h dips fired in that window), not decline
+depth or regime label directly — confirmed by six further checks (Run 92,
+96, 100, 104, 108, 110) where identical dip-counts across consecutive
+windows produced near-identical deltas, and count changes moved the delta
+in lockstep. Test-window dip-buy count and delta have both been setting
+successive depth/magnitude records as 2026 H2's declines deepen (Run 100:
++0.2179pp; Run 110: +0.3771pp, the largest single reading in the whole
+19-check protocol, dip-count 37) — always in the *same* direction (ON
+beats OFF) the shipped default was built on, always a one-time,
+non-compounding fraction of a percent of invested capital, never a
+reversal. Train-window (rally) deltas have independently settled into a
+small-but-growing negative pattern across the last eight checks (Run 86
+through 110: -0.0143pp to -0.0679pp), still two orders of magnitude below
+anything economically meaningful. **No reversal across 19 checks
+(Run 32-110); shipped default kept unchanged throughout. Next actionable
+date: 2026-11-25 or later** (set by Run 110; Run 113 confirmed this date
+had not yet arrived and ran a fresh-strategy study instead, per the
+"rotate regions" mandate). Flagged to watch going into the next check:
+whether the test-window high-water mark (Run 110's record) extends a
+third time with a correspondingly higher dip-count, or plateaus as the
+older-window record did after Run 88. See
+`research/archive/log-2026-10-22_to_2026-10-27_run67-75.md.gz` (Run
+67-75), `log-2026-10-28_to_2026-10-31_run76-80.md.gz` (Run 76-80),
+`log-2026-11-04_to_2026-11-09_run86-88.md.gz` (Run 86-88),
+`log-2026-11-09_to_2026-11-10_run89-91.md.gz` (Run 89-91),
+`log-2026-11-11_to_2026-11-14_run92-97.md.gz` (Run 92-97),
+`log-2026-11-14_to_2026-11-17_run98-103.md.gz` (Run 98-103) for full
+per-run narrative; Run 104-113 are below in full.
 
 ### Where this programme stands
-Every concretely-scoped axis — 9 strategy families (Ichimoku Cloud closed
-Run 112, a 3-lookback multi-line confluence construction, mechanically
-distinct from all 8 prior families), 5 signal-source categories, 3
+Every concretely-scoped axis — 10 strategy families (VWAP Band Reversion
+closed Run 113, a volume-weighted price-level construction, mechanically
+distinct from all 9 prior families including Ichimoku Cloud closed Run
+112, a 3-lookback multi-line confluence construction), 5 signal-source categories, 3
 confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
 sizing, exit mechanism, cost level, symbol universe, TF range, historical
@@ -1429,4 +1258,118 @@ entries, 223→233). `research/archive/log-2026-11-14_to_2026-11-17_run98-103.md
 added. `research/experiments/ichimoku_cloud.py` added (research-only, not
 registered). No files changed under `backend/app/` — no production code
 or default params touched; bar for auto-improve not met (decisive
+reject, no promising candidate).
+
+---
+
+## Run 113 — 2026-11-24, new strategy family (VWAP Band Reversion), decisive reject; distilled-learnings condensation
+
+**Setup.** Fresh `.venv` (no cache from prior containers), `pip install -r
+requirements.txt`, ran from `backend/` with `PYTHONPATH=.`. Repo state on
+entry: HEAD was detached one commit ahead of local `main` (at Run 112's
+commit, not yet fast-forwarded) — recovered with `git checkout main && git
+merge --ff-only <run-112-sha>`, no new branch needed since `main` was a
+strict ancestor. Standing verification run first: `pytest` 107/107 pass
+(fresh-venv rebuild); security re-check for the Run 37 incident (no
+`fa-solid-500.woff2`, no `.vscode/tasks.json`, only the three legitimate
+FontAwesome files under `public/fonts/`) — clean.
+
+**Why a new family, not the DCA self-correction re-check.** Run 110 set
+the next actionable date for the standing DCA protocol to **2026-11-25 or
+later**; today (2026-11-24) is one day before that, so per the top-of-file
+mandate to rotate regions each run rather than repeat an already-logged
+config, this run picked a genuinely new construction instead of firing the
+check a day early.
+
+**What's new.** All 9 prior strategy families band or filter on PRICE
+alone (SMA/EMA, Bollinger std-dev, Donchian high/low, ATR, candle shape,
+RSI divergence, Ichimoku's three price-derived lines). **VWAP Band
+Reversion** is the first construction to weight the price level itself by
+volume: a rolling volume-weighted average price (`sum(close*volume) /
+sum(volume)` over `vwap_period` candles) with a deviation band sized from
+the volume-weighted variance of price around that VWAP (not a plain SMA +/-
+price std like Bollinger). The claim under test: a close far below a
+high-volume VWAP is a different signal than "N std below a price-only SMA"
+or "below a fixed N-period low," because heavy low-price volume pulls the
+anchor down with it — something no closed family can express. BUY when
+close crosses below the lower band (optionally gated on close above a
+SMA(100) trend filter); SELL on reversion to the VWAP mid-line, plus
+unchanged exchange-side 2%/4% SL/TP. Research-only class in
+`research/experiments/vwap_band_reversion.py`, not registered in
+`app/strategies/registry.py`, no production files touched.
+
+**Methodology.** Same train/test convention as every prior run: TRAIN
+2026-06-27 to 2026-09-26 (150d-60d ago), TEST 2026-09-26 to 2026-11-24
+(60d-0d ago, today's anchor), fees 7.5bps + slippage 4bps, $10,000/symbol,
+unchanged RiskConfig defaults (2%/4% SL/TP, daily-loss halt, drawdown
+kill switch, position caps — never loosened), all 8 universe symbols.
+Swept `vwap_period` {20, 50} x `band_mult` {1.5, 2.0, 2.5} x optional
+SMA(100) trend filter {off, on}, at 15m/1h/4h — 36 configs total.
+
+**Results — 0/36 cleared both OOS bars.** The config with the most
+trade-rich, decisive result on both sides: **4h, vwap_period=20,
+band_mult=1.5, no trend filter** — train PF **1.702** (73 trades, clears
+the 1.1 train bar) but test PF **0.547** (109 trades, decisively fails) —
+a clean train-clears/test-fails divergence, the same regime-luck signature
+that closed `mean_reversion` (chronic "test clears/train doesn't" there,
+mirrored here as "train clears/test doesn't"). A handful of other configs
+showed train PF > 1.1 (up to 2.845 at 15m, 2.45-2.45 at 1h/4h) but every
+one of those had either train or test trade count under the 30-trade
+anti-noise floor (as low as 0, 1, 2, 10, 14 trades) — the `trend_filter=100`
++ wide-band combination in particular starved entries to near zero on
+several symbol/timeframe pairs. Of the 36 configs, 14 had adequate sample
+on both sides for a decisive reject; the other 22 are noise (too thin to
+be either promising or a clean rejection).
+
+**Decision.** All 36 configs logged to `decisions.jsonl` (14 `reject`, 22
+`noise`; strategy `vwap_band_reversion`, full params + train/test metrics
++ `usd_pnl_100`/`usd_pnl_1000` from test-window `ret_pct` + rationale per
+the standard schema). `evolved_from: null` (first attempt at this family).
+`rotate_archive.py` run after appending — 269 active entries crossed the
+250-entry trigger, archived the oldest 149 (2026-08-20 to 2026-08-29) to
+`research/archive/decisions-2026-08-20_to_2026-08-29.jsonl.gz`, 120 kept
+active. Nothing lost. **VWAP Band Reversion is now closed** as the 10th
+strategy family, added to the DISTILLED LEARNINGS "Closed — strategy
+families" bullet and the "Where this programme stands" summary.
+
+**Memory hygiene (distilled-learnings condensation, not a size-triggered
+archive pass).** `RESEARCH_LOG.md` had grown to 84KB even with only 9 full
+run sections (under the 15-run archive floor), because the DCA
+self-correction narrative inside DISTILLED LEARNINGS had accumulated
+verbatim run-by-run blow-by-blow for every one of 19 checks since Run 32
+(Run 46 through Run 110) — each repeating the same small set of
+conclusions (sign not tied to regime, delta tracks dip-buy count) with new
+numbers. Condensed that block to state the conclusions once with the
+current numbers, rather than re-deriving them run-by-run — no conclusion
+dropped (the full per-run numbers remain in `decisions.jsonl` and the
+dated archives already linked from the condensed paragraph), just
+narrative repetition removed, matching how the top-of-file archive-index
+paragraph already summarizes Run 1-32. This alone cut the file from 84KB
+to 72KB before this run's own section was even added. Run section count
+is now 10 (104-113), still under the "keep last ~15" floor, so no
+run-section archive pass was needed this time.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-25 or later**, unchanged from Run 110 — the next run on
+or after that date should fire it. This run reconfirms fresh-idea research
+is still possible this deep into the programme (10 families now closed) —
+a possible next candidate if another new angle is wanted: a genuinely
+different EXIT mechanism for an already-rejected entry signal was closed
+in Run 22 as a non-signal lever, but a *volume-weighted* exit (e.g. trail
+behind VWAP rather than a fixed SL/TP) on one of the closed entry families
+has not been tried and would be a new combination, not a re-test, if ever
+revisited — low priority given how decisively entries alone have failed.
+The detached-HEAD-on-fresh-container pattern recurred again this fire
+(third+ occurrence); still unresolved at the container/orchestration
+level, outside this research programme's scope to fix, handled by the
+same recovery each time (fast-forward `main` to the detached commit).
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line,
+archive-index paragraph, "Where this programme stands", DISTILLED
+LEARNINGS strategy-families bullet, DCA self-correction narrative
+condensed, this section added). `research/decisions.jsonl` appended then
+rotated (233→269→120 active). `research/archive/decisions-2026-08-20_to_2026-08-29.jsonl.gz`
+added. `research/experiments/vwap_band_reversion.py` added (research-only,
+not registered). No files changed under `backend/app/` — no production
+code or default params touched; bar for auto-improve not met (decisive
 reject, no promising candidate).
