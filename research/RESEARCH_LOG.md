@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**114 runs, ~450+ configs, one standing positive finding (DCA dip-buy,
+**115 runs, ~470+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-103 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 104-113 are below in full. The
+archived" stub sections below); Run 104-115 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -110,9 +110,26 @@ mechanism** (Run 22: time-based forced exit + tighter SL/TP, never
 loosened): train PF never crossed 1 either sub-experiment — nothing to
 amplify. **Fee/cost-level** (Run 23): swept 7.5bps down to a theoretical
 0bps — 0/12 configs cleared both OOS bars at ANY tier, directly refuting
-"fees are the bottleneck." **Generalization: no mechanism layered on a
-PF<1 entry signal (size, exit timing, exit price, or cost) can manufacture
-edge that isn't there.**
+"fees are the bottleneck." **Volume-weighted trailing exit** (Run 115:
+trend_momentum's unchanged EMA20/50+RSI+MACD entry, VWAP-trailing-stop
+exit replacing the signal-side EMA-crossdown/RSI-blowoff/MACD-fade exit,
+exchange SL/TP untouched; 18 configs, 15m/1h/4h x vwap_period{20,50} x
+trail_mult{1.0,1.5,2.0}): 0/18 cleared both OOS bars. Notable new result:
+4/6 1h configs and all 6 4h configs pushed TRAIN PF to 0.96-1.25 — a new
+best-ever train PF for this entry family (previous record 0.99@15m,
+bare strategy) — but every 1h test PF collapsed to 0.15-0.23 (adequate
+sample, 58-70 trades), the most decisive train-clears/test-craters
+divergence yet recorded (test PF far below even mean_reversion's typical
+near-1.0 near-misses). 4h test was all-losing but too thin (10 trades) to
+be decisive alone. **Generalization confirmed for a volume-weighted exit
+specifically: a trailing exit tuned on volume-weighted price structure
+still only amplifies train-window regime luck — it does not create edge,
+and can make an already-marginal entry's apparent train-side quality
+*worse* evidence of overfitting, not better.** Closes the one
+concretely-named open thread from Run 113/114's distilled notes.
+**Generalization: no mechanism layered on a PF<1 entry signal (size, exit
+timing, exit price, exit price *source*, or cost) can manufacture edge
+that isn't there.**
 
 ### Closed — scope assumptions
 **Symbol universe** (Run 25): disjoint 8-symbol universe, 0/3 configs
@@ -239,7 +256,8 @@ distinct from all 9 prior families including Ichimoku Cloud closed Run
 112, a 3-lookback multi-line confluence construction), 5 signal-source categories, 3
 confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
-sizing, exit mechanism, cost level, symbol universe, TF range, historical
+sizing, exit mechanism (now including a volume-weighted trailing-stop
+variant, Run 115), cost level, symbol universe, TF range, historical
 era, and now DCA's dip-buy trend-conditioning — is closed with zero
 surviving candidates. Short-selling is no longer structurally out of reach
 (backtest-only `allow_short` capability added 2026-10-21) but has itself
@@ -1491,3 +1509,146 @@ distilled paragraph, this section). `research/decisions.jsonl` appended
 (1 entry). `research/experiments/dca_self_correction_run114.py` and
 `dca_self_correction_run114_output.json` added. No files changed in
 production code under `backend/app/`.
+
+## Run 115 — 2026-11-25, same-day fresh-idea run: volume-weighted trailing exit (new combination), decisive reject
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 114's commit (`356b287`), local `main` two commits behind — the same
+recurring detached-HEAD-on-fresh-container pattern flagged every run since
+Run 91. `git fetch origin main` confirmed `origin/main` already at
+`356b287` (Run 114's commit had landed correctly), so `git checkout main
+&& git merge --ff-only origin/main` fast-forwarded local `main` with no
+commits lost. Fresh `.venv` rebuilt from scratch; `pytest` 107/107 pass
+before any change. Security re-check: only the 3 legitimate FontAwesome
+`.woff2` files under `public/fonts/`, no `tasks.json` anywhere — Run 37
+incident remains remediated.
+
+**Question.** Run 114 (earlier today) set the next DCA self-correction
+actionable date to **2026-11-27 or later** — not due yet. Per the
+top-of-file mandate to rotate regions rather than fire a check early, and
+following the Run 112/113 precedent of picking a genuinely new angle in
+this gap, this run tests the one concretely-named open thread from Run
+113/114's own distilled notes: a **volume-weighted trailing-stop EXIT**
+layered on an already-closed entry signal — flagged as "not yet tried, a
+new combination" and explicitly distinguished from Run 22's closed
+exit-mechanism test (which only tried time-based forced exit + tighter
+SL/TP, both PRICE-only constructions).
+
+**Construction.** `research/experiments/trend_momentum_vwap_trail_exit.py`
+— `TrendMomentumVwapTrailExit`, a research-only strategy class (NOT
+registered, NOT touching `app/strategies/trend_momentum.py`). Entry is
+byte-for-byte identical to production `trend_momentum` defaults: EMA20
+crosses above EMA50, RSI in [50,70], MACD(12,26,9) histogram > 0,
+long-only. The only change: while long, the strategy's own exit signal
+(previously EMA cross-down / RSI≥78 blow-off / MACD rollover) is replaced
+by a volume-weighted VWAP trailing stop — exit when close drops below
+`VWAP - trail_mult * volume_weighted_std`, computed over a rolling
+`vwap_period`-bar window (same VWAP/band construction already
+characterized in Run 113's `VwapBandReversionStrategy`, here used as an
+EXIT rather than an entry trigger). Exchange-side SL/TP (2%/4%,
+`RiskConfig()` defaults) stays active and unchanged throughout — no risk
+control touched. Swept `vwap_period` {20, 50} x `trail_mult` {1.0, 1.5,
+2.0} across 15m/1h/4h (18 configs), train 2026-06-28→2026-09-26, test
+2026-09-26→2026-11-25 (anchor = today).
+
+**Results.**
+
+| tf | vwap_period | trail_mult | train PF | train n | test PF | test n |
+|---|---|---|---|---|---|---|
+| 15m | 20 | 1.0 | 0.376 | 63 | 0.333 | 99 |
+| 15m | 20 | 1.5 | 0.732 | 105 | 0.216 | 66 |
+| 15m | 20 | 2.0 | 0.625 | 132 | 0.368 | 81 |
+| 15m | 50 | 1.0 | 0.820 | 81 | 0.096 | 57 |
+| 15m | 50 | 1.5 | 0.770 | 85 | 0.079 | 61 |
+| 15m | 50 | 2.0 | 0.736 | 127 | 0.187 | 84 |
+| 1h | 20 | 1.0 | **1.111** | 103 | 0.149 | 70 |
+| 1h | 20 | 1.5 | 1.033 | 102 | 0.193 | 64 |
+| 1h | 20 | 2.0 | **1.211** | 116 | 0.226 | 60 |
+| 1h | 50 | 1.0 | 0.959 | 101 | 0.190 | 60 |
+| 1h | 50 | 1.5 | **1.182** | 105 | 0.228 | 58 |
+| 1h | 50 | 2.0 | **1.152** | 106 | 0.218 | 58 |
+| 4h | 20 | 1.0 | **1.248** | 36 | 0.0 | 10 |
+| 4h | 20 | 1.5 | **1.201** | 36 | 0.0 | 10 |
+| 4h | 20 | 2.0 | **1.135** | 36 | 0.0 | 10 |
+| 4h | 50 | 1.0 | **1.171** | 36 | 0.0 | 10 |
+| 4h | 50 | 1.5 | **1.135** | 36 | 0.0 | 10 |
+| 4h | 50 | 2.0 | **1.135** | 36 | 0.0 | 10 |
+
+**0/18 configs cleared both OOS bars (test PF > 1.1 AND >= 30 test
+trades).** 15m: train PF never exceeded 0.82 — decisive reject without
+even reaching a close test-side call, consistent with 15m always being
+trend_momentum's weakest TF. 1h: 4/6 configs pushed train PF to
+1.03-1.21 (bolded above) — a **new best-ever train-side PF for the
+trend_momentum entry family** (previous record was 0.99@15m for the bare
+strategy, per DISTILLED LEARNINGS) — but every 1h test PF collapsed to
+0.149-0.228 with adequate sample both sides (101-116 train trades,
+58-70 test trades, both well above the 30-trade floor). This is the
+sharpest train-clears/test-craters divergence recorded in the whole
+programme: mean_reversion's chronic version of this failure mode
+typically lands test PF just under 1.0 (a near-miss); here test PF sits
+4-6x below the 1.1 bar. 4h: all 6 configs cleared train PF 1.14-1.25 but
+test collapsed to all-losing (PF 0.0) on only 10 trades — too thin to be
+decisive alone (below the 30-trade floor), but directionally consistent
+with the 1h reject and not contradicting it.
+
+**Honest read.** The VWAP trailing exit does something interesting
+mechanically — it visibly raises the entry family's train-side PF beyond
+anything the bare strategy or Run 22's price-only exit variants ever
+achieved — but that apparent improvement is entirely a train-window
+artifact: it does not generalize even approximately, and in fact produces
+a *more* extreme divergence than any closed family's near-miss pattern.
+This is a clean, well-sampled confirmation that Run 22/23's
+generalization ("no mechanism layered on a PF<1 entry signal can
+manufacture edge") extends to volume-weighted exits specifically, not
+just price-only ones — closing the one concretely-named open thread left
+in Run 113/114's notes. No per-symbol breakdown was needed to explain the
+reject (both train and test are well-sampled and the divergence is stark
+on the aggregate alone, unlike the thinner near-misses in prior runs that
+required symbol-level disaggregation to resolve). Decision logged as
+`reject` (not `noise`) for the 1h/15m configs given adequate sample on
+both sides making this a decisive, not inconclusive, result; the 4h rows
+are logged the same way for consistency with the rest of the sweep since
+they're part of one coherent construction, with the thin-test caveat
+noted per-row in `decisions.jsonl`.
+
+**Auto-improve check.** Bar not met (decisive reject, no promising
+candidate) — no changes to `backend/app/` production code, no default
+params touched, no new tests needed. This experiment's class lives only
+in `research/experiments/`, never registered in
+`app/strategies/registry.py`.
+
+**Verification performed.** `cd backend && PYTHONPATH=.
+.venv/bin/python -m pytest -q` on the fresh rebuilt venv, run before any
+research code was added — **107 passed**, exit code 0 (unchanged, since
+no production file was touched this run — re-run after adding the
+research script would be redundant and was skipped per the "scope =
+code + default params + tests + research/" rule, confirmed no
+`backend/app/` diff via `git status`).
+
+**Memory hygiene.** `decisions.jsonl` grew from 121 to 139 active entries
+(18 appended), still well under the 250 rotation threshold —
+`rotate_archive.py` not needed this run. `RESEARCH_LOG.md` now holds 12
+full run sections (Run 104-115) — still under the "keep the last ~15"
+floor, so no run-section archive pass is due yet.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-27 or later**, unchanged from Run 114 — the next run on
+or after that date should fire it; a run before then should rotate to
+another region or defer with a brief no-op note. With the volume-weighted
+exit thread now closed, there is no remaining concretely-named open
+candidate in DISTILLED LEARNINGS — the next genuinely new angle (if the
+self-correction check isn't yet due) would need to be found fresh by
+re-reading the closed-axis list for a combination not yet covered; none
+is obviously left at the single-signal/single-mechanism level after 11
+strategy-family-or-mechanism tests this deep into the programme. The
+recurring detached-HEAD-on-fresh-container pattern (flagged every run
+since Run 91, recurred again this fire) remains harmless every time so
+far (`origin/main` has always already held every commit).
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, exit-
+mechanism/non-signal-lever DISTILLED LEARNINGS bullet, "Where this
+programme stands", this section). `research/decisions.jsonl` appended
+(18 entries, 121→139). `research/experiments/trend_momentum_vwap_trail_exit.py`
+added (research-only, not registered). No files changed under
+`backend/app/` — no production code or default params touched; bar for
+auto-improve not met (decisive reject, no promising candidate).
