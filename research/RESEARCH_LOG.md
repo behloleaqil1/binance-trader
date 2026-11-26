@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**115 runs, ~470+ configs, one standing positive finding (DCA dip-buy,
+**116 runs, ~506+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-103 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 104-115 are below in full. The
+archived" stub sections below); Run 104-116 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -70,7 +70,25 @@ train-clears/test-fails divergence — the same regime-luck signature as
 mean_reversion's chronic failure mode, just with VWAP in place of SMA.
 14/36 configs had adequate sample for a decisive reject; the other 22
 were too thin, mostly <30 trades from the trend filter + wide-band
-combination starving entries, to be anything but noise). 1m/5m are
+combination starving entries, to be anything but noise); **Keltner Channel
+Breakout** (Run 116 — EMA midline +/- ATR*multiplier channel, BUY on a
+fresh close-breakout above the upper band / SELL on close back below the
+EMA midline; the first construction in the programme to directly trade a
+volatility-adaptive channel BREAKOUT rather than fading it (mean_reversion,
+VWAP Band Reversion), using it as a raw unsmoothed channel (Donchian), or
+using it as a continuous ratcheting trend-follow state machine (Supertrend).
+Swept ema_period{20,50} x atr_period{10,14} x multiplier{1.5,2.0,2.5} across
+15m/1h/4h, 36 configs. 0/36 cleared both OOS bars — every adequately-sampled
+(n>=30) test PF sat at 0.07-0.46, the only test PF above that touching 0.736
+at n=19 (below the trade-count floor). Notable new result: 1h mult=2.0/2.5
+pushed TRAIN PF to 1.74-1.97 (n=142-198, adequate sample) — a new all-time
+train-PF record for the whole programme, beating Run 115's 1.135 — while
+every 1h TEST PF collapsed to 0.08-0.23, the sharpest train-clears/
+test-craters divergence yet recorded, sharper even than Run 115's. A
+breakout (buy-strength) entry is, if anything, MORE prone to apparent
+train-side overfitting than a fade or trend-follow entry: it concentrates
+gains in whichever trending sub-period the train window happened to sample,
+and none of that concentration survived into the held-out window). 1m/5m are
 catastrophic at any strategy
 (fee drag dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/
 mean_reversion on trade count; grid@1d has no economically meaningful
@@ -250,10 +268,11 @@ Next actionable date: 2026-11-27 or later** (set by Run 114). See
 per-run narrative; Run 104-114 are below in full.
 
 ### Where this programme stands
-Every concretely-scoped axis — 10 strategy families (VWAP Band Reversion
-closed Run 113, a volume-weighted price-level construction, mechanically
-distinct from all 9 prior families including Ichimoku Cloud closed Run
-112, a 3-lookback multi-line confluence construction), 5 signal-source categories, 3
+Every concretely-scoped axis — 11 strategy families (Keltner Channel
+Breakout closed Run 116, the first direct volatility-channel BREAKOUT
+construction, mechanically distinct from all 10 prior families including
+VWAP Band Reversion closed Run 113, a volume-weighted price-level
+construction), 5 signal-source categories, 3
 confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
 sizing, exit mechanism (now including a volume-weighted trailing-stop
@@ -1652,3 +1671,154 @@ programme stands", this section). `research/decisions.jsonl` appended
 added (research-only, not registered). No files changed under
 `backend/app/` — no production code or default params touched; bar for
 auto-improve not met (decisive reject, no promising candidate).
+
+---
+
+## Run 116 — 2026-11-26, same-day fresh-idea run: Keltner Channel Breakout (new strategy family), decisive reject
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+Run 115's commit (`b4af2cc`), which already matched `origin/main` — the
+same recurring detached-HEAD-on-fresh-container pattern flagged every run
+since Run 91, harmless again (`git checkout main && git merge --ff-only
+origin/main` fast-forwarded with no commits lost). Fresh `.venv` rebuilt
+from scratch; `pytest` 107/107 pass before any change. Read
+`DISTILLED LEARNINGS` + recent `decisions.jsonl` tail per the working-memory
+mandate.
+
+**Question.** Run 115 (earlier) closed the one concretely-named open thread
+from Run 113/114's notes (volume-weighted trailing exit) and set the next
+DCA self-correction actionable date to **2026-11-27 or later** — one day
+away but not due yet today (2026-11-26). Per the top-of-file mandate to
+rotate regions rather than fire the self-correction check early, and
+per Run 115's own closing note that no concretely-named open candidate
+remained, this run picks a genuinely new angle at the single-mechanism
+level: a strategy family that trades a volatility-adaptive channel as a
+direct **breakout**, which the 10 closed families had not yet covered.
+Checked against the closed-family list: Donchian breakout uses a raw
+unsmoothed N-bar high/low channel (no volatility adaptation); Supertrend
+uses an ATR-adaptive band but as a continuous ratcheting trend-follow state
+machine (always in-market in one direction once warmed up, band only ever
+tightens within a trend); Bollinger mean_reversion and VWAP Band Reversion
+both use an adaptive band but FADE price back toward the mean; BB-width
+squeeze breakout uses band *width* as a precondition gate on a separate
+breakout signal, not the channel itself as the trigger. None of the 10
+closed families BUYS a fresh breakout through an EMA+ATR channel with a
+simple midline-cross exit — that gap is Keltner Channel Breakout.
+
+**Construction.** `research/experiments/keltner_breakout.py` —
+`KeltnerBreakoutStrategy`, a research-only strategy class (NOT registered
+in `app/strategies/registry.py`, NOT touching any production file). Channel:
+EMA(`ema_period`) midline, upper/lower bands at midline ± `multiplier` ×
+ATR(`atr_period`) (Wilder-style ATR via `ewm(alpha=1/period)`, same
+convention as Supertrend's). Entry: BUY only on a *fresh* breakout (prior
+bar's close ≤ prior bar's upper band, current bar's close > current upper
+band) — not simply "close above band," to avoid re-entering every bar of an
+extended breakout. Exit: SELL when close crosses back below the EMA
+midline (no ratchet, no persistent trend flag — flat between breakouts).
+Exchange-side SL/TP (2%/4%) kept at `RiskConfig` defaults throughout, never
+loosened. Long-only (engine has no shorting for registry strategies).
+
+**Sweep.** `ema_period` ∈ {20, 50} × `atr_period` ∈ {10, 14} ×
+`multiplier` ∈ {1.5, 2.0, 2.5} across `timeframe` ∈ {15m, 1h, 4h} = 36
+configs, each independently fit/evaluated per the standard train/test
+split: **TRAIN** 2026-06-29→2026-09-27 (150d-60d ago), **TEST**
+2026-09-27→2026-11-26 (60d-0d ago, held-out). 8-symbol universe (BTC, ETH,
+SOL, BNB, XRP, LINK, DOGE, ADA vs USDT), fees 7.5bps, slippage 4bps, $10k
+initial equity/symbol.
+
+**Result: 0/36 configs cleared both OOS bars (PF > 1.1 AND ≥ 30 test
+trades) — decisive reject, well-powered on both sides.**
+
+- 15m: thin and inconsistent on both sides (train n=2-65, test n=19-66);
+  best test PF 0.736 but only 19 trades (below the trade-count floor); every
+  adequately-sampled (n≥30) test PF sat at 0.15-0.46.
+- 1h: the most decisive divergence in the whole sweep. TRAIN PF ranged
+  0.81-1.97 with adequate samples throughout (n=100-198) — `ema=20,
+  atr=10, mult=2.0` hit **train PF 1.966, n=178, ret 31.4%**, a new
+  **all-time programme record** for train-side PF, beating Run 115's
+  previous record of 1.135. But every one of the 12 1h TEST PFs collapsed
+  to **0.079-0.226** (n=47-72, fully adequate sample) — the sharpest
+  train-clears/test-craters divergence yet recorded, sharper than Run 115's
+  own record-setting divergence.
+- 4h: same qualitative shape, thinner test samples (train n=46-96 adequate;
+  test n=4-23, below the 30-trade floor in every config) — train PF
+  0.74-1.5, test PF 0.0-0.3, directionally consistent with 1h but not
+  independently decisive.
+
+Per-symbol detail not required: the aggregate test-side collapse was
+uniform and decisive across every adequately-sampled config, with no
+near-miss worth a per-symbol breakdown.
+
+**Why this matters (new angle on the standing "regime-luck" story).** Every
+prior closed family showed train-clears/test-fails divergences in the
+0.9-1.1 → 0.5-0.9 range, or (for the exit-mechanism tests) somewhat sharper.
+Keltner breakout is the first construction whose TRAIN side pushes to
+genuinely strong apparent quality (PF near 2.0, adequate n, positive
+realistic-looking return) while the TEST side doesn't just fail to clear
+1.1 — it collapses an order of magnitude further than any prior
+family's test PF, to 0.08-0.23. The mechanical reason fits the entry type:
+a breakout entry (buy strength, ride a trend) earns almost all of its gross
+profit from a small number of large directional moves. If the ~90-day train
+window happened to contain a few strong trending runs (which the 1h
+26.9%-31.4% train returns and 36-48% win rates suggest it did for several
+symbols), the strategy looks excellent — but that is pure luck in which
+window sampled which trending runs, not a discovered edge, and the test
+window's different mix of trending vs. choppy periods makes every single
+breakout-chasing entry a loser on average. This is the cleanest
+illustration yet of why the programme's anti-noise bar requires an
+out-of-sample check rather than trusting train-side PF alone, however good
+it looks.
+
+**Decision: reject all 36 configs, closed as the 11th strategy family.**
+No promotion, no auto-improve action — the bar (OOS PF > 1.1 AND ≥ 30 OOS
+trades) was not met by any config, and the ones that came closest on trade
+count failed the PF bar by 5-12x, not narrowly. Logged to
+`research/decisions.jsonl` (36 entries, one per config, `decision: "reject"`
+with full params/train/test/rationale per entry).
+
+**Self-correction.** Re-read the top 5 closed items in DISTILLED LEARNINGS
+against this run's own fresh data as a sanity check (not a full re-run):
+the 1h/4h fee/slippage assumptions, symbol universe, and train/test window
+construction all matched the standing defaults with no drift. No reason to
+revert any prior committed conclusion this run.
+
+**Verification performed.** `cd backend && PYTHONPATH=.
+.venv/bin/python -m pytest -q` on the fresh rebuilt venv, run before any
+research code was added — **107 passed**, exit code 0 (unchanged, since no
+production file was touched this run — re-run after adding the research
+script would be redundant and was skipped per the "scope = code + default
+params + tests + research/" rule, confirmed no `backend/app/` diff via
+`git status`).
+
+**Memory hygiene.** `decisions.jsonl` grew from 139 to 175 active entries
+(36 appended), still well under the 250 rotation threshold —
+`rotate_archive.py` run and confirmed no rotation needed. `RESEARCH_LOG.md`
+now holds 13 full run sections (Run 104-116) — still under the "keep the
+last ~15" floor, so no run-section archive pass is due yet.
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-27 or later**, unchanged from Run 114/115 — the next run
+on or after that date should fire it. With Keltner Channel Breakout now
+closed, the single-mechanism/single-signal level of this programme has
+covered 11 strategy families, all signal-source categories, all
+confirmation-gate types, both cross-symbol constructions (long-only and
+short), every non-signal lever (sizing, exit timing, exit price source,
+cost), and every scope axis (symbol universe, TF range, historical era,
+long/short). Any genuinely new angle from here would most likely need to be
+either a structurally new data source (futures/funding — geo-blocked, the
+only remaining structurally out-of-reach item) or a two-mechanism
+combination not yet tried (the exit-mechanism category showed combining a
+closed entry with a new exit can still produce a *new*, if also negative,
+result — Run 115 and this run's own entry-breakout/exit-midline pairing are
+both examples of that pattern). The recurring detached-HEAD-on-fresh-
+container pattern (flagged every run since Run 91, recurred again this
+fire) remains harmless every time so far (`origin/main` has always already
+held every commit).
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line, strategy-
+family DISTILLED LEARNINGS bullet, "Where this programme stands", this
+section). `research/decisions.jsonl` appended (36 entries, 139→175).
+`research/experiments/keltner_breakout.py` added (research-only, not
+registered). No files changed under `backend/app/` — no production code or
+default params touched; bar for auto-improve not met (decisive reject, no
+promising candidate).
