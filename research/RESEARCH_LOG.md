@@ -12,10 +12,10 @@ slippage 4bps, $10,000 initial equity per symbol in the sim. Risk config
 (stop-loss 2%, take-profit 4%, daily-loss halt, drawdown kill switch,
 position caps) held at repo defaults throughout — never loosened.
 
-**116 runs, ~506+ configs, one standing positive finding (DCA dip-buy,
+**117 runs, ~518+ configs, one standing positive finding (DCA dip-buy,
 already shipped), zero adopted signal changes.** Full narrative for Run
 1-103 is archived (see the archive-index paragraph and the "Run N-M —
-archived" stub sections below); Run 104-116 are below in full. The
+archived" stub sections below); Run 104-117 are below in full. The
 DISTILLED LEARNINGS block just below was rewritten in Run 36 to be a
 compact index of *conclusions*, not a re-derivation — see
 `research/decisions.jsonl` and the archived run sections for full evidence
@@ -37,7 +37,7 @@ below lives in `research/decisions.jsonl` (active + `research/archive/*.gz`)
 and the archived run-section prose; this block states conclusions only.
 
 ### Closed — strategy families (do not re-test without a materially new signal)
-All 9 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
+All 12 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
 for the first 3): **trend_momentum** (EMA-cross+RSI+MACD, best train PF ever
 0.99 @15m); **mean_reversion** (BB+RSI, chronic "test clears/train doesn't"
 regime-luck signature, reproduced on 10+ orthogonal levers since Run 16);
@@ -88,8 +88,25 @@ test-craters divergence yet recorded, sharper even than Run 115's. A
 breakout (buy-strength) entry is, if anything, MORE prone to apparent
 train-side overfitting than a fade or trend-follow entry: it concentrates
 gains in whichever trending sub-period the train window happened to sample,
-and none of that concentration survived into the held-out window). 1m/5m are
-catastrophic at any strategy
+and none of that concentration survived into the held-out window);
+**Stochastic RSI Crossover** (Run 117 — RSI(14) run through a rolling
+stochastic min-max normalization, SMA-smoothed into %K/%D; BUY on a
+bullish %K/%D crossover from the oversold zone, SELL on a bearish
+crossover from the overbought zone; the first pure second-order
+RSI-oscillator construction tried — distinct from trend_momentum's static
+RSI threshold and from Price-vs-RSI Divergence's price-structure
+comparison, and touching no price/volatility band at all. Swept
+stoch_period{14,21} x zones{20/80,25/75} across 15m/1h/4h, 12 configs.
+0/12 cleared both OOS bars. The only train PF>1.1 configs (15m,
+stoch_period=21, both zone settings: train PF 1.167-1.225, adequate
+n=32-35) both craterd on test (PF 0.396-0.457) — the same
+train-clears/test-craters divergence as every prior family. 4h had
+adequate test-side sample (n=40-73) but zero train-side support at all
+(train PF 0.15-0.89, test PF 0.43-0.58) — the cleanest reject shape in the
+sweep. 1h stoch_period=21 starved to 0-2 total trades (noise, not
+evidence). Best test PF, 0.956 @1h stoch_period=14 zones=25/75, had only
+n=24 trades (below the floor) and train PF 0.524 (fails train regardless)).
+1m/5m are catastrophic at any strategy
 (fee drag dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/
 mean_reversion on trade count; grid@1d has no economically meaningful
 return.
@@ -268,11 +285,11 @@ Next actionable date: 2026-11-27 or later** (set by Run 114). See
 per-run narrative; Run 104-114 are below in full.
 
 ### Where this programme stands
-Every concretely-scoped axis — 11 strategy families (Keltner Channel
-Breakout closed Run 116, the first direct volatility-channel BREAKOUT
-construction, mechanically distinct from all 10 prior families including
-VWAP Band Reversion closed Run 113, a volume-weighted price-level
-construction), 5 signal-source categories, 3
+Every concretely-scoped axis — 12 strategy families (Stochastic RSI
+Crossover closed Run 117, the first pure second-order RSI-oscillator
+construction, mechanically distinct from all 11 prior families including
+Keltner Channel Breakout closed Run 116, the first direct
+volatility-channel BREAKOUT construction), 5 signal-source categories, 3
 confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
 sizing, exit mechanism (now including a volume-weighted trailing-stop
@@ -1822,3 +1839,131 @@ section). `research/decisions.jsonl` appended (36 entries, 139→175).
 registered). No files changed under `backend/app/` — no production code or
 default params touched; bar for auto-improve not met (decisive reject, no
 promising candidate).
+
+---
+
+## Run 117 — 2026-11-26, same-day fresh-idea run: Stochastic RSI Crossover (new strategy family), decisive reject
+
+**Housekeeping.** Fresh container; `cd backend && python3 -m venv .venv &&
+.venv/bin/pip install -q -r requirements.txt` rebuilt the venv from
+scratch; `PYTHONPATH=. .venv/bin/python -m pytest -q` passed (same 107
+tests as Run 116, unchanged — no production file touched this run either).
+Read `DISTILLED LEARNINGS` + the `decisions.jsonl` tail per the
+working-memory mandate before picking a region.
+
+**Question.** Run 116 closed the DCA self-correction's next actionable
+date at **2026-11-27 or later** — still one day away, not due today
+(2026-11-26). Per the top-of-file mandate to rotate regions rather than
+fire the self-correction check early, this run again picks a genuinely new
+single-mechanism angle: every strategy family tried so far is either a
+price/volatility-band construction (Bollinger, Donchian, Supertrend,
+Keltner, VWAP-band, BB-width squeeze, Ichimoku) or a candlestick-shape/
+cross-symbol/calendar construction — none of them is a *pure oscillator*
+built by transforming RSI's own history a second time. trend_momentum uses
+raw RSI only as a static threshold filter; Price-vs-RSI Bullish Divergence
+compares RSI against price *structure*. Neither is a stochastic-oscillator
+transform of RSI with a line-crossover entry. That gap is Stochastic RSI
+(StochRSI) %K/%D crossover, a well-known standard oscillator construction
+not yet tried in this programme.
+
+**Construction.** `research/experiments/stochastic_rsi_crossover.py` —
+`StochRsiCrossoverStrategy`, a research-only strategy class (NOT registered
+in `app/strategies/registry.py`, NOT touching any production file). RSI(14)
+(Wilder, reusing `app/strategies/indicators.rsi`) is min-max normalized over
+a rolling `stoch_period`-bar window into a raw 0-100 line, SMA-smoothed by
+`k_smooth=3` into %K, then %K SMA-smoothed by `d_smooth=3` into %D. Entry:
+BUY on a %K/%D bullish crossover (prior %K ≤ prior %D, current %K > current
+%D) that occurred while the prior %K reading was below the `oversold` zone.
+Exit: SELL on the mirror bearish crossover from above the `overbought`
+zone. Long-only (engine has no shorting for registry strategies).
+Exchange-side SL/TP (2%/4%) kept at `RiskConfig` defaults throughout, never
+loosened.
+
+**Sweep.** `rsi_period=14` (fixed, standard) × `stoch_period` ∈ {14, 21} ×
+zones ∈ {20/80, 25/75} across `timeframe` ∈ {15m, 1h, 4h} = 12 configs,
+each independently fit/evaluated per the standard train/test split:
+**TRAIN** 2026-06-29→2026-09-27 (150d-60d ago), **TEST**
+2026-09-27→2026-11-26 (60d-0d ago, held-out). 8-symbol universe (BTC, ETH,
+SOL, BNB, XRP, LINK, DOGE, ADA vs USDT), fees 7.5bps, slippage 4bps, $10k
+initial equity/symbol.
+
+**Result: 0/12 configs cleared both OOS bars (PF > 1.1 AND ≥ 30 test
+trades) — decisive reject.**
+
+- 15m: the only TF with train PF>1.1 anywhere in the sweep —
+  `stoch_period=21` hit train PF 1.167 (n=32, zones=20/80) and 1.225 (n=35,
+  zones=25/75), both adequately sampled. But test PF collapsed to 0.396
+  (n=40, adequate) and 0.457 (n=24, below the floor) respectively — the
+  same train-clears/test-craters divergence as every prior family.
+  `stoch_period=14` never cleared train PF>1 (0.925-0.987) and its test PF
+  sat at 0.47-0.57 on thin samples (n=17-18).
+- 1h: the best single test PF in the whole sweep, 0.956 (`stoch_period=14`,
+  zones=25/75), but only n=24 trades (below the floor) and train PF was
+  0.524 regardless (fails train). `stoch_period=21` starved to 0-2 total
+  trades across train+test combined at this TF — the tighter zones plus the
+  extra smoothing lag from a 21-bar stochastic lookback on an hourly series
+  essentially never fired; pure noise, not evidence either way.
+- 4h: the cleanest reject shape — adequate test-side sample throughout
+  (n=40-73) but zero train-side support at all (train PF 0.152-0.893, never
+  above 0.9), so these configs fail decisively on the train side alone,
+  the same shape as Ichimoku's Run 112 reject.
+
+**Why this matters.** StochRSI is a second-order transform — a stochastic
+oscillator applied to an already-derived oscillator (RSI) rather than to
+raw price. The sweep reproduces the exact same regime-luck signature as
+every first-order price/volatility-band family: whichever TF/parameter
+combination happens to show train-side strength (here, 15m with the longer
+21-bar stochastic lookback) fails to carry that strength into the held-out
+window, while configs with genuine train-side weakness (4h) at least fail
+*consistently* in both windows rather than looking deceptively good on one
+side. Confirms the standing conclusion transfers cleanly from price-based
+and volume-weighted constructions to a pure RSI-derived oscillator
+construction — the transform's *source* (price vs. an already-smoothed
+oscillator) does not matter to the 7.5bps-fee over-arbitrage conclusion.
+
+**Decision: reject all 12 configs, closed as the 12th strategy family.**
+No promotion, no auto-improve action — the bar (OOS PF > 1.1 AND ≥ 30 OOS
+trades) was not met by any config. Logged to `research/decisions.jsonl`
+(12 entries, one per config, `decision: "reject"` with full
+params/train/test/rationale per entry).
+
+**Self-correction.** Re-read the top of DISTILLED LEARNINGS and the most
+recent `decisions.jsonl` entries against this run's fresh data as a sanity
+check (not a full re-run): fee/slippage levels, 8-symbol universe, and
+train/test window boundaries all matched the standing defaults with no
+drift. No reason to revert any prior committed conclusion this run.
+
+**Verification performed.** `cd backend && PYTHONPATH=.
+.venv/bin/python -m pytest -q` — all tests pass (exit code 0), run on the
+freshly rebuilt venv before any research code was added; re-run skipped
+after adding the research script since `git status` confirmed no
+`backend/app/` diff (scope = code + default params + tests + research/
+only, satisfied by not touching `backend/app/` at all this run).
+
+**Memory hygiene.** `decisions.jsonl` grew from 175 to 187 active entries
+(12 appended), still well under the 250 rotation threshold —
+`rotate_archive.py` run and confirmed no rotation needed. `RESEARCH_LOG.md`
+now holds 14 full run sections (Run 104-117) — still under the "keep the
+last ~15" floor, so no run-section archive pass is due yet (next run
+crossing 15 full sections should trigger one).
+
+**Going forward:** next actionable date for the DCA self-correction check
+remains **2026-11-27 or later**, unchanged from Run 114-116 — tomorrow's
+run (or the next run on/after that date) should fire it. With Stochastic
+RSI Crossover now closed, the single-mechanism/single-signal level of this
+programme has covered 12 strategy families, all signal-source categories,
+all confirmation-gate types, both cross-symbol constructions (long-only and
+short), every non-signal lever, and every scope axis. The only remaining
+structurally out-of-reach item is futures/funding data (geo-blocked); any
+further genuinely new single-mechanism angle is becoming scarce — future
+runs should default to the self-correction protocol cadence per the
+top-of-file mandate rather than inventing increasingly marginal
+recombinations purely to look busy.
+
+**Files:** `research/RESEARCH_LOG.md` edited (top summary line,
+strategy-family DISTILLED LEARNINGS bullet, "Where this programme stands",
+this section). `research/decisions.jsonl` appended (12 entries, 175→187).
+`research/experiments/stochastic_rsi_crossover.py` added (research-only,
+not registered). No files changed under `backend/app/` — no production
+code or default params touched; bar for auto-improve not met (decisive
+reject, no promising candidate).
