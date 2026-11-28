@@ -37,7 +37,7 @@ below lives in `research/decisions.jsonl` (active + `research/archive/*.gz`)
 and the archived run-section prose; this block states conclusions only.
 
 ### Closed — strategy families (do not re-test without a materially new signal)
-All 12 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
+All 13 tried are rejected at every TF swept (mostly 1h/4h, full 1m-4h sweep
 for the first 3): **trend_momentum** (EMA-cross+RSI+MACD, best train PF ever
 0.99 @15m); **mean_reversion** (BB+RSI, chronic "test clears/train doesn't"
 regime-luck signature, reproduced on 10+ orthogonal levers since Run 16);
@@ -105,8 +105,28 @@ adequate test-side sample (n=40-73) but zero train-side support at all
 (train PF 0.15-0.89, test PF 0.43-0.58) — the cleanest reject shape in the
 sweep. 1h stoch_period=21 starved to 0-2 total trades (noise, not
 evidence). Best test PF, 0.956 @1h stoch_period=14 zones=25/75, had only
-n=24 trades (below the floor) and train PF 0.524 (fails train regardless)).
-1m/5m are catastrophic at any strategy
+n=24 trades (below the floor) and train PF 0.524 (fails train regardless));
+**Parabolic SAR Stop-and-Reverse** (Run 120 — Wilder's SAR dot with
+acceleration-factor path memory: AF starts at af_start, grows by af_step on
+every new extreme the dot's side sets, capped at af_max, dot only ever
+moves toward price until touched and flips; BUY on flip-to-bullish, SELL on
+flip-to-bearish, long-only; the first stateful stop-and-reverse
+construction with accelerating path memory tried — distinct from
+Supertrend's fixed ATR*multiplier band (no acceleration concept), Donchian's
+stateless rolling window (no trend-duration memory), every static/
+EMA-anchored band (Keltner/VWAP/Bollinger/Ichimoku), and every
+close-only/RSI-derived family (none use high/low extreme points directly).
+Swept af_start{0.01,0.02} x af_step{0.01,0.02} x af_max{0.1,0.2} across
+15m/1h/4h, 24 configs. 0/24 cleared both OOS bars — in fact 0/24 even
+cleared the train-side PF>1.1 bar at an adequate sample, matching
+Ichimoku's clean train-side-only rejection shape. Best train PF only 0.976
+(1h, af_start=0.01/af_step=0.01/af_max=0.2, n=81 adequate) with test PF
+collapsing to 0.146 (n=50); several af_start=0.02 / af_step=0.02 configs
+starved to 0-6 train trades (dot tracked price too tightly for a flip to
+register — noise, not evidence). One 15m config (af_start=0.02,
+af_step=0.01, af_max=0.1) showed test PF 1.022 but n=29 (one short of the
+30-trade floor) against a train side of n=6 — not a near-miss worth
+re-sweeping). 1m/5m are catastrophic at any strategy
 (fee drag dominates, PF 0.01-0.09 @1m). 1d starves trend_momentum/
 mean_reversion on trade count; grid@1d has no economically meaningful
 return.
@@ -290,11 +310,13 @@ date: 2026-11-29 or later** (set by Run 118). See
 per-run narrative; Run 104-114 are below in full.
 
 ### Where this programme stands
-Every concretely-scoped axis — 12 strategy families (Stochastic RSI
-Crossover closed Run 117, the first pure second-order RSI-oscillator
-construction, mechanically distinct from all 11 prior families including
-Keltner Channel Breakout closed Run 116, the first direct
-volatility-channel BREAKOUT construction), 5 signal-source categories, 3
+Every concretely-scoped axis — 13 strategy families (Parabolic SAR
+Stop-and-Reverse closed Run 120, the first stateful accelerating
+trailing-stop construction, mechanically distinct from all 12 prior
+families including Stochastic RSI Crossover closed Run 117, the first pure
+second-order RSI-oscillator construction, and Keltner Channel Breakout
+closed Run 116, the first direct volatility-channel BREAKOUT
+construction), 5 signal-source categories, 3
 confirmation gates (+ 1 stacked combo), 2 cross-symbol
 constructions (now both re-tested with real shorting too, per Run 65/66),
 sizing, exit mechanism (now including a volume-weighted trailing-stop
@@ -543,163 +565,7 @@ See `research/archive/log-2026-11-14_to_2026-11-17_run98-103.md.gz` (before-sche
 
 ---
 
-## Run 104 — 2026-11-18, on-schedule DCA self-correction re-check
-
-**Housekeeping.** Fresh container; `git status` clean, `main` already at
-Run 103's commit (`2459ec1`), matching `origin/main` — no detached-HEAD
-recovery needed this fire (first clean start since Run 91 flagged the
-pattern). Backend venv rebuilt from scratch (`python3 -m venv .venv &&
-.venv/bin/pip install -q -r requirements.txt`).
-
-**Question.** Run 100 (2026-11-16) set the next actionable date for the
-DCA self-correction re-check to **2026-11-18 or later**; Run 101/102/103
-(same/following days, all before that date) deferred. Today is
-2026-11-18, exactly on the actionable date — the bar is met, so this run
-performs the genuine re-check.
-
-**Method.** Same standing protocol (Run 31 onward): DCA dip-buy ON vs OFF
-(`dip_threshold_pct=5.0, dip_multiplier=1.5`, shipped default), 8-symbol
-universe, 1h candles, capital-normalized avg ROI across 3 non-overlapping
-windows shifted +2 days forward vs Run 100 (older 2026-03-23..2026-06-21,
-train 2026-06-21..2026-09-19, test 2026-09-19..2026-11-18, anchor=today).
-Script: `research/experiments/dca_self_correction_run104.py` (copied from
-Run 100's script, dates shifted), raw output in
-`dca_self_correction_run104_output.json`.
-
-**Result.**
-- **Older window** (decline, OFF avg ROI -13.7158%): delta **+0.1585pp**,
-  8/8 symbols favoring ON, 27 dip-buys fired — IDENTICAL dip-buy count to
-  Run 100's older window (27), and the delta tracked essentially flat vs
-  Run 100's +0.1644pp (slightly down) — a sixth consecutive confirmation
-  (Run 88, 92, 96, 100, 104) of the dip-buy-count mechanism established in
-  Run 88: same count -> near-identical delta, not a runaway trend.
-- **Train window** (rally, OFF +26.9009%): delta **-0.0545pp** (small
-  negative) — a SIXTH consecutive negative-in-rally reading (Run 86
-  -0.0143, 88 -0.0133, 92 -0.0400, 96 -0.0366, 100 -0.0535, 104 -0.0545),
-  now a firmly established pattern replacing the earlier Run 72/76/78/82
-  positive-in-rally run, reinforcing Run 60's point that sign is not
-  reliably tied to regime label alone.
-- **Test window** (decline, OFF -23.4024%, second-deepest OOS decline
-  sampled in this protocol after Run 100's -24.82%): delta **+0.1993pp**
-  (POSITIVE), 32 dip-buys fired — IDENTICAL dip-buy count to Run 100's
-  test window (32), and the delta tracked essentially flat vs Run 100's
-  +0.2179pp (slightly down, not a new high-water mark) — directly
-  confirming Run 100's own observation that the test-window delta tracks
-  dip-buy count rather than decline depth or regime label alone. This is
-  now a FIFTH consecutive positive-in-decline test-window reading (Run 88
-  +0.0389, 92 +0.0595, 96 +0.0442, 100 +0.2179, 104 +0.1993), extending the
-  post-Run-86 mirror-image pattern vs the original seven-run negative
-  streak (Run 64-86).
-
-**Decision: noise, no reversal.** Every delta still favors or is
-trivially against ON; both previously-growing high-water-mark readings
-(older window, test window) plateaued or ticked down exactly as the
-dip-buy-count mechanism predicts (same dip count this run as Run 100 in
-both windows); all magnitudes stay within the already-described
-sub-0.22pp band — a one-time, non-compounding fraction of invested
-capital. The bar for a revert (a clear, economically meaningful,
-compounding reversal) is not met. **Shipped default
-(`dip_threshold_pct=5.0, dip_multiplier=1.5`) kept unchanged.**
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on the fresh rebuilt venv — **107 passed** (72+35 dots
-across two progress lines), exit code 0 — a thirty-seventh independent
-fresh-container rebuild confirming the same count. Security re-check: no
-`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
-`eval(` under `public/`, every `public/fonts/*` file a legitimate
-FontAwesome asset — Run 37 incident remains remediated. No production
-code touched beyond the research script.
-
-**Memory hygiene.** `decisions.jsonl` now at 221 active entries (+1 this
-run), still under the 250 rotation threshold — `rotate_archive.py` not
-needed. `RESEARCH_LOG.md` now holds 13 full run sections (Run 92-104) —
-over the ~40KB soft guideline but still below the "keep the last ~15
-runs" floor from the top-of-file memory-management rule — holding off
-the archive pass again this run; it should be revisited once active
-sections reach ~15 (i.e. after Run 108 or so) or the file keeps growing
-materially faster than that.
-
-**Going forward:** next actionable date for the DCA self-correction check
-is **2026-11-20 or later** (2+ days past today's anchor). The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. Re-read the DISTILLED LEARNINGS
-block end to end this run — every concretely-scoped strategy/signal/gate/
-construction axis remains closed; futures/funding data remains
-geo-blocked (unchanged, confirmed Run 31); `backend/app/strategies/` and
-`registry.py` still have exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-103. No new axis to test honestly without recombining already-closed
-items.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, DISTILLED
-LEARNINGS DCA paragraph, this section). `research/decisions.jsonl` (+1
-entry). `research/experiments/dca_self_correction_run104.py` (new,
-research-only, copied from Run 100's script with window dates shifted),
-`research/experiments/dca_self_correction_run104_output.json` (new, raw
-results). No files changed in `backend/`.
-
----
-
-## Run 105 — 2026-11-18, same-day deferred no-op, 2nd fire; detached-HEAD recovery
-
-**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
-Run 104's commit (`c8f4a9d`), with local `main` stale at Run 103's commit
-(`2459ec1`, 1 commit behind) — the same recurring detached-HEAD-on-fresh-
-container pattern flagged every run since Run 91, except Run 104 which
-started clean. `git fetch origin main` confirmed `origin/main` already at
-`c8f4a9d` (Run 104's commit had already landed there), so `git checkout
-main` + `git merge --ff-only c8f4a9d` resolved it cleanly, no commits
-lost; `git push origin main` reported "Everything up-to-date" (origin
-already held it). Backend venv rebuilt from scratch (`rm -rf .venv &&
-python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt`),
-no behavior change.
-
-**Question.** Run 104 (2026-11-18, earlier today, 02:09 UTC) performed the
-on-schedule DCA self-correction re-check and set the next actionable date
-to **2026-11-20 or later**. This fire is the same day, ~12 hours later
-(14:05 UTC) — deferring again rather than re-running the check with
-windows that would barely have shifted since this morning.
-
-**Fresh-idea check.** Re-listed `backend/app/strategies/` and
-`registry.py` — still exactly the same 4 registered strategy classes
-(`dca`, `grid`, `mean_reversion`, `trend_momentum`), unchanged since Run
-76-104. Re-read the DISTILLED LEARNINGS block end to end — every
-concretely-scoped strategy/signal/gate/construction axis remains closed;
-futures/funding data remains geo-blocked (unchanged, confirmed Run 31).
-No new axis to test honestly without recombining already-closed items.
-
-**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
--m pytest -q` on a fresh rebuilt venv — **107 passed** (72+35 dots across
-two progress lines), exit code 0 — a thirty-eighth independent fresh-
-container rebuild confirming the same count. Security re-check: no
-`.vscode/` directory anywhere in the repo, no `tasks.json`, no stray
-`eval(` under `public/`, every `public/fonts/*` file a legitimate
-FontAwesome asset — Run 37 incident remains remediated. No production
-code touched; no decision logged to `decisions.jsonl` (no backtest run
-this fire, consistent with every prior same-day/before-schedule deferred
-no-op).
-
-**Memory hygiene.** `decisions.jsonl` unchanged at 221 active entries,
-well under the 250 rotation threshold — `rotate_archive.py` not needed
-this fire. `RESEARCH_LOG.md` now holds 14 full run sections (Run 92-105)
-— over the ~40KB soft guideline but still at the "keep the last ~15 runs"
-floor from the top-of-file memory-management rule — holding off the
-archive pass again this run; it should be revisited next run or the one
-after (Run 106/107), once active sections reach or pass ~15.
-
-**Going forward:** next actionable date for the DCA self-correction check
-remains **2026-11-20 or later**, unchanged from Run 104. The next run
-should default to the self-correction protocol once due, or defer again
-with a brief no-op note if fired earlier. The recurring detached-HEAD-on-
-fresh-container pattern (flagged Run 91, recurred most runs since,
-including this one) remains harmless every time so far (`origin/main` has
-always already held every commit) — continuing to flag it rather than
-treat it as resolved.
-
-**Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
-section only). No other files changed; no files changed in `backend/`.
-
----
+## Run 104-105 — archived (see `research/archive/log-2026-11-18_run104-105.md.gz`)
 
 ## Run 106 — 2026-11-19, before-schedule deferred no-op; detached-HEAD recovery
 
@@ -2172,3 +2038,100 @@ rather than treat it as resolved.
 
 **Files:** `research/RESEARCH_LOG.md` edited (top summary line, this
 section only). No other files changed; no files changed in `backend/`.
+
+## Run 120 — 2026-11-28, new strategy family (Parabolic SAR Stop-and-Reverse), decisive reject; archive pass
+
+**Housekeeping.** Fresh container; `git status` found `HEAD` detached at
+this container's checkout commit (`119a265`, Run 119), with local `main`
+stale eight commits behind at Run 111's commit (`7c8abef`) — the same
+recurring detached-HEAD-on-fresh-container pattern flagged every run since
+Run 91. `git fetch origin main` confirmed `origin/main` already at
+`119a265` (Run 112-119's commits had all landed correctly — purely a
+stale local-branch-ref artifact, not a lost push), so `git branch -f main
+HEAD && git checkout main` fast-forwarded local `main` eight commits with
+nothing lost, then `git push` confirmed already up to date. Backend venv
+rebuilt from scratch (`python3 -m venv .venv && .venv/bin/pip install -q
+-r requirements.txt`), no behavior change.
+
+**Research.** Next DCA self-correction actionable date is 2026-11-29 (set
+by Run 118) — one day away, not yet due. Per the standing protocol (Run
+115/116/117's precedent of picking a new strategy family before the
+actionable date rather than re-running early), this run tested a new
+single-mechanism strategy family: **Parabolic SAR (Stop-and-Reverse)**,
+the 13th mechanically distinct family in the programme. Implemented
+`research/experiments/parabolic_sar.py`: Wilder's classic SAR — an
+acceleration factor (AF) starting at `af_start`, incrementing by `af_step`
+on every new extreme price the current side sets, capped at `af_max`; the
+SAR dot only ever moves toward price, never backward, until price touches
+it and the bias flips. BUY on a flip to bullish bias (dot crosses below
+price), SELL on a flip to bearish bias, long-only (no shorting on bearish
+bias). Exchange-side 2%/4% SL/TP unchanged. Mechanically distinct from all
+12 prior families (see full rationale in DISTILLED LEARNINGS above and in
+`decisions.jsonl`) — principally, it is the first family with genuine path
+memory (the dot's extreme-price tracking persists and the pull-rate
+accelerates for as long as the trend holds), vs Supertrend's fixed
+ATR*multiplier band or Donchian's memoryless rolling window.
+
+Swept `af_start{0.01,0.02} x af_step{0.01,0.02} x af_max{0.1,0.2}` across
+15m/1h/4h (24 configs), symbols BTC/ETH/SOL/BNB/XRP/LINK/DOGE/ADA vs USDT,
+fees 7.5bps + slippage 4bps, train window 2026-06-30→2026-09-29 (150d-60d
+ago), held-out test window 2026-09-29→2026-11-28 (60d-0d ago, today's
+anchor). **0/24 configs cleared both OOS bars (test PF>1.1 AND >=30 test
+trades).** In fact 0/24 even cleared the train-side PF>1.1 bar at an
+adequate sample — the cleanest reject shape in the programme, matching
+Ichimoku's (Run 112) train-side-only rejection. Best train PF was only
+0.976 (1h, af_start=0.01/af_step=0.01/af_max=0.2, n=81 adequate sample),
+and that config's test PF collapsed further to 0.146 (n=50) — the familiar
+train-clears(barely)-fails-anyway, test-craters-further pattern. Several
+configs (af_start=0.02 combined with either af_step, and 15m af_step=0.02
+combos) starved to 0-6 total train trades: the AF/AF-start combination made
+the dot track price too tightly for a flip to ever register on that
+symbol set — noise, not evidence either way. The one numerically
+tempting result, 15m af_start=0.02/af_step=0.01/af_max=0.1, showed test PF
+1.022 but only n=29 trades (one short of the 30-trade floor) against a
+train side of just n=6 trades (too thin to mean anything) — not a
+near-miss worth a follow-up sweep, just a thin-sample fluctuation.
+**Decision: reject all 24 configs, close the family.** All 24 configs
+logged individually to `decisions.jsonl` (full params/train/test per
+config); DISTILLED LEARNINGS updated (strategy-family count 12→13, new
+bullet added, "Where this programme stands" summary count updated).
+
+**Verification performed.** `cd backend && PYTHONPATH=. .venv/bin/python
+-m pytest` on the fresh rebuilt venv — **107 passed**, exit code 0 (no
+production code touched this run — the new strategy class lives only in
+`research/experiments/parabolic_sar.py`, standalone and unregistered, per
+every prior strategy-family run's pattern). Security re-check: only the
+three legitimate FontAwesome files under `public/fonts/`
+(`fa-solid-900.woff2`, `fa-brands-400.woff2`, `fa-regular-400.woff2`), no
+`fa-solid-500.woff2`, no `.vscode/tasks.json` anywhere in the repo — Run 37
+incident remains remediated.
+
+**Memory hygiene.** Appended 24 entries to `decisions.jsonl` (188→212
+active entries, still under the 250 rotation trigger — `rotate_archive.py`
+run anyway per protocol, confirmed no-op at 212<=250). Archive pass
+performed as flagged by Run 119: `RESEARCH_LOG.md` held 16 full run
+sections (Run 104-119), one over the "keep the last ~15" floor; moved
+Run 104-105 (the two oldest) into `research/archive/log-2026-11-18_run104-105.md.gz`
+(gzip, committed), replaced with a one-line archived-pointer header,
+leaving Run 106-120 (15 sections) active after this run's own section is
+added.
+
+**$ impact.** Reject decision — no change to shipped defaults, no $
+impact on $100 or $1000 principal from this run's tested configs (all
+closed, none adopted).
+
+**Verdict:** Null result, well-recorded. 13th strategy family closed with
+zero surviving candidates, reinforcing the "over-arbitraged at 7.5bps"
+headline on the cleanest-possible reject shape (no train-side support at
+all for any adequately-sampled config). Next scheduled action: the DCA
+self-correction re-check becomes actionable 2026-11-29 — the very next
+calendar day — so the following run should perform that check if it fires
+on or after that date, or pick a 14th fresh strategy idea if it fires
+before (per the same before-the-actionable-date precedent this run
+itself followed).
+
+**Files:** `research/experiments/parabolic_sar.py` (new, research-only,
+not registered); `research/decisions.jsonl` (+24 entries); `research/
+RESEARCH_LOG.md` (DISTILLED LEARNINGS updated, archive pass, this
+section); `research/archive/log-2026-11-18_run104-105.md.gz` (new archive
+file). No files changed in `backend/app/` (production code untouched).
